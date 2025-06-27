@@ -1,0 +1,191 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
+
+@layer base {
+  :root {
+    --background: 218 27% 5%;
+    --foreground: 0 0% 95%;
+
+    --card: 218 27% 8%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 218 27% 8%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 195 100% 50%;
+    --primary-foreground: 218 27% 5%;
+
+    --secondary: 271 81% 56%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 218 27% 15%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 195 100% 50%;
+    --accent-foreground: 218 27% 5%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 218 27% 20%;
+    --input: 218 27% 15%;
+    --ring: 195 100% 50%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 218 27% 5%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 195 100% 50%;
+    --sidebar-primary-foreground: 218 27% 5%;
+    --sidebar-accent: 218 27% 15%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 218 27% 20%;
+    --sidebar-ring: 195 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+    height: 100%;
+  }
+
+  body {
+    @apply bg-cyber-darker text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background: linear-gradient(135deg, #0A0A0F 0%, #1a1a2e 50%, #16213e 100%);
+    min-height: 100vh;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+  }
+
+  #root {
+    min-height: 100vh;
+    overscroll-behavior: none;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold;
+  }
+
+  /* 사이버펑크 스타일 스크롤바 - 강화된 버전 */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #00C8FF 0%, #8B5CF6 100%);
+    border-radius: 3px;
+    box-shadow: 0 0 8px rgba(0, 200, 255, 0.4);
+    border: 1px solid rgba(0, 200, 255, 0.2);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #00C8FF 0%, #A855F7 100%);
+    box-shadow: 0 0 12px rgba(0, 200, 255, 0.6);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Firefox 스크롤바 스타일 - 개선된 버전 */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #00C8FF rgba(0, 0, 0, 0.1);
+  }
+
+  /* 코드 에디터 전용 스크롤바 */
+  textarea::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  textarea::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+  }
+
+  textarea::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #00C8FF 0%, #8B5CF6 100%);
+    border-radius: 4px;
+    box-shadow: 0 0 6px rgba(0, 200, 255, 0.3);
+  }
+
+  textarea::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #00C8FF 0%, #A855F7 100%);
+    box-shadow: 0 0 10px rgba(0, 200, 255, 0.5);
+  }
+}
+
+@layer components {
+  .cyber-card {
+    @apply bg-card/50 backdrop-blur-sm border border-cyber-blue/20 rounded-lg;
+    background: linear-gradient(135deg, rgba(10, 10, 15, 0.8) 0%, rgba(26, 26, 46, 0.6) 100%);
+    box-shadow: 0 8px 32px rgba(0, 200, 255, 0.1);
+  }
+
+  .cyber-button {
+    @apply relative overflow-hidden bg-gradient-to-r from-cyber-blue to-cyber-purple text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg;
+    box-shadow: 0 0 20px rgba(0, 200, 255, 0.3);
+  }
+
+  .cyber-button:hover {
+    box-shadow: 0 0 30px rgba(0, 200, 255, 0.5);
+  }
+
+  .cyber-button::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full transition-transform duration-700;
+  }
+
+  .cyber-button:hover::before {
+    @apply translate-x-full;
+  }
+
+  .neon-text {
+    @apply text-cyber-blue;
+  }
+
+  .glow-border {
+    @apply border border-cyber-blue/50;
+    box-shadow: 0 0 15px rgba(0, 200, 255, 0.3);
+  }
+
+  .cyber-grid {
+    background-image: 
+      linear-gradient(rgba(0, 200, 255, 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 200, 255, 0.1) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* 새로운 애니메이션 추가 */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+}
