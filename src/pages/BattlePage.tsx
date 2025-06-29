@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useUser } from '@/context/UserContext';
 import CyberCard from '@/components/CyberCard';
 import CyberButton from '@/components/CyberButton';
 import { Clock, Play, Send, Monitor, Flag, AlertTriangle, HelpCircle } from 'lucide-react';
@@ -8,9 +9,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 const BattlePage = () => {
   const navigate = useNavigate();
+  const { user } = useUser();
+  const [searchParams] = useSearchParams();
+  const gameId = searchParams.get('gameId');
+  const wsRef = useRef<WebSocket | null>(null);
   const [timeLeft, setTimeLeft] = useState(930);
   const [code, setCode] = useState('');
-  const [chatMessages, setChatMessages] = useState([]); // 빈 배열로 변경
+  const [chatMessages, setChatMessages] = useState<{ user: string; message: string }[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [executionResult, setExecutionResult] = useState('실행 결과가 여기에 표시됩니다.');
   const [showHint, setShowHint] = useState(false);
@@ -32,6 +37,38 @@ const BattlePage = () => {
     },
     hint: ['수학', '약수', '반복문', '완전탐색']
   };
+
+   // 웹소켓 연결
+   useEffect(() => {
+    if (!gameId || !user?.user_id) return;
+
+    const ws = new WebSocket(
+      `ws://localhost:8000/api/v1/game/ws/game/${gameId}?user_id=${user.user_id}`
+    );
+    wsRef.current = ws;
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'chat') {
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              user: data.sender === user.user_id ? '나' : `상대`,
+              message: data.message,
+            },
+          ]);
+        }
+      } catch (e) {
+        console.error('Failed to parse message', e);
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [gameId, user]);
+
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -55,14 +92,16 @@ const BattlePage = () => {
   };
 
   const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      setChatMessages(prev => [...prev, {
-        user: '나',
-        message: newMessage,
-        time: formatTime(timeLeft)
-      }]);
-      setNewMessage('');
+    if (!newMessage.trim()) return;
+
+    const msgObj = { type: 'chat', message: newMessage };
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(msgObj));
     }
+
+    
+    setNewMessage('');
   };
 
   const handleSurrender = () => {
