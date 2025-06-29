@@ -5,6 +5,7 @@ import CyberButton from '@/components/CyberButton';
 import { UserPlus, Mail, Lock, User } from 'lucide-react';
 import { authFetch } from '../utils/api';
 import { useUser } from '../context/UserContext';
+import { setCookie } from '@/lib/utils';
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -58,8 +59,8 @@ const SignupPage = () => {
         console.log('Signup API response data:', data);
         const accessToken = data.access_token;
         console.log('Extracted access_token:', accessToken);
-        localStorage.setItem('access_token', accessToken); // Store token in localStorage
-        console.log('access_token stored in localStorage.');
+        setCookie('access_token', accessToken, 7); // Store token in cookie for persistence
+        console.log('access_token stored in cookie.');
 
         // Fetch user data and set context immediately after signup
         const userResponse = await authFetch('http://localhost:8000/api/v1/user/me');
