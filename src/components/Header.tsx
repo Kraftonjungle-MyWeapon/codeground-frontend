@@ -9,10 +9,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogOut, Settings, UserRound } from 'lucide-react';
+import { useUser } from '../context/UserContext';
 
 const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, setUser } = useUser();
   
   const navItems = [
     { path: '/home', label: '홈', icon: null },
@@ -20,7 +22,8 @@ const Header = () => {
   ];
 
   const handleLogout = () => {
-    // 로그아웃 로직 (추후 실제 인증 시스템과 연동)
+    localStorage.removeItem('access_token'); // Clear token from localStorage
+    setUser(null); // Clear user from context
     navigate('/');
   };
 
@@ -61,7 +64,7 @@ const Header = () => {
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 hover:bg-cyber-blue/10 text-gray-300 hover:text-cyber-blue">
                   <User className="h-5 w-5" />
-                  <span className="font-medium">프로필</span>
+                  <span className="font-medium">{user ? user.username : '프로필'}</span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-48 bg-card/95 backdrop-blur-sm border border-cyber-blue/20">

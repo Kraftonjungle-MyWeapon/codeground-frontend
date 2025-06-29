@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import CyberCard from '@/components/CyberCard';
 import CyberButton from '@/components/CyberButton';
 import { User, Clock, Check, X } from 'lucide-react';
+import { useUser } from '../context/UserContext';
 
 const MatchingPage = () => {
   const navigate = useNavigate();
+  const { user } = useUser(); // Get user from context
   const [matchingTime, setMatchingTime] = useState(0);
   const [foundOpponent, setFoundOpponent] = useState(false);
   const [acceptTimeLeft, setAcceptTimeLeft] = useState(20);
@@ -17,19 +19,66 @@ const MatchingPage = () => {
     winRate: 58.3
   });
 
+  const [ws, setWs] = useState<WebSocket | null>(null);
+  const matchIdRef = useRef<number | null>(null); // To store match_id
+  
+  useEffect(() => {
+    if (!user || !user.user_id) { // Check if user and user.user_id are available
+      console.error('User ID not found. Redirecting to home.');
+      navigate('/home'); // Redirect if user ID is not available
+      return;
+    }
+
+    const websocket = new WebSocket(`ws://localhost:8000/api/v1/match/ws/match/${user.user_id}`);
+    setWs(websocket);
+
+    websocket.onopen = () => {
+      console.log('WebSocket connected');
+    };
+
+    websocket.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      console.log('Received message:', message);
+
+      if (message.type === 'match_found') {
+        setFoundOpponent(true);
+        setAcceptTimeLeft(message.time_limit);
+        matchIdRef.current = message.match_id;
+        // You might want to update opponent details here based on message.opponent_ids
+      } else if (message.type === 'match_accepted') {
+        navigate(`/battle?gameId=${message.game_id}`);
+      } else if (message.type === 'match_cancelled') {
+        console.log('Match cancelled:', message.reason);
+        setFoundOpponent(false);
+        setMatchingTime(0);
+        setAcceptTimeLeft(20);
+        matchIdRef.current = null;
+        if (message.reason === 'timeout or rejection') {
+          navigate('/home'); // Go back to home or a suitable page
+        }
+      }
+    };
+
+    websocket.onclose = () => {
+      console.log('WebSocket disconnected');
+    };
+
+    websocket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    return () => {
+      websocket.close();
+    };
+  }, [navigate, user]); // Add user to dependency array
+
   useEffect(() => {
     const timer = setInterval(() => {
       setMatchingTime(prev => prev + 1);
     }, 1000);
 
-    // 시뮬레이션: 5초 후 상대방 발견
-    const matchTimer = setTimeout(() => {
-      setFoundOpponent(true);
-    }, 5000);
-
     return () => {
       clearInterval(timer);
-      clearTimeout(matchTimer);
     };
   }, []);
 
@@ -40,7 +89,7 @@ const MatchingPage = () => {
         setAcceptTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(acceptTimer);
-            navigate('/'); // 시간 초과시 홈으로
+            // navigate('/'); // 시간 초과시 홈으로 - handled by websocket message
             return 0;
           }
           return prev - 1;
@@ -49,7 +98,7 @@ const MatchingPage = () => {
 
       return () => clearInterval(acceptTimer);
     }
-  }, [foundOpponent, navigate]);
+  }, [foundOpponent]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -58,15 +107,28 @@ const MatchingPage = () => {
   };
 
   const handleAccept = () => {
-    navigate('/battle');
+    console.log('handleAccept called');
+    if (ws && matchIdRef.current) {
+      const message = { type: 'match_accept', match_id: matchIdRef.current };
+      console.log('Sending WebSocket message:', message);
+      ws.send(JSON.stringify(message));
+    } else {
+      console.warn('WebSocket not connected or matchId not set. ws:', ws, 'matchIdRef.current:', matchIdRef.current);
+    }
   };
 
   const handleDecline = () => {
-    navigate('/home'); // 홈 페이지로 이동하도록 수정
+    if (ws && matchIdRef.current) {
+      ws.send(JSON.stringify({ type: 'match_reject', match_id: matchIdRef.current }));
+    }
+    navigate('/home'); // Navigate away after declining
   };
 
   const handleCancel = () => {
-    navigate('/'); // 메인페이지로 이동
+    if (ws) {
+      ws.send(JSON.stringify({ type: 'cancel_queue' }));
+    }
+    navigate('/home'); // Navigate away after cancelling
   };
 
   // 원형 진행률 계산 (SVG용)

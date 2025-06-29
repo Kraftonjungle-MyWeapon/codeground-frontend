@@ -3,23 +3,67 @@ import { useNavigate, Link } from 'react-router-dom';
 import CyberCard from '@/components/CyberCard';
 import CyberButton from '@/components/CyberButton';
 import { LogIn, Mail, Lock } from 'lucide-react';
+import { useUser } from '../context/UserContext';
+import { authFetch } from '../utils/api';
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { setUser } = useUser();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
-    
-    // 시뮬레이션: 2초 후 로그인 완료
-    setTimeout(() => {
-      navigate('/home');
-    }, 2000);
+
+    const params = new URLSearchParams();
+    params.append('username', formData.email);
+    params.append('password', formData.password);
+
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString(),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const accessToken = data.access_token;
+        localStorage.setItem('access_token', accessToken); // Store token in localStorage
+
+        // Fetch user data after successful login using authFetch
+        const userResponse = await authFetch('http://localhost:8000/api/v1/user/me', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          setUser(userData); // Store user data in context
+          navigate('/home');
+        } else {
+          console.error('Failed to fetch user data');
+          alert('사용자 정보를 가져오는데 실패했습니다.');
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Login failed:', errorData);
+        alert('로그인 실패: ' + (errorData.detail || '알 수 없는 오류')); // Display error to user
+      }
+    } catch (error) {
+      console.error('Network error:', error);
+      alert('네트워크 오류가 발생했습니다.');
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

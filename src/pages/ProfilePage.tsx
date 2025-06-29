@@ -6,12 +6,14 @@ import ProfileEditModal from '@/components/ProfileEditModal';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, Trophy, Target, Clock, TrendingUp, CheckCircle, Award, Medal, Crown, Zap, Shield, Star, Flame, Gem } from 'lucide-react';
 import { parseTotalScore } from '@/utils/lpSystem';
+import { useUser } from '../context/UserContext';
 
 const ProfilePage = () => {
+  const { user } = useUser();
   const [showEditModal, setShowEditModal] = useState(false);
 
   // 예시 사용자 데이터 (더 자세한 더미 데이터)
-  const user = {
+  const dummyUser = {
     name: 'CyberCoder',
     email: 'cybercoder@example.com',
     joinDate: '2024-01-15',
@@ -28,8 +30,10 @@ const ProfilePage = () => {
     bestTime: '1:47'
   };
 
-  const { tier, lp } = parseTotalScore(user.totalScore);
-  const winRate = ((user.wins / user.totalBattles) * 100).toFixed(1);
+  const currentUser = user || dummyUser; // Use context user if available, otherwise dummy
+
+    const { tier, lp } = parseTotalScore(currentUser.totalScore);
+  const winRate = ((currentUser.wins / currentUser.totalBattles) * 100).toFixed(1);
 
   // 최근 전적 데이터 (더 많은 더미 데이터 추가)
   const recentMatches = [
@@ -269,9 +273,9 @@ const ProfilePage = () => {
                 <div className="w-24 h-24 bg-gradient-to-r from-cyber-blue to-cyber-purple rounded-full mx-auto mb-4 flex items-center justify-center">
                   <User className="h-12 w-12 text-white" />
                 </div>
-                <h1 className="text-2xl font-bold text-white mb-2">{user.name}</h1>
+                <h1 className="text-2xl font-bold text-white mb-2">{currentUser.username}</h1>
                 <div className="text-gray-400 text-sm mb-4">
-                  <span className={tier.color}>{tier.name}</span> • 전체랭킹 {user.rank}위
+                  <span className={tier.color}>{tier.name}</span> • 전체랭킹 {currentUser.rank}위
                 </div>
                 <div className="text-center mb-4">
                   <div className="text-lg font-bold text-cyber-blue">{lp} LP</div>
@@ -294,15 +298,15 @@ const ProfilePage = () => {
                 
                 <div className="grid grid-cols-2 gap-4 text-center">
                   <div className="bg-black/20 p-4 rounded-lg">
-                    <div className="text-xl font-bold text-white">{user.totalBattles}</div>
+                    <div className="text-xl font-bold text-white">{currentUser.totalBattles}</div>
                     <div className="text-sm text-gray-400">총게임</div>
                   </div>
                   <div className="bg-black/20 p-4 rounded-lg">
-                    <div className="text-xl font-bold text-green-400">{user.wins}</div>
+                    <div className="text-xl font-bold text-green-400">{currentUser.wins}</div>
                     <div className="text-sm text-gray-400">승리</div>
                   </div>
                   <div className="bg-black/20 p-4 rounded-lg">
-                    <div className="text-xl font-bold text-red-400">{user.losses}</div>
+                    <div className="text-xl font-bold text-red-400">{currentUser.losses}</div>
                     <div className="text-sm text-gray-400">패배</div>
                   </div>
                   <div className="bg-black/20 p-4 rounded-lg">
@@ -310,19 +314,19 @@ const ProfilePage = () => {
                     <div className="text-sm text-gray-400">승률</div>
                   </div>
                   <div className="bg-black/20 p-4 rounded-lg">
-                    <div className="text-xl font-bold text-purple-400">{user.averageTime}</div>
+                    <div className="text-xl font-bold text-purple-400">{currentUser.averageTime}</div>
                     <div className="text-sm text-gray-400">평균 시간</div>
                   </div>
                   <div className="bg-black/20 p-4 rounded-lg">
-                    <div className="text-xl font-bold text-cyan-400">{user.bestTime}</div>
+                    <div className="text-xl font-bold text-cyan-400">{currentUser.bestTime}</div>
                     <div className="text-sm text-gray-400">최단 시간</div>
                   </div>
                   <div className="bg-black/20 p-4 rounded-lg">
-                    <div className="text-xl font-bold text-orange-400">{user.currentStreak}</div>
+                    <div className="text-xl font-bold text-orange-400">{currentUser.currentStreak}</div>
                     <div className="text-sm text-gray-400">현재 연승</div>
                   </div>
                   <div className="bg-black/20 p-4 rounded-lg">
-                    <div className="text-xl font-bold text-pink-400">{user.bestStreak}</div>
+                    <div className="text-xl font-bold text-pink-400">{currentUser.bestStreak}</div>
                     <div className="text-sm text-gray-400">최고 연승</div>
                   </div>
                 </div>
@@ -418,7 +422,7 @@ const ProfilePage = () => {
         <ProfileEditModal 
           isOpen={showEditModal}
           onClose={() => setShowEditModal(false)}
-          currentUsername={user.name}
+          currentUsername={currentUser.username}
         />
       )}
     </div>

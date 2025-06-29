@@ -1,20 +1,53 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getCookie } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
-import Header from '@/components/Header';
 import CyberCard from '@/components/CyberCard';
 import CyberButton from '@/components/CyberButton';
 import CreateRoomModal from '@/components/CreateRoomModal';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Swords, Trophy, Users, Zap, Star, Crown, Play } from 'lucide-react';
 import { parseTotalScore } from '@/utils/lpSystem';
+import Header from '@/components/Header';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+
+interface UserData {
+  id: number;
+  email: string;
+  username: string;
+  nickname: string;
+}
+
+const fetchUserData = async (): Promise<UserData> => {
+  const accessToken = getCookie('access_token');
+  if (!accessToken) {
+    throw new Error('No access token found');
+  }
+  const response = await axios.get('/api/v1/user/me', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  return response.data;
+};
+
+
 
 const Index = () => {
   const navigate = useNavigate();
   const [showCreateRoom, setShowCreateRoom] = useState(false);
 
-  // 예시 사용자 데이터
-  const user = {
+  const accessToken = getCookie('access_token');
+
+  const { data: fetchedUser, isLoading, isError } = useQuery<UserData, Error>({
+    queryKey: ['userMe'],
+    queryFn: fetchUserData,
+    enabled: !!accessToken, // Only fetch if access_token exists
+  });
+
+  // 예시 사용자 데이터 (API 데이터가 없을 경우 사용)
+  const dummyUser = {
     name: 'CyberCoder',
     totalScore: 1580,
     wins: 87,
@@ -23,8 +56,21 @@ const Index = () => {
     rank: 15
   };
 
+  const user = fetchedUser ? {
+    ...dummyUser,
+    name: fetchedUser.id || fetchedUser.nickname || fetchedUser.username || dummyUser.name,
+  } : dummyUser;
+
   const { tier, lp } = parseTotalScore(user.totalScore);
   const winRate = ((user.wins / user.totalBattles) * 100).toFixed(1);
+
+  if (isLoading) {
+    return <div>Loading user data...</div>;
+  }
+
+  if (isError) {
+    return <div>Error loading user data. Displaying dummy data.</div>;
+  }
 
   // 대기방 목록 데이터 (더 많은 더미 데이터)
   const waitingRooms = [
@@ -170,7 +216,7 @@ const Index = () => {
                 <CyberButton 
                   size="lg"
                   className="w-full max-w-sm mx-auto"
-                  onClick={() => navigate('/matching')}
+                  onClick={() => navigate('/matching', { state: { userId: user.id } })}
                 >
                   <Play className="h-5 w-5 mr-2" />
                   매칭 시작
