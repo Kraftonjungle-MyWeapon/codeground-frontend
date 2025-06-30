@@ -51,10 +51,7 @@ const MatchingPage = () => {
         // You might want to update opponent details here based on message.opponent_ids
       } else if (message.type === 'match_accepted') {
         setOpponentAccepted(true);
-        // 상대방도 수락하여 매칭이 성사됨
-        setTimeout(() => {
-          navigate(`/screen-share-setup?gameId=${message.game_id}`);
-        }, 1000);
+        navigate(`/screen-share-setup?gameId=${message.game_id}`);
       } else if (message.type === 'match_cancelled') {
         console.log('Match cancelled:', message.reason);
         setFoundOpponent(false);

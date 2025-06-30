@@ -4,6 +4,7 @@ import { useUser } from '@/context/UserContext';
 import CyberCard from '@/components/CyberCard';
 import CyberButton from '@/components/CyberButton';
 import { Clock, Play, Send, Monitor, Flag, AlertTriangle, HelpCircle } from 'lucide-react';
+import { localStream as sharedLocalStream, remoteStream as sharedRemoteStream } from '@/utils/webrtcStore';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -13,6 +14,8 @@ const BattlePage = () => {
   const [searchParams] = useSearchParams();
   const gameId = searchParams.get('gameId');
   const wsRef = useRef<WebSocket | null>(null);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const [timeLeft, setTimeLeft] = useState(930);
   const [code, setCode] = useState('');
   const [chatMessages, setChatMessages] = useState<{ user: string; message: string }[]>([]);
@@ -37,6 +40,16 @@ const BattlePage = () => {
     },
     hint: ['수학', '약수', '반복문', '완전탐색']
   };
+
+
+  useEffect(() => {
+    if (localVideoRef.current && sharedLocalStream) {
+      localVideoRef.current.srcObject = sharedLocalStream;
+    }
+    if (remoteVideoRef.current && sharedRemoteStream) {
+      remoteVideoRef.current.srcObject = sharedRemoteStream;
+    }
+  }, []);
 
    // 웹소켓 연결
    useEffect(() => {
@@ -277,11 +290,15 @@ const BattlePage = () => {
 
                 {/* 화면공유 */}
                 <CyberCard className="p-3 flex flex-col items-center justify-center">
-                  <Monitor className="h-8 w-8 text-gray-400 mb-2" />
-                  <div className="text-xs text-gray-400 text-center">
-                    <div>상대방 화면</div>
-                    <div className="mt-1 text-yellow-400">공유 대기중...</div>
-                  </div>
+                {sharedRemoteStream ? (
+                    <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="text-xs text-gray-400 text-center">
+                      <Monitor className="h-8 w-8 text-gray-400 mb-2" />
+                      <div>상대방 화면</div>
+                      <div className="mt-1 text-yellow-400">공유 대기중...</div>
+                    </div>
+                  )}
                 </CyberCard>
               </div>
             </div>
