@@ -39,6 +39,15 @@ const ScreenShareSetupPage = () => {
         setMyShareStatus('valid');
         setMyStream(mediaStream);
         setLocalStream(mediaStream);
+        // 이미 연결이 존재하면 트랙을 추가하고 재협상
+        if (sharedPC) {
+            mediaStream.getTracks().forEach((track) => sharedPC.addTrack(track, mediaStream));
+            const offer = await sharedPC.createOffer();
+            await sharedPC.setLocalDescription(offer);
+            wsRef.current?.send(
+              JSON.stringify({ type: 'webrtc_signal', signal: sharedPC.localDescription })
+            );
+          }
         // 화면 공유가 종료되었을 때 감지
         videoTrack.addEventListener('ended', () => {
             console.log('Screen share ended');
@@ -48,7 +57,7 @@ const ScreenShareSetupPage = () => {
             setMyReady(false);
             setIsCountingDown(false);
             setCountdown(0);
-          });
+        });
       } else {
         setMyShareStatus('invalid');
         setMyReady(false);
