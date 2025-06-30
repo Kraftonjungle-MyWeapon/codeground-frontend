@@ -14,6 +14,7 @@ const SignupPage = lazy(() => import("./pages/SignupPage"));
 const ProfileSetupPage = lazy(() => import("./pages/ProfileSetupPage"));
 const MatchingPage = lazy(() => import("./pages/MatchingPage"));
 const WaitingRoomPage = lazy(() => import("./pages/WaitingRoomPage"));
+const ScreenShareSetupPage = lazy(() => import("./pages/ScreenShareSetupPage"));
 const BattlePage = lazy(() => import("./pages/BattlePage"));
 const ResultPage = lazy(() => import("./pages/ResultPage"));
 const TierPromotionPage = lazy(() => import("./pages/TierPromotionPage"));
@@ -75,6 +76,7 @@ const App = () => {
                 <Route path="/setup-profile" element={<ProfileSetupPage />} />
                 <Route path="/matching" element={<MatchingPage />} />
                 <Route path="/waiting-room" element={<WaitingRoomPage />} />
+                <Route path="/screen-share-setup" element={<ScreenShareSetupPage />} />
                 <Route path="/battle" element={<BattlePage />} />
                 <Route path="/result" element={<ResultPage />} />
                 <Route path="/tier-promotion" element={<TierPromotionPage />} />
