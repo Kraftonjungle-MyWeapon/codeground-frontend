@@ -1,5 +1,7 @@
+import { getCookie, eraseCookie } from '@/lib/utils';
+
 export async function authFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const token = localStorage.getItem('access_token');
+  const token = getCookie('access_token');
   const headers = new Headers(init?.headers);
 
   if (token) {
@@ -11,5 +13,12 @@ export async function authFetch(input: RequestInfo | URL, init?: RequestInit): P
     headers,
   };
 
-  return fetch(input, authInit);
+  const response = await fetch(input, authInit);
+
+  if (response.status === 401) {
+    eraseCookie('access_token');
+    window.location.href = '/login';
+  }
+
+  return response;
 }

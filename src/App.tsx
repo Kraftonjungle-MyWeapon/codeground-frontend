@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
+import CyberLoadingSpinner from "@/components/CyberLoadingSpinner";
 // Lazy load components
 const Index = lazy(() => import("./pages/Index"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
@@ -25,15 +26,17 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 import { useEffect } from 'react';
 import { useUser } from './context/UserContext';
 import { authFetch } from './utils/api';
+import { getCookie, eraseCookie } from '@/lib/utils';
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  const { setUser } = useUser();
+  const { setUser, setIsLoading } = useUser();
 
   useEffect(() => {
     const fetchUser = async () => {
-      const token = localStorage.getItem('access_token');
+      setIsLoading(true);
+      const token = getCookie('access_token');
       if (token) {
         try {
           const userResponse = await authFetch('http://localhost:8000/api/v1/user/me');
@@ -41,17 +44,19 @@ const App = () => {
             const userData = await userResponse.json();
             setUser(userData);
           } else {
-            console.error('Failed to fetch user data on app load');
-            localStorage.removeItem('access_token'); // Clear invalid token
+            eraseCookie('access_token'); // Clear invalid token
           }
         } catch (error) {
-          console.error('Network error fetching user data on app load:', error);
-          localStorage.removeItem('access_token'); // Clear token on network error
+          eraseCookie('access_token'); // Clear token on network error
+        } finally {
+          setIsLoading(false);
         }
+      } else {
+        setIsLoading(false);
       }
     };
     fetchUser();
-  }, [setUser]);
+  }, [setUser, setIsLoading]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -59,7 +64,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Suspense fallback={<div>Loading...</div>}>
+          <Suspense fallback={<CyberLoadingSpinner />}>
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />

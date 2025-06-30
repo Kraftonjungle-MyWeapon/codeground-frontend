@@ -1,11 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getCookie } from '@/lib/utils';
 import CyberCard from '@/components/CyberCard';
 import CyberButton from '@/components/CyberButton';
 import { Play, Code, Zap, Trophy } from 'lucide-react';
 
 const LandingPage = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = getCookie('access_token');
+    if (token) {
+      navigate('/home');
+    }
+  }, [navigate]);
+
 
   const handleLogin = () => {
     navigate('/login');

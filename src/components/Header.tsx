@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LogOut, Settings, UserRound } from 'lucide-react';
 import { useUser } from '../context/UserContext';
+import { eraseCookie } from '@/lib/utils';
 
 const Header = () => {
   const location = useLocation();
@@ -22,7 +23,7 @@ const Header = () => {
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem('access_token'); // Clear token from localStorage
+    eraseCookie('access_token'); // Clear token from cookies
     setUser(null); // Clear user from context
     navigate('/');
   };

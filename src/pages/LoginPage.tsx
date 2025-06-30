@@ -5,6 +5,7 @@ import CyberButton from '@/components/CyberButton';
 import { LogIn, Mail, Lock } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { authFetch } from '../utils/api';
+import { setCookie } from '@/lib/utils';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -35,7 +36,8 @@ const LoginPage = () => {
       if (response.ok) {
         const data = await response.json();
         const accessToken = data.access_token;
-        localStorage.setItem('access_token', accessToken); // Store token in localStorage
+        console.log('access_token:', accessToken);
+        setCookie('access_token', accessToken, 7); // Store token in cookie for persistence
 
         // Fetch user data after successful login using authFetch
         const userResponse = await authFetch('http://localhost:8000/api/v1/user/me', {
