@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import CyberCard from '@/components/CyberCard';
 import CyberButton from '@/components/CyberButton';
-import { Monitor, User, Clock, AlertTriangle, Check, Video } from 'lucide-react';
+import { Monitor, User, Clock, AlertTriangle, Check } from 'lucide-react';
 import { useUser } from '@/context/UserContext';
 import { localStream as sharedLocalStream, remoteStream as sharedRemoteStream, 
     setLocalStream, setRemoteStream, setPeerConnection, peerConnection as sharedPC } from '@/utils/webrtcStore';
@@ -16,6 +16,7 @@ const ScreenShareSetupPage = () => {
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const [myStream, setMyStream] = useState<MediaStream | null>(null);
+  const [remoteStreamState, setRemoteStreamState] = useState<MediaStream | null>(null);
   const [myShareStatus, setMyShareStatus] = useState<'waiting' | 'sharing' | 'invalid' | 'valid'>('waiting');
   const [opponentReady, setOpponentReady] = useState(false);
   const [myReady, setMyReady] = useState(false);
@@ -123,6 +124,13 @@ const ScreenShareSetupPage = () => {
   }, [myStream]);
 
   useEffect(() => {
+    if (remoteStreamState && remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStreamState;
+    }
+  }, [remoteStreamState]);
+
+
+  useEffect(() => {
     if (!gameId || !user?.user_id) return;
 
     const ws = new WebSocket(
@@ -182,6 +190,7 @@ const ScreenShareSetupPage = () => {
         console.log('Remote video track readyState:', track.readyState, 'enabled:', track.enabled);
       });
       setRemoteStream(stream);
+      setRemoteStreamState(stream);
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = stream;
       }
@@ -367,7 +376,7 @@ const ScreenShareSetupPage = () => {
               </h3>
 
               <div className="aspect-video bg-black/50 rounded-lg border-2 border-cyber-blue/30 flex items-center justify-center mb-4">
-                {opponentReady ? (
+                {remoteStreamState ? (
                   <video ref={remoteVideoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
                 ) : (
                   <div className="text-center">
