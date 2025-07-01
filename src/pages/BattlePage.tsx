@@ -1,30 +1,17 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { useUser } from "@/context/UserContext";
-import CyberCard from "@/components/CyberCard";
-import CyberButton from "@/components/CyberButton";
-import {
-  Clock,
-  Play,
-  Send,
-  Monitor,
-  Flag,
-  AlertTriangle,
-  HelpCircle,
-} from "lucide-react";
-import { authFetch } from "@/utils/api";
-import {
-  localStream as sharedLocalStream,
-  remoteStream as sharedRemoteStream,
-  setLocalStream,
-  peerConnection as sharedPC,
-} from "@/utils/webrtcStore";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useUser } from '@/context/UserContext';
+import CyberCard from '@/components/CyberCard';
+import CyberButton from '@/components/CyberButton';
+import { Clock, Play, Send, Monitor, Flag, AlertTriangle, HelpCircle } from 'lucide-react';
+import { localStream as sharedLocalStream, remoteStream as sharedRemoteStream, setLocalStream, peerConnection as sharedPC } from '@/utils/webrtcStore';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { ProgrammingLanguage } from '@/types/codeEditor';
+import { getLanguageConfig } from '@/utils/languageConfig';
+import { CodeEditorHandler } from '@/utils/codeEditorHandlers';
+import usePreventNavigation from '@/hooks/usePreventNavigation';
+import GameExitModal from '@/components/GameExitModal';
 
 const BattlePage = () => {
   const navigate = useNavigate();
@@ -45,10 +32,38 @@ const BattlePage = () => {
   const [runStatus, setRunStatus] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [isLocalStreamActive, setIsLocalStreamActive] = useState(true);
-  const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const [isLeavingGame, setIsLeavingGame] = useState(false); // New state to control cleanup
+  const isConfirmedExitRef = useRef(false); // New ref to track explicit exit confirmation
+  const [currentLanguage] = useState<ProgrammingLanguage>('python'); // 현재는 python 고정, 추후 변경 가능
 
+  // 화면 공유 스트림 정리 함수
+  const cleanupScreenShare = useCallback(() => {
+    if (sharedLocalStream) {
+      sharedLocalStream.getTracks().forEach(track => track.stop());
+      setLocalStream(null);
+      console.log('Local screen share stream stopped.');
+    }
+  }, []);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+  const [confirmExitCallback, setConfirmExitCallback] = useState<(() => void) | null>(null);
+  const [cancelExitCallback, setCancelExitCallback] = useState<(() => void) | null>(null);
+
+  const { isNavigationBlocked } = usePreventNavigation({
+    shouldPrevent: true, // BattlePage에서는 항상 이탈 방지
+    onAttemptNavigation: (confirm, cancel) => {
+      setIsExitModalOpen(true);
+      setConfirmExitCallback(() => confirm);
+      setCancelExitCallback(() => cancel);
+    },
+  });
+  
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
+  const editorHandlerRef = useRef<CodeEditorHandler>(new CodeEditorHandler('python'));
+
+  // 언어 설정
+  const languageConfig = getLanguageConfig(currentLanguage);
 
   const problem = {
     title: "문제 설명",
@@ -112,9 +127,15 @@ const BattlePage = () => {
     };
 
     return () => {
-      ws.close();
+      if (wsRef.current) {
+        console.log('Websocket cleanup triggered. isLeavingGame:', isLeavingGame, 'isConfirmedExit:', isConfirmedExitRef.current);
+        if (isConfirmedExitRef.current) {
+          // Only close WebSocket if intentionally leaving the game via modal confirmation
+          wsRef.current.close();
+        }
+      }
     };
-  }, [gameId, user]);
+  }, [gameId, user, isLeavingGame]);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -129,14 +150,18 @@ const BattlePage = () => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          navigate("/result");
+          cleanupScreenShare(); // 타이머 종료 시 화면 공유 중단
+          navigate('/result');
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      cleanupScreenShare(); // 컴포넌트 언마운트 시 화면 공유 중단
+    };
   }, [navigate]);
 
   const formatTime = (seconds: number) => {
@@ -158,11 +183,50 @@ const BattlePage = () => {
     setNewMessage("");
   };
 
-  const handleSurrender = () => {
-    if (confirm("정말 항복하시겠습니까?")) {
-      navigate("/result");
+  const handleSurrender = useCallback(() => {
+    console.log('handleSurrender called. isLeavingGame:', isLeavingGame);
+    setIsLeavingGame(true); // 게임을 떠나는 중임을 표시
+
+    // 항복 웹소켓 메시지 전송
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      const surrenderMessage = { type: 'surrender', message: 'User surrendered' };
+      wsRef.current.send(JSON.stringify(surrenderMessage));
+      console.log('Surrender message sent.');
+      wsRef.current.close(); // 웹소켓 명시적 종료
     }
-  };
+
+    // WebRTC 관련 리소스 정리
+    if (sharedPC) {
+      sharedPC.close();
+      setPeerConnection(null);
+    }
+    cleanupScreenShare(); // 화면 공유 중단 함수 호출
+    if (sharedRemoteStream) {
+      sharedRemoteStream.getTracks().forEach(track => track.stop());
+      setRemoteStream(null);
+    }
+
+    // 결과 페이지로 이동
+    navigate('/result');
+  }, [navigate]);
+
+  const handleConfirmExit = useCallback(() => {
+    console.log('handleConfirmExit called.');
+    isConfirmedExitRef.current = true; // 명시적 종료 확정
+    setIsExitModalOpen(false);
+    if (confirmExitCallback) {
+      handleSurrender(); // 항복 처리
+      confirmExitCallback();
+    }
+  }, [confirmExitCallback, handleSurrender]);
+
+  const handleCancelExit = useCallback(() => {
+    console.log('handleCancelExit called.');
+    setIsExitModalOpen(false);
+    if (cancelExitCallback) {
+      cancelExitCallback();
+    }
+  }, [cancelExitCallback]);
 
   const handleReport = () => {
     alert("신고가 접수되었습니다.");
@@ -271,7 +335,8 @@ const BattlePage = () => {
   };
 
   const handleSubmit = () => {
-    navigate("/result");
+    cleanupScreenShare(); // 코드 제출 시 화면 공유 중단
+    navigate('/result');
   };
 
   const toggleHint = () => {
@@ -284,6 +349,26 @@ const BattlePage = () => {
       lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
     }
   };
+
+  // 코드 에디터 키 핸들링 함수 - 언어별 핸들러 사용
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const textarea = e.currentTarget;
+    
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      editorHandlerRef.current.handleTabKey(textarea, e.shiftKey);
+      setCode(textarea.value);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      editorHandlerRef.current.handleEnterKey(textarea);
+      setCode(textarea.value);
+    }
+  };
+
+  // 언어가 변경될 때 핸들러 업데이트
+  useEffect(() => {
+    editorHandlerRef.current = new CodeEditorHandler(currentLanguage);
+  }, [currentLanguage]);
 
   // 동적으로 줄 번호 생성
   const actualLineCount = code ? code.split("\n").length : 1;
@@ -501,7 +586,7 @@ const BattlePage = () => {
                 <CyberCard className="h-full flex flex-col ml-2 mb-1">
                   {/* 최소화된 헤더 */}
                   <div className="flex items-center px-3 py-1 border-b border-gray-700/50 bg-black/20">
-                    <div className="text-xs text-gray-400">Code Editor</div>
+                  <div className="text-xs text-gray-400">{languageConfig.name} Code Editor</div>
                   </div>
 
                   {/* 코드 에디터 영역 */}
@@ -524,18 +609,19 @@ const BattlePage = () => {
                           ))}
                         </div>
                       </div>
-
-                      <div className="flex-1 overflow-hidden">
+                      
+                      <div className="flex-1 overflow-hidden relative">
                         <textarea
                           ref={textareaRef}
                           value={code}
                           onChange={(e) => setCode(e.target.value)}
                           onScroll={handleScroll}
-                          placeholder="" // 빈 placeholder로 변경
+                          onKeyDown={handleKeyDown}
+                          placeholder={languageConfig.placeholder}
                           className="w-full h-full bg-transparent px-3 py-3 text-green-400 font-mono resize-none focus:outline-none text-sm leading-5 border-none"
-                          style={{
-                            fontFamily:
-                              'Monaco, Consolas, "Courier New", monospace',
+                          style={{ 
+                            fontFamily: languageConfig.fontFamily,
+                            tabSize: languageConfig.indentSize
                           }}
                         />
                       </div>
@@ -596,6 +682,12 @@ const BattlePage = () => {
           </ResizablePanel>
         </ResizablePanelGroup>
       </main>
+
+      <GameExitModal
+        isOpen={isExitModalOpen}
+        onConfirmExit={handleConfirmExit}
+        onCancelExit={handleCancelExit}
+      />
     </div>
   );
 };

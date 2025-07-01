@@ -199,7 +199,7 @@ const ScreenShareSetupPage = () => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
-    setPeerConnection(pc);
+    setPeerConnection(pc); // 여기서 sharedPC를 업데이트
     const stream = myStream || sharedLocalStream;
     if (stream) {
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
@@ -234,36 +234,48 @@ const ScreenShareSetupPage = () => {
   };
 
   const handleSignal = async (signal: any) => {
-    let pc = sharedPC || null;
-    if (signal.type === "join") {
-      if (!pc) pc = createPeerConnection();
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      wsRef.current?.send(
-        JSON.stringify({ type: "webrtc_signal", signal: pc.localDescription }),
-      );
-    } else if (signal.type === "offer") {
-      if (!pc) pc = createPeerConnection();
+    let pc = sharedPC; // sharedPC를 직접 사용
+    if (!pc) {
+      pc = createPeerConnection();
+    }
+
+    if (signal.type === 'offer') {
+      // offer를 받으면, 현재 signalingState가 stable이 아니면 기다림
+      if (pc.signalingState !== 'stable') {
+        await Promise.all([
+          pc.localDescription ? pc.setLocalDescription(pc.localDescription) : Promise.resolve(),
+          pc.remoteDescription ? pc.setRemoteDescription(pc.remoteDescription) : Promise.resolve(),
+        ]);
+      }
       await pc.setRemoteDescription(new RTCSessionDescription(signal));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      wsRef.current?.send(
-        JSON.stringify({ type: "webrtc_signal", signal: pc.localDescription }),
-      );
-    } else if (signal.type === "answer") {
-      if (pc) {
-        await pc.setRemoteDescription(new RTCSessionDescription(signal));
+      wsRef.current?.send(JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription }));
+    } else if (signal.type === 'answer') {
+      // answer를 받으면, 현재 signalingState가 have-local-offer가 아니면 기다림
+      if (pc.signalingState !== 'have-local-offer') {
+        await Promise.all([
+          pc.localDescription ? pc.setLocalDescription(pc.localDescription) : Promise.resolve(),
+          pc.remoteDescription ? pc.setRemoteDescription(pc.remoteDescription) : Promise.resolve(),
+        ]);
       }
-    } else if (signal.type === "candidate") {
-      if (pc && signal.candidate) {
+      await pc.setRemoteDescription(new RTCSessionDescription(signal));
+    } else if (signal.type === 'candidate') {
+      if (signal.candidate) {
         try {
           await pc.addIceCandidate(signal.candidate);
         } catch (err) {
           console.error("Error adding ice candidate", err);
         }
       }
+    } else if (signal.type === 'join') {
+      // join 시그널은 초기 연결 설정용이므로, offer를 생성하여 보냄
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      wsRef.current?.send(JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription }));
     }
-    if (pc) setPeerConnection(pc);
+    // pc가 변경되었을 수 있으므로 다시 저장
+    setPeerConnection(pc);
   };
 
   return (
