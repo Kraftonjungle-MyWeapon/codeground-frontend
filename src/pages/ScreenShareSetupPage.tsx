@@ -14,6 +14,13 @@ const ScreenShareSetupPage = () => {
   const gameId = searchParams.get("gameId");
   const { user } = useUser();
   const { websocket, connect, disconnect, sendMessage } = useWebSocketStore();
+
+  // effectiveGameId와 userId를 컴포넌트 최상위 레벨에서 정의
+  const currentUrlGameId = searchParams.get('gameId');
+  const storedGameId = localStorage.getItem('currentGameId');
+  const effectiveGameId = currentUrlGameId || storedGameId;
+  const userId = user?.user_id;
+
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const [myStream, setMyStream] = useState<MediaStream | null>(null);
@@ -142,8 +149,33 @@ const ScreenShareSetupPage = () => {
   }, [remoteStreamState]);
 
   useEffect(() => {
-    if (!gameId || !user?.user_id) {
-      console.log('ScreenShareSetupPage: Missing gameId or user.user_id', { gameId, userId: user?.user_id });
+    const currentUrlGameId = searchParams.get('gameId');
+    const storedGameId = localStorage.getItem('currentGameId');
+    const userId = user?.user_id;
+
+    let effectiveGameId = null;
+    if (currentUrlGameId) {
+      effectiveGameId = currentUrlGameId;
+    } else if (storedGameId) {
+      effectiveGameId = storedGameId;
+    }
+
+    if (!effectiveGameId || !userId) {
+      console.log('ScreenShareSetupPage: Cannot connect WebSocket. Missing effectiveGameId or userId.', { effectiveGameId, userId });
+      return;
+    }
+
+    const wsUrl = `ws://localhost:8000/api/v1/game/ws/game/${effectiveGameId}?user_id=${userId}`;
+    console.log('ScreenShareSetupPage: Attempting to connect WebSocket to:', wsUrl);
+
+    if (!wsUrl) { // wsUrl이 없으면 연결 시도 안 함
+        console.log('ScreenShareSetupPage: wsUrl is not valid. Skipping connect.');
+        return;
+    }
+
+    // 웹소켓이 이미 연결되어 있고, 연결하려는 URL과 동일하다면 다시 연결하지 않음
+    if (websocket && websocket.readyState === WebSocket.OPEN && websocket.url === wsUrl) {
+      console.log('ScreenShareSetupPage: WebSocket already connected to the target URL. Skipping connect.');
       return;
     }
 
@@ -155,9 +187,7 @@ const ScreenShareSetupPage = () => {
       console.log('ScreenShareSetupPage: sharedPC already exists.');
     }
 
-    const wsUrl = `ws://localhost:8000/api/v1/game/ws/game/${gameId}?user_id=${user.user_id}`;
-    console.log('ScreenShareSetupPage: Attempting to connect WebSocket to:', wsUrl);
-    connect(wsUrl);
+    connect(wsUrl); // 항상 현재 세션에 맞는 정확한 URL을 connect 함수에 전달
 
     return () => {
       // Disconnect only if this component is responsible for the connection
@@ -171,7 +201,7 @@ const ScreenShareSetupPage = () => {
         // For now, we'll rely on the global state.
       }
     };
-  }, [gameId, user, connect, disconnect, sharedPC]);
+  }, [effectiveGameId, userId, connect, disconnect]);
 
   useEffect(() => {
     if (!websocket) return;
@@ -269,15 +299,13 @@ const ScreenShareSetupPage = () => {
       await pc.setLocalDescription(answer);
       sendMessage(JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription }));
     } else if (signal.type === 'answer') {
-      // answer를 받으면, 현재 signalingState가 have-local-offer가 아니면 기다림
-      if (pc.signalingState !== 'have-local-offer') {
-        await Promise.all([
-          pc.localDescription ? pc.setLocalDescription(pc.localDescription) : Promise.resolve(),
-          pc.remoteDescription ? pc.setRemoteDescription(pc.remoteDescription) : Promise.resolve(),
-        ]);
+      if (pc.signalingState === 'have-local-offer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(signal));
+      } else {
+        console.warn('Received answer in unexpected signaling state:', pc.signalingState, 'Signal:', signal);
       }
-      await pc.setRemoteDescription(new RTCSessionDescription(signal));
-    } else if (signal.type === 'candidate') {
+    } else if (signal.type ===
+     'candidate') {
       if (signal.candidate) {
         try {
           await pc.addIceCandidate(signal.candidate);

@@ -60,6 +60,7 @@ const MatchingPage = () => {
           );
         }
         setOpponentAccepted(true);
+        localStorage.setItem('currentGameId', message.game_id); // Save game_id to localStorage
         navigate(`/screen-share-setup?gameId=${message.game_id}`);
       } else if (message.type === "opponent_accepted") {
         setOpponentAccepted(true);
