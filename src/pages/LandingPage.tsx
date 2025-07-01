@@ -1,45 +1,44 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getCookie } from '@/lib/utils';
-import CyberCard from '@/components/CyberCard';
-import CyberButton from '@/components/CyberButton';
-import { Play, Code, Zap, Trophy } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { getCookie } from "@/lib/utils";
+import CyberCard from "@/components/CyberCard";
+import CyberButton from "@/components/CyberButton";
+import { Play, Code, Zap, Trophy } from "lucide-react";
 
 const LandingPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = getCookie('access_token');
+    const token = getCookie("access_token");
     if (token) {
-      navigate('/home');
+      navigate("/home");
     }
   }, [navigate]);
 
-
   const handleLogin = () => {
-    navigate('/login');
+    navigate("/login");
   };
 
   const handleSignup = () => {
-    navigate('/signup');
+    navigate("/signup");
   };
 
   const features = [
     {
       icon: Code,
-      title: '실시간 코딩 대결',
-      description: '다른 개발자들과 실시간으로 코딩 실력을 겨뤄보세요'
+      title: "실시간 코딩 대결",
+      description: "다른 개발자들과 실시간으로 코딩 실력을 겨뤄보세요",
     },
     {
       icon: Trophy,
-      title: '랭킹 시스템',
-      description: 'MMR 기반 랭킹으로 자신의 실력을 증명하세요'
+      title: "랭킹 시스템",
+      description: "MMR 기반 랭킹으로 자신의 실력을 증명하세요",
     },
     {
       icon: Zap,
-      title: '다양한 문제',
-      description: '알고리즘부터 자료구조까지 다양한 문제에 도전하세요'
-    }
+      title: "다양한 문제",
+      description: "알고리즘부터 자료구조까지 다양한 문제에 도전하세요",
+    },
   ];
 
   return (
@@ -48,8 +47,8 @@ const LandingPage = () => {
       <header className="relative z-10 p-6">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <img 
-              src="/lovable-uploads/af0ff57a-93d9-40b0-a0ff-1f22a23418ce.png" 
+            <img
+              src="/lovable-uploads/af0ff57a-93d9-40b0-a0ff-1f22a23418ce.png"
               alt="Codeground Logo"
               className="h-20 w-auto select-none pointer-events-none"
               draggable="false"
@@ -57,17 +56,10 @@ const LandingPage = () => {
             <span className="text-4xl font-bold neon-text">CODEGROUND</span>
           </div>
           <div className="flex items-center gap-4">
-            <CyberButton 
-              variant="secondary" 
-              size="sm"
-              onClick={handleLogin}
-            >
+            <CyberButton variant="secondary" size="sm" onClick={handleLogin}>
               로그인
             </CyberButton>
-            <CyberButton 
-              size="sm"
-              onClick={handleSignup}
-            >
+            <CyberButton size="sm" onClick={handleSignup}>
               회원가입
             </CyberButton>
           </div>
@@ -86,13 +78,13 @@ const LandingPage = () => {
                 <span className="text-white">겨뤄보세요</span>
               </h1>
               <p className="text-xl text-gray-300 leading-relaxed">
-                실시간 코딩 대결로 다른 개발자들과 경쟁하고, 
-                랭킹 시스템을 통해 자신의 실력을 증명해보세요.
+                실시간 코딩 대결로 다른 개발자들과 경쟁하고, 랭킹 시스템을 통해
+                자신의 실력을 증명해보세요.
               </p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <CyberButton 
+              <CyberButton
                 onClick={handleLogin}
                 size="lg"
                 className="text-lg px-8 py-4"
@@ -111,8 +103,12 @@ const LandingPage = () => {
                     <div className="w-12 h-12 bg-gradient-to-r from-cyber-blue to-cyber-purple rounded-lg mx-auto flex items-center justify-center">
                       <Icon className="h-6 w-6 text-white" />
                     </div>
-                    <h3 className="text-lg font-semibold text-white">{feature.title}</h3>
-                    <p className="text-sm text-gray-400">{feature.description}</p>
+                    <h3 className="text-lg font-semibold text-white">
+                      {feature.title}
+                    </h3>
+                    <p className="text-sm text-gray-400">
+                      {feature.description}
+                    </p>
                   </div>
                 );
               })}
@@ -148,8 +144,12 @@ const LandingPage = () => {
                     <Play className="h-10 w-10 text-cyber-blue" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-2xl font-bold text-white">실시간 대결 시스템</h3>
-                    <p className="text-gray-300">최고의 코딩 경험을 제공합니다</p>
+                    <h3 className="text-2xl font-bold text-white">
+                      실시간 대결 시스템
+                    </h3>
+                    <p className="text-gray-300">
+                      최고의 코딩 경험을 제공합니다
+                    </p>
                   </div>
                 </div>
               </div>
@@ -157,19 +157,19 @@ const LandingPage = () => {
               {/* 코드 스니펫 애니메이션 효과 */}
               <div className="absolute top-4 left-4 bg-black/60 rounded p-2 text-xs text-green-400 font-mono backdrop-blur-sm">
                 <div className="animate-pulse">
-                  {'> function solve(arr) {'}
+                  {"> function solve(arr) {"}
                   <br />
-                  {'    return arr.sort();'}
+                  {"    return arr.sort();"}
                   <br />
-                  {'}'}
+                  {"}"}
                 </div>
               </div>
 
               <div className="absolute bottom-4 right-4 bg-black/60 rounded p-2 text-xs text-cyber-blue font-mono backdrop-blur-sm">
                 <div className="animate-pulse">
-                  {'Status: Connected'}
+                  {"Status: Connected"}
                   <br />
-                  {'Players: 1,247 online'}
+                  {"Players: 1,247 online"}
                 </div>
               </div>
             </CyberCard>

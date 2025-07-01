@@ -1,38 +1,37 @@
-
-import { useState } from 'react';
-import Header from '@/components/Header';
-import CyberCard from '@/components/CyberCard';
-import CyberButton from '@/components/CyberButton';
-import { Settings, Shield, Palette } from 'lucide-react';
+import { useState } from "react";
+import Header from "@/components/Header";
+import CyberCard from "@/components/CyberCard";
+import CyberButton from "@/components/CyberButton";
+import { Settings, Shield, Palette } from "lucide-react";
 
 const SettingsPage = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [selectedTheme, setSelectedTheme] = useState('cyber');
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [selectedTheme, setSelectedTheme] = useState("cyber");
 
   const handlePasswordChange = () => {
     if (newPassword !== confirmPassword) {
-      alert('비밀번호가 일치하지 않습니다.');
+      alert("비밀번호가 일치하지 않습니다.");
       return;
     }
     if (newPassword.length < 6) {
-      alert('비밀번호는 6자 이상이어야 합니다.');
+      alert("비밀번호는 6자 이상이어야 합니다.");
       return;
     }
     // 비밀번호 변경 로직 구현
-    alert('비밀번호가 변경되었습니다.');
+    alert("비밀번호가 변경되었습니다.");
     setShowPasswordModal(false);
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
   };
 
   const handleDeleteAccount = () => {
     // 계정 삭제 요청 로직 구현
-    alert('계정 삭제 요청이 전송되었습니다.');
+    alert("계정 삭제 요청이 전송되었습니다.");
     setShowDeleteModal(false);
   };
 
@@ -45,7 +44,7 @@ const SettingsPage = () => {
   return (
     <div className="min-h-screen cyber-grid">
       <Header />
-      
+
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
@@ -67,18 +66,30 @@ const SettingsPage = () => {
                 <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
                   <div>
                     <h3 className="font-semibold text-white">비밀번호 변경</h3>
-                    <p className="text-sm text-gray-400">계정 보안을 위해 비밀번호를 변경하세요</p>
+                    <p className="text-sm text-gray-400">
+                      계정 보안을 위해 비밀번호를 변경하세요
+                    </p>
                   </div>
-                  <CyberButton size="sm" variant="secondary" onClick={() => setShowPasswordModal(true)}>
+                  <CyberButton
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setShowPasswordModal(true)}
+                  >
                     변경
                   </CyberButton>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
                   <div>
                     <h3 className="font-semibold text-white">계정 삭제</h3>
-                    <p className="text-sm text-gray-400">계정을 영구적으로 삭제합니다</p>
+                    <p className="text-sm text-gray-400">
+                      계정을 영구적으로 삭제합니다
+                    </p>
                   </div>
-                  <CyberButton size="sm" className="bg-red-500 hover:bg-red-600" onClick={() => setShowDeleteModal(true)}>
+                  <CyberButton
+                    size="sm"
+                    className="bg-red-500 hover:bg-red-600"
+                    onClick={() => setShowDeleteModal(true)}
+                  >
                     삭제
                   </CyberButton>
                 </div>
@@ -96,28 +107,40 @@ const SettingsPage = () => {
                   <h3 className="font-semibold text-white mb-3">테마 선택</h3>
                   <div className="grid grid-cols-3 gap-3">
                     <button
-                      onClick={() => handleThemeChange('cyber')}
+                      onClick={() => handleThemeChange("cyber")}
                       className={`aspect-square bg-gradient-to-br from-cyber-blue to-cyber-purple rounded-lg border-2 ${
-                        selectedTheme === 'cyber' ? 'border-cyber-blue' : 'border-transparent'
+                        selectedTheme === "cyber"
+                          ? "border-cyber-blue"
+                          : "border-transparent"
                       } flex items-center justify-center transition-all`}
                     >
-                      <span className="text-xs text-white font-medium">사이버</span>
+                      <span className="text-xs text-white font-medium">
+                        사이버
+                      </span>
                     </button>
                     <button
-                      onClick={() => handleThemeChange('dark')}
+                      onClick={() => handleThemeChange("dark")}
                       className={`aspect-square bg-gradient-to-br from-gray-700 to-gray-900 rounded-lg border-2 ${
-                        selectedTheme === 'dark' ? 'border-gray-400' : 'border-transparent'
+                        selectedTheme === "dark"
+                          ? "border-gray-400"
+                          : "border-transparent"
                       } flex items-center justify-center transition-all`}
                     >
-                      <span className="text-xs text-white font-medium">어둠</span>
+                      <span className="text-xs text-white font-medium">
+                        어둠
+                      </span>
                     </button>
                     <button
-                      onClick={() => handleThemeChange('classic')}
+                      onClick={() => handleThemeChange("classic")}
                       className={`aspect-square bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg border-2 ${
-                        selectedTheme === 'classic' ? 'border-blue-400' : 'border-transparent'
+                        selectedTheme === "classic"
+                          ? "border-blue-400"
+                          : "border-transparent"
                       } flex items-center justify-center transition-all`}
                     >
-                      <span className="text-xs text-white font-medium">클래식</span>
+                      <span className="text-xs text-white font-medium">
+                        클래식
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -138,7 +161,9 @@ const SettingsPage = () => {
             <h3 className="text-xl font-bold text-white mb-4">비밀번호 변경</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">현재 비밀번호</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  현재 비밀번호
+                </label>
                 <input
                   type="password"
                   value={currentPassword}
@@ -147,7 +172,9 @@ const SettingsPage = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">새 비밀번호</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  새 비밀번호
+                </label>
                 <input
                   type="password"
                   value={newPassword}
@@ -156,7 +183,9 @@ const SettingsPage = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">비밀번호 확인</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  비밀번호 확인
+                </label>
                 <input
                   type="password"
                   value={confirmPassword}
@@ -166,12 +195,13 @@ const SettingsPage = () => {
               </div>
             </div>
             <div className="flex justify-end space-x-3 mt-6">
-              <CyberButton variant="secondary" onClick={() => setShowPasswordModal(false)}>
+              <CyberButton
+                variant="secondary"
+                onClick={() => setShowPasswordModal(false)}
+              >
                 취소
               </CyberButton>
-              <CyberButton onClick={handlePasswordChange}>
-                변경
-              </CyberButton>
+              <CyberButton onClick={handlePasswordChange}>변경</CyberButton>
             </div>
           </CyberCard>
         </div>
@@ -186,10 +216,16 @@ const SettingsPage = () => {
               정말로 계정을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
             </p>
             <div className="flex justify-end space-x-3">
-              <CyberButton variant="secondary" onClick={() => setShowDeleteModal(false)}>
+              <CyberButton
+                variant="secondary"
+                onClick={() => setShowDeleteModal(false)}
+              >
                 취소
               </CyberButton>
-              <CyberButton className="bg-red-500 hover:bg-red-600" onClick={handleDeleteAccount}>
+              <CyberButton
+                className="bg-red-500 hover:bg-red-600"
+                onClick={handleDeleteAccount}
+              >
                 확인
               </CyberButton>
             </div>

@@ -1,19 +1,19 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import CyberCard from '@/components/CyberCard';
-import CyberButton from '@/components/CyberButton';
-import { LogIn, Mail, Lock } from 'lucide-react';
-import { useUser } from '../context/UserContext';
-import { authFetch } from '../utils/api';
-import { setCookie } from '@/lib/utils';
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import CyberCard from "@/components/CyberCard";
+import CyberButton from "@/components/CyberButton";
+import { LogIn, Mail, Lock } from "lucide-react";
+import { useUser } from "../context/UserContext";
+import { authFetch } from "../utils/api";
+import { setCookie } from "@/lib/utils";
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const { setUser } = useUser();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
-    password: ''
+    email: "",
+    password: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,14 +21,14 @@ const LoginPage = () => {
     setIsLoggingIn(true);
 
     const params = new URLSearchParams();
-    params.append('username', formData.email);
-    params.append('password', formData.password);
+    params.append("username", formData.email);
+    params.append("password", formData.password);
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/auth/login', {
-        method: 'POST',
+      const response = await fetch("http://localhost:8000/api/v1/auth/login", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          "Content-Type": "application/x-www-form-urlencoded",
         },
         body: params.toString(),
       });
@@ -36,33 +36,36 @@ const LoginPage = () => {
       if (response.ok) {
         const data = await response.json();
         const accessToken = data.access_token;
-        console.log('access_token:', accessToken);
-        setCookie('access_token', accessToken, 7); // Store token in cookie for persistence
+        console.log("access_token:", accessToken);
+        setCookie("access_token", accessToken, 7); // Store token in cookie for persistence
 
         // Fetch user data after successful login using authFetch
-        const userResponse = await authFetch('http://localhost:8000/api/v1/user/me', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
+        const userResponse = await authFetch(
+          "http://localhost:8000/api/v1/user/me",
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
           },
-        });
+        );
 
         if (userResponse.ok) {
           const userData = await userResponse.json();
           setUser(userData); // Store user data in context
-          navigate('/home');
+          navigate("/home");
         } else {
-          console.error('Failed to fetch user data');
-          alert('사용자 정보를 가져오는데 실패했습니다.');
+          console.error("Failed to fetch user data");
+          alert("사용자 정보를 가져오는데 실패했습니다.");
         }
       } else {
         const errorData = await response.json();
-        console.error('Login failed:', errorData);
-        alert('로그인 실패: ' + (errorData.detail || '알 수 없는 오류')); // Display error to user
+        console.error("Login failed:", errorData);
+        alert("로그인 실패: " + (errorData.detail || "알 수 없는 오류")); // Display error to user
       }
     } catch (error) {
-      console.error('Network error:', error);
-      alert('네트워크 오류가 발생했습니다.');
+      console.error("Network error:", error);
+      alert("네트워크 오류가 발생했습니다.");
     } finally {
       setIsLoggingIn(false);
     }
@@ -71,7 +74,7 @@ const LoginPage = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
   };
 
@@ -83,13 +86,15 @@ const LoginPage = () => {
             <div className="text-center mb-8">
               <Link to="/" className="inline-block mb-6">
                 <div className="flex flex-col items-center space-y-2">
-                  <img 
-                    src="/lovable-uploads/af0ff57a-93d9-40b0-a0ff-1f22a23418ce.png" 
+                  <img
+                    src="/lovable-uploads/af0ff57a-93d9-40b0-a0ff-1f22a23418ce.png"
                     alt="Codeground Logo"
                     className="h-16 w-auto select-none pointer-events-none"
                     draggable="false"
                   />
-                  <span className="text-2xl font-bold text-cyber-blue">CODEGROUND</span>
+                  <span className="text-2xl font-bold text-cyber-blue">
+                    CODEGROUND
+                  </span>
                 </div>
               </Link>
               <h1 className="text-2xl font-bold text-white mb-2">로그인</h1>
@@ -99,7 +104,10 @@ const LoginPage = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-gray-300 mb-2"
+                  >
                     이메일
                   </label>
                   <div className="relative">
@@ -118,7 +126,10 @@ const LoginPage = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                  <label
+                    htmlFor="password"
+                    className="block text-sm font-medium text-gray-300 mb-2"
+                  >
                     비밀번호
                   </label>
                   <div className="relative">
@@ -143,14 +154,17 @@ const LoginPage = () => {
                 disabled={isLoggingIn}
               >
                 <LogIn className="h-5 w-5" />
-                {isLoggingIn ? '로그인 중...' : '로그인'}
+                {isLoggingIn ? "로그인 중..." : "로그인"}
               </CyberButton>
             </form>
 
             <div className="mt-6 text-center">
               <p className="text-gray-400">
-                계정이 없으신가요?{' '}
-                <Link to="/signup" className="text-cyber-blue hover:text-cyber-blue/80 font-medium">
+                계정이 없으신가요?{" "}
+                <Link
+                  to="/signup"
+                  className="text-cyber-blue hover:text-cyber-blue/80 font-medium"
+                >
                   회원가입
                 </Link>
               </p>

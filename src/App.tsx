@@ -24,10 +24,10 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-import { useEffect } from 'react';
-import { useUser } from './context/UserContext';
-import { authFetch } from './utils/api';
-import { getCookie, eraseCookie } from '@/lib/utils';
+import { useEffect } from "react";
+import { useUser } from "./context/UserContext";
+import { authFetch } from "./utils/api";
+import { getCookie, eraseCookie } from "@/lib/utils";
 
 const queryClient = new QueryClient();
 
@@ -37,18 +37,20 @@ const App = () => {
   useEffect(() => {
     const fetchUser = async () => {
       setIsLoading(true);
-      const token = getCookie('access_token');
+      const token = getCookie("access_token");
       if (token) {
         try {
-          const userResponse = await authFetch('http://localhost:8000/api/v1/user/me');
+          const userResponse = await authFetch(
+            "http://localhost:8000/api/v1/user/me",
+          );
           if (userResponse.ok) {
             const userData = await userResponse.json();
             setUser(userData);
           } else {
-            eraseCookie('access_token'); // Clear invalid token
+            eraseCookie("access_token"); // Clear invalid token
           }
         } catch (error) {
-          eraseCookie('access_token'); // Clear token on network error
+          eraseCookie("access_token"); // Clear token on network error
         } finally {
           setIsLoading(false);
         }
@@ -76,7 +78,10 @@ const App = () => {
                 <Route path="/setup-profile" element={<ProfileSetupPage />} />
                 <Route path="/matching" element={<MatchingPage />} />
                 <Route path="/waiting-room" element={<WaitingRoomPage />} />
-                <Route path="/screen-share-setup" element={<ScreenShareSetupPage />} />
+                <Route
+                  path="/screen-share-setup"
+                  element={<ScreenShareSetupPage />}
+                />
                 <Route path="/battle" element={<BattlePage />} />
                 <Route path="/result" element={<ResultPage />} />
                 <Route path="/tier-promotion" element={<TierPromotionPage />} />
