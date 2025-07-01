@@ -12,6 +12,8 @@ const MatchingPage = () => {
   const [matchingTime, setMatchingTime] = useState(0);
   const [foundOpponent, setFoundOpponent] = useState(false);
   const [acceptTimeLeft, setAcceptTimeLeft] = useState(20);
+  const [userAccepted, setUserAccepted] = useState(false);
+  const [opponentAccepted, setOpponentAccepted] = useState(false);
   const [opponent] = useState({
     name: 'CodeWarrior',
     mmr: 1823,
@@ -42,16 +44,23 @@ const MatchingPage = () => {
 
       if (message.type === 'match_found') {
         setFoundOpponent(true);
+        setUserAccepted(false);
+        setOpponentAccepted(false);
         setAcceptTimeLeft(message.time_limit);
         matchIdRef.current = message.match_id;
         // You might want to update opponent details here based on message.opponent_ids
       } else if (message.type === 'match_accepted') {
-        navigate(`/battle?gameId=${message.game_id}`);
+        setOpponentAccepted(true);
+        navigate(`/screen-share-setup?gameId=${message.game_id}`);
+      } else if (message.type === 'opponent_accepted') {
+        setOpponentAccepted(true);
       } else if (message.type === 'match_cancelled') {
         console.log('Match cancelled:', message.reason);
         setFoundOpponent(false);
         setMatchingTime(0);
         setAcceptTimeLeft(20);
+        setUserAccepted(false);
+        setOpponentAccepted(false);
         matchIdRef.current = null;
         if (message.reason === 'timeout or rejection') {
           navigate('/home'); // Go back to home or a suitable page
@@ -109,6 +118,7 @@ const MatchingPage = () => {
   const handleAccept = () => {
     console.log('handleAccept called');
     if (ws && matchIdRef.current) {
+      setUserAccepted(true);
       const message = { type: 'match_accept', match_id: matchIdRef.current };
       console.log('Sending WebSocket message:', message);
       ws.send(JSON.stringify(message));
@@ -118,6 +128,7 @@ const MatchingPage = () => {
   };
 
   const handleDecline = () => {
+    if (userAccepted) return; // 이미 수락한 경우 거절 불가
     if (ws && matchIdRef.current) {
       ws.send(JSON.stringify({ type: 'match_reject', match_id: matchIdRef.current }));
     }
@@ -231,16 +242,24 @@ const MatchingPage = () => {
                       <div className="text-center space-y-4">
                         <div className="text-2xl font-bold text-white">코딩 배틀</div>
                         <div className="text-sm text-gray-300">랭크 매칭</div>
-                        <div className="text-lg text-cyber-blue font-mono">
-                          {acceptTimeLeft}초
-                        </div>
+                        {!userAccepted || !opponentAccepted ? (
+                          <div className="text-lg text-cyber-blue font-mono">
+                            {acceptTimeLeft}초
+                          </div>
+                        ) : (
+                          <div className="text-lg text-green-400 font-mono">
+                            수락됨
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     {/* 타이머 텍스트 */}
-                    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 text-white font-bold text-lg">
-                      {acceptTimeLeft}
-                    </div>
+                    {(!userAccepted || !opponentAccepted) && (
+                      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 text-white font-bold text-lg">
+                        {acceptTimeLeft}
+                      </div>
+                    )}
                   </div>
 
                   {/* 상대방 정보 (간소화) */}
@@ -252,6 +271,12 @@ const MatchingPage = () => {
                         </div>
                         <div className="text-sm text-white">CyberCoder</div>
                         <div className="text-xs text-cyber-blue">Gold III</div>
+                        {userAccepted && (
+                          <div className="text-xs text-green-400 mt-1 flex items-center justify-center">
+                            <Check className="h-3 w-3 mr-1" />
+                            수락함
+                          </div>
+                        )}
                       </div>
                       
                       <div className="text-2xl font-bold neon-text">VS</div>
@@ -262,30 +287,61 @@ const MatchingPage = () => {
                         </div>
                         <div className="text-sm text-white">{opponent.name}</div>
                         <div className="text-xs text-red-400">{opponent.rank}</div>
+                        {opponentAccepted && (
+                          <div className="text-xs text-green-400 mt-1 flex items-center justify-center">
+                            <Check className="h-3 w-3 mr-1" />
+                            수락함
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  {/* 수락/거절 버튼 */}
-                  <div className="flex justify-center gap-8">
-                    <CyberButton 
-                      onClick={handleAccept}
-                      size="lg"
-                      className="w-32 h-16 text-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500"
-                    >
-                      <Check className="h-6 w-6" />
-                      수락
-                    </CyberButton>
-                    <CyberButton 
-                      onClick={handleDecline}
-                      variant="danger"
-                      size="lg"
-                      className="w-32 h-16 text-lg"
-                    >
-                      <X className="h-6 w-6" />
-                      거절
-                    </CyberButton>
-                  </div>
+                  {/* 수락/거절 버튼 또는 상태 */}
+                  {!userAccepted && (
+                    <div className="flex justify-center gap-8">
+                      <CyberButton
+                        onClick={handleAccept}
+                        size="lg"
+                        className="w-32 h-16 text-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500"
+                      >
+                        <Check className="h-6 w-6" />
+                        수락
+                      </CyberButton>
+                      <CyberButton
+                        onClick={handleDecline}
+                        variant="danger"
+                        size="lg"
+                        className="w-32 h-16 text-lg"
+                      >
+                        <X className="h-6 w-6" />
+                        거절
+                      </CyberButton>
+                    </div>
+                  )}
+
+                  {userAccepted && !opponentAccepted && (
+                    <div className="text-center space-y-4">
+                      <div className="text-green-400 font-semibold text-lg flex items-center justify-center">
+                        <Check className="h-5 w-5 mr-2" />
+                        수락 완료! 상대방을 기다리는 중...
+                      </div>
+                      <div className="animate-pulse text-cyber-blue">
+                        상대방이 수락하길 기다리고 있습니다
+                      </div>
+                    </div>
+                  )}
+
+                  {userAccepted && opponentAccepted && (
+                    <div className="text-center space-y-4">
+                      <div className="text-green-400 font-bold text-xl">
+                        매칭 성공!
+                      </div>
+                      <div className="text-cyber-blue">
+                        게임을 시작합니다...
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

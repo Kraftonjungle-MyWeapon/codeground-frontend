@@ -4,6 +4,7 @@ import { useUser } from '@/context/UserContext';
 import CyberCard from '@/components/CyberCard';
 import CyberButton from '@/components/CyberButton';
 import { Clock, Play, Send, Monitor, Flag, AlertTriangle, HelpCircle } from 'lucide-react';
+import { localStream as sharedLocalStream, remoteStream as sharedRemoteStream, setLocalStream, peerConnection as sharedPC } from '@/utils/webrtcStore';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -13,12 +14,16 @@ const BattlePage = () => {
   const [searchParams] = useSearchParams();
   const gameId = searchParams.get('gameId');
   const wsRef = useRef<WebSocket | null>(null);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const [timeLeft, setTimeLeft] = useState(930);
   const [code, setCode] = useState('');
   const [chatMessages, setChatMessages] = useState<{ user: string; message: string }[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [executionResult, setExecutionResult] = useState('실행 결과가 여기에 표시됩니다.');
   const [showHint, setShowHint] = useState(false);
+  const [isLocalStreamActive, setIsLocalStreamActive] = useState(true);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
@@ -38,6 +43,25 @@ const BattlePage = () => {
     hint: ['수학', '약수', '반복문', '완전탐색']
   };
 
+
+  useEffect(() => {
+    if (localVideoRef.current && sharedLocalStream) {
+      localVideoRef.current.srcObject = sharedLocalStream;
+    }
+    if (remoteVideoRef.current && sharedRemoteStream) {
+      remoteVideoRef.current.srcObject = sharedRemoteStream;
+    }
+
+    if (sharedLocalStream) {
+      const videoTrack = sharedLocalStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.onended = () => {
+          setIsLocalStreamActive(false);
+        };
+      }
+    }
+  }, []);
+
    // 웹소켓 연결
    useEffect(() => {
     if (!gameId || !user?.user_id) return;
@@ -50,11 +74,11 @@ const BattlePage = () => {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.type === 'chat') {
+        if (data.type === 'chat' && data.sender !== user.user_id) {
           setChatMessages((prev) => [
             ...prev,
             {
-              user: data.sender === user.user_id ? '나' : `상대`,
+              user: '상대',
               message: data.message,
             },
           ]);
@@ -68,6 +92,14 @@ const BattlePage = () => {
       ws.close();
     };
   }, [gameId, user]);
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatMessages]);
 
 
   useEffect(() => {
@@ -98,8 +130,8 @@ const BattlePage = () => {
 
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(msgObj));
+      setChatMessages((prev) => [...prev, { user: '나', message: newMessage }]);
     }
-
     
     setNewMessage('');
   };
@@ -112,6 +144,38 @@ const BattlePage = () => {
 
   const handleReport = () => {
     alert('신고가 접수되었습니다.');
+  };
+
+  const handleRestartScreenShare = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false,
+      });
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = mediaStream;
+      }
+
+      setLocalStream(mediaStream);
+
+      if (sharedPC) {
+        const videoTrack = mediaStream.getVideoTracks()[0];
+        const sender = sharedPC.getSenders().find((s) => s.track?.kind === 'video');
+        if (sender) {
+          sender.replaceTrack(videoTrack);
+        }
+      }
+
+      const videoTrack = mediaStream.getVideoTracks()[0];
+      videoTrack.onended = () => {
+        setIsLocalStreamActive(false);
+      };
+
+      setIsLocalStreamActive(true);
+    } catch (error) {
+      console.error('Error restarting screen share:', error);
+    }
   };
 
   const timeColor = timeLeft <= 60 ? 'text-red-400' : timeLeft <= 180 ? 'text-yellow-400' : 'text-cyber-blue';
@@ -244,45 +308,54 @@ const BattlePage = () => {
               </div>
 
               {/* 좌측 하단 - 채팅 & 화면공유 (고정 높이) */}
-              <div className="h-48 grid grid-cols-2 gap-2 mr-2">
+              <div className="h-48 flex gap-2 mr-2">
                 {/* 채팅 */}
-                <CyberCard className="p-3 flex flex-col">
-                  <h3 className="text-sm font-semibold text-cyber-blue mb-2">채팅</h3>
-                  <ScrollArea className="flex-1 mb-2">
-                    <div className="space-y-2 pr-3">
-                      {chatMessages.map((msg, index) => (
-                        <div key={index} className="text-xs">
-                          <div className="text-gray-400">{msg.user}: {msg.message}</div>
-                        </div>
-                      ))}
+                <div className="flex-1 min-w-0">
+                  <CyberCard className="p-3 flex flex-col h-full">
+                    <h3 className="text-sm font-semibold text-cyber-blue mb-2">채팅</h3>
+                    <ScrollArea className="flex-1 mb-2">
+                      <div className="space-y-2 pr-3">
+                        {chatMessages.map((msg, index) => (
+                          <div key={index} className="text-xs">
+                            <div className="text-gray-400">{msg.user}: {msg.message}</div>
+                          </div>
+                        ))}
+                        <div ref={chatEndRef} />
+                      </div>
+                    </ScrollArea>
+                    <div className="flex">
+                      <input
+                        type="text"
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                        placeholder="메시지 입력..."
+                        className="flex-1 text-xs bg-black/30 border border-gray-600 rounded-l px-2 py-1 text-white"
+                      />
+                      <button
+                        onClick={handleSendMessage}
+                        className="bg-cyber-blue px-2 py-1 rounded-r"
+                      >
+                        <Send className="h-3 w-3" />
+                      </button>
                     </div>
-                  </ScrollArea>
-                  <div className="flex">
-                    <input
-                      type="text"
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                      placeholder="메시지 입력..."
-                      className="flex-1 text-xs bg-black/30 border border-gray-600 rounded-l px-2 py-1 text-white"
-                    />
-                    <button
-                      onClick={handleSendMessage}
-                      className="bg-cyber-blue px-2 py-1 rounded-r"
-                    >
-                      <Send className="h-3 w-3" />
-                    </button>
-                  </div>
-                </CyberCard>
+                  </CyberCard>
+                </div>
 
                 {/* 화면공유 */}
-                <CyberCard className="p-3 flex flex-col items-center justify-center">
-                  <Monitor className="h-8 w-8 text-gray-400 mb-2" />
-                  <div className="text-xs text-gray-400 text-center">
-                    <div>상대방 화면</div>
-                    <div className="mt-1 text-yellow-400">공유 대기중...</div>
-                  </div>
-                </CyberCard>
+                <div className="flex-1 min-w-0">
+                  <CyberCard className="p-3 flex flex-col items-center justify-center h-full">
+                  {sharedRemoteStream ? (
+                      <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="text-xs text-gray-400 text-center">
+                        <Monitor className="h-8 w-8 text-gray-400 mb-2" />
+                        <div>상대방 화면</div>
+                        <div className="mt-1 text-yellow-400">공유 대기중...</div>
+                      </div>
+                    )}
+                  </CyberCard>
+                </div>
               </div>
             </div>
           </ResizablePanel>
