@@ -19,7 +19,7 @@ const BattlePage = () => {
   const { user } = useUser();
   const [searchParams] = useSearchParams();
   const gameId = searchParams.get('gameId');
-  const { websocket, sendMessage, disconnect } = useWebSocketStore();
+  const { websocket, sendMessage, disconnect, connect } = useWebSocketStore();
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const [timeLeft, setTimeLeft] = useState(930);
@@ -33,9 +33,113 @@ const BattlePage = () => {
   const [runStatus, setRunStatus] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [isLocalStreamActive, setIsLocalStreamActive] = useState(true);
+  const [showScreenSharePrompt, setShowScreenSharePrompt] = useState(false); // New state for screen share prompt
   const [isLeavingGame, setIsLeavingGame] = useState(false); // New state to control cleanup
   const isConfirmedExitRef = useRef(false); // New ref to track explicit exit confirmation
   const [currentLanguage] = useState<ProgrammingLanguage>('python'); // 현재는 python 고정, 추후 변경 가능
+
+  const createPeerConnection = useCallback(() => {
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+    setPeerConnection(pc); // 여기서 sharedPC를 업데이트
+
+    pc.oniceconnectionstatechange = () => {
+      console.log('BattlePage: ICE connection state changed:', pc.iceConnectionState);
+      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
+        setShowScreenSharePrompt(true);
+        setRemoteStream(null); // 상대방 스트림 제거
+      } else if (pc.iceConnectionState === 'connected') {
+        setShowScreenSharePrompt(false);
+      }
+    };
+
+    pc.onicecandidate = ({ candidate }) => {
+      if (candidate) {
+        sendMessage(
+          JSON.stringify({ type: 'webrtc_signal', signal: { type: 'candidate', candidate } })
+        );
+      }
+    };
+    pc.ontrack = ({ streams: [stream] }) => {
+      console.log('BattlePage: Received remote stream:', stream);
+      setRemoteStream(stream);
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = stream;
+      }
+
+      const remoteVideoTrack = stream.getVideoTracks()[0];
+      if (remoteVideoTrack) {
+        remoteVideoTrack.onended = () => {
+          console.log('BattlePage: Remote screen share track ended.');
+          setShowScreenSharePrompt(true);
+          setRemoteStream(null); // 상대방 스트림 제거
+        };
+      }
+    };
+    return pc;
+  }, [sendMessage]);
+
+  const handleSignal = useCallback(async (signal: any) => {
+    let pc = sharedPC; // sharedPC를 직접 사용
+    if (!pc) {
+      pc = createPeerConnection();
+    }
+
+    if (signal.type === 'offer') {
+      if (pc.signalingState !== 'stable') {
+        await Promise.all([
+          pc.localDescription ? pc.setLocalDescription(pc.localDescription) : Promise.resolve(),
+          pc.remoteDescription ? pc.setRemoteDescription(pc.remoteDescription) : Promise.resolve(),
+        ]);
+      }
+      await pc.setRemoteDescription(new RTCSessionDescription(signal));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      sendMessage(JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription }));
+    } else if (signal.type === 'answer') {
+      if (pc.signalingState === 'have-local-offer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(signal));
+      } else {
+        console.warn('BattlePage: Received answer in unexpected signaling state:', pc.signalingState, 'Signal:', signal);
+      }
+    } else if (signal.type === 'candidate') {
+      if (signal.candidate) {
+        try {
+          await pc.addIceCandidate(signal.candidate);
+        } catch (err) {
+          console.error('BattlePage: Error adding ice candidate', err);
+        }
+      }
+    } else if (signal.type === 'join') {
+      // 상대방이 방에 들어왔음을 알리는 시그널. 여기서 offer를 생성하지 않음.
+      // offer 생성은 handleRestartScreenShare 함수에서 담당.
+    }
+    setPeerConnection(pc);
+  }, [createPeerConnection, sendMessage]);
+
+  useEffect(() => {
+    if (!websocket) return;
+
+    websocket.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'chat' && data.sender !== user.user_id) {
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              user: '상대',
+              message: data.message,
+            },
+          ]);
+        } else if (data.type === 'webrtc_signal' && data.sender !== user.user_id) {
+          await handleSignal(data.signal);
+        }
+      } catch (e) {
+        console.error('BattlePage: ws message parse error', e);
+      }
+    };
+  }, [websocket, user, handleSignal]);
 
   // 화면 공유 스트림 정리 함수
   const cleanupScreenShare = useCallback(() => {
@@ -105,32 +209,57 @@ const BattlePage = () => {
       if (videoTrack) {
         videoTrack.onended = () => {
           setIsLocalStreamActive(false);
+          setShowScreenSharePrompt(true); // Show prompt when local stream ends
         };
       }
+    } else {
+      setIsLocalStreamActive(false);
+      setShowScreenSharePrompt(true); // Show prompt if no local stream initially
     }
   }, [sharedLocalStream, sharedRemoteStream, sharedPC]);
 
    // 웹소켓 연결
-   useEffect(() => {
-    if (!websocket || !user?.user_id) return;
+  useEffect(() => {
+    const storedWebsocketUrl = localStorage.getItem('websocketUrl');
+    let wsUrl: string | null = null;
 
-    websocket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === "chat" && data.sender !== user.user_id) {
-          setChatMessages((prev) => [
-            ...prev,
-            {
-              user: "상대",
-              message: data.message,
-            },
-          ]);
+    if (storedWebsocketUrl) {
+      wsUrl = storedWebsocketUrl;
+      console.log('BattlePage: Using stored WebSocket URL from localStorage:', wsUrl);
+    } else if (user?.user_id && gameId) {
+      wsUrl = `ws://localhost:8000/api/v1/game/ws/game/${gameId}?user_id=${user.user_id}`;
+      console.log('BattlePage: Constructing WebSocket URL from gameId and userId:', wsUrl);
+    } else {
+      console.log('BattlePage: Cannot connect WebSocket. Missing gameId, userId, or stored URL.', { gameId, userId: user?.user_id });
+      return;
+    }
+
+    if (!websocket || websocket.readyState === WebSocket.CLOSED) {
+      console.log('BattlePage: WebSocket not connected or closed. Attempting to connect.');
+      connect(wsUrl);
+    }
+
+    if (websocket) {
+      websocket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'chat' && data.sender !== user.user_id) {
+            setChatMessages((prev) => [
+              ...prev,
+              {
+                user: '상대',
+                message: data.message,
+              },
+            ]);
+          } else if (data.type === 'webrtc_signal' && data.sender !== user.user_id) {
+            handleSignal(data.signal);
+          }
+        } catch (e) {
+          console.error('BattlePage: ws message parse error', e);
         }
-      } catch (e) {
-        console.error("Failed to parse message", e);
-      }
-    };
-  }, [websocket, user]);
+      };
+    }
+  }, [websocket, user, gameId, connect, handleSignal]);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -229,6 +358,12 @@ const BattlePage = () => {
 
   const handleRestartScreenShare = async () => {
     try {
+      // 기존 스트림이 있다면 중지
+      if (sharedLocalStream) {
+        sharedLocalStream.getTracks().forEach(track => track.stop());
+        setLocalStream(null);
+      }
+
       const mediaStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: false,
@@ -240,24 +375,37 @@ const BattlePage = () => {
 
       setLocalStream(mediaStream);
 
-      if (sharedPC) {
-        const videoTrack = mediaStream.getVideoTracks()[0];
-        const sender = sharedPC
-          .getSenders()
-          .find((s) => s.track?.kind === "video");
-        if (sender) {
-          sender.replaceTrack(videoTrack);
-        }
+      let pc = sharedPC;
+      if (!pc) {
+        pc = createPeerConnection();
       }
+
+      // 기존 트랙 제거 및 새 트랙 추가
+      pc.getSenders().forEach(sender => {
+        if (sender.track && sender.track.kind === 'video') {
+          pc.removeTrack(sender);
+        }
+      });
+      mediaStream.getTracks().forEach((track) => pc.addTrack(track, mediaStream));
+
+      // Offer 생성 및 전송
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      sendMessage(
+        JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription })
+      );
 
       const videoTrack = mediaStream.getVideoTracks()[0];
       videoTrack.onended = () => {
         setIsLocalStreamActive(false);
+        setShowScreenSharePrompt(true);
       };
 
       setIsLocalStreamActive(true);
+      setShowScreenSharePrompt(false); // 화면 공유 시작 시 프롬프트 숨김
     } catch (error) {
-      console.error("Error restarting screen share:", error);
+      console.error('Error restarting screen share:', error);
+      setShowScreenSharePrompt(true); // 에러 발생 시 프롬프트 다시 표시
     }
   };
 
@@ -560,11 +708,16 @@ const BattlePage = () => {
                       <div className="text-xs text-gray-400 text-center">
                         <Monitor className="h-8 w-8 text-gray-400 mb-2" />
                         <div>상대방 화면</div>
-                        <div className="mt-1 text-yellow-400">
-                          공유 대기중...
-                        </div>
+                        <div className="mt-1 text-yellow-400">공유 대기중...</div>
                       </div>
                     )}
+                  {showScreenSharePrompt && (
+                    <div className="flex justify-center mt-4">
+                      <CyberButton onClick={handleRestartScreenShare} className="bg-blue-500 hover:bg-blue-600">
+                        내 화면 공유 재시작
+                      </CyberButton>
+                    </div>
+                  )}
                   </CyberCard>
                 </div>
               </div>

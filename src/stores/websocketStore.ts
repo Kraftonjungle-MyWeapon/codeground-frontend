@@ -22,7 +22,7 @@ const useWebSocketStore = create<WebSocketState>((set, get) => ({
   maxReconnectAttempts: 5,
   reconnectTimeoutId: null,
   isReconnecting: false,
-  reconnectUrl: null,
+  reconnectUrl: localStorage.getItem('websocketUrl'), // Load from localStorage on init
 
   connect: (url: string) => {
     const { websocket, isReconnecting, reconnectTimeoutId } = get();

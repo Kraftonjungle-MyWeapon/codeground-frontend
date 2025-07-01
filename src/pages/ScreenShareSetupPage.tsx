@@ -37,6 +37,38 @@ const ScreenShareSetupPage = () => {
   const [opponentScreenShareStatus, setOpponentScreenShareStatus] = useState<'waiting' | 'connected' | 'disconnected'>('waiting');
   const [showMyScreenShareRestartButton, setShowMyScreenShareRestartButton] = useState(false);
 
+  useEffect(() => {
+    // 기존 WebRTC 연결 및 스트림 정리
+    if (sharedPC) {
+      sharedPC.close();
+      setPeerConnection(null);
+      console.log('ScreenShareSetupPage: Closed existing PeerConnection.');
+    }
+    if (sharedLocalStream) {
+      sharedLocalStream.getTracks().forEach(track => track.stop());
+      setLocalStream(null);
+      console.log('ScreenShareSetupPage: Stopped existing local stream.');
+    }
+    if (sharedRemoteStream) {
+      sharedRemoteStream.getTracks().forEach(track => track.stop());
+      setRemoteStream(null);
+      console.log('ScreenShareSetupPage: Stopped existing remote stream.');
+    }
+
+    // 상태 초기화
+    setMyStream(null);
+    setRemoteStreamState(null);
+    setMyShareStatus('waiting');
+    setOpponentReady(false);
+    setMyReady(false);
+    setCountdown(0);
+    setIsCountingDown(false);
+    setIsWebRTCConnected(false);
+    setOpponentScreenShareStatus('waiting');
+    setShowMyScreenShareRestartButton(false);
+
+  }, []);
+
   const startScreenShare = async () => {
     try {
       setMyShareStatus("sharing");
