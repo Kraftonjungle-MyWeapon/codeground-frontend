@@ -34,6 +34,8 @@ const BattlePage = () => {
   const [showHint, setShowHint] = useState(false);
   const [isLocalStreamActive, setIsLocalStreamActive] = useState(true);
   const [showScreenSharePrompt, setShowScreenSharePrompt] = useState(false); // New state for screen share prompt
+  const [isRemoteStreamActive, setIsRemoteStreamActive] = useState(true); // New state for remote stream active
+  const [showRemoteScreenSharePrompt, setShowRemoteScreenSharePrompt] = useState(false); // New state for remote screen share prompt
   const [isLeavingGame, setIsLeavingGame] = useState(false); // New state to control cleanup
   const isConfirmedExitRef = useRef(false); // New ref to track explicit exit confirmation
   const [currentLanguage] = useState<ProgrammingLanguage>('python'); // 현재는 python 고정, 추후 변경 가능
@@ -50,7 +52,7 @@ const BattlePage = () => {
         setShowScreenSharePrompt(true);
         setRemoteStream(null); // 상대방 스트림 제거
       } else if (pc.iceConnectionState === 'connected') {
-        setShowScreenSharePrompt(false);
+        // Do not hide the screen share prompt here. It should only be hidden when the user explicitly starts sharing.
       }
     };
 
@@ -64,6 +66,8 @@ const BattlePage = () => {
     pc.ontrack = ({ streams: [stream] }) => {
       console.log('BattlePage: Received remote stream:', stream);
       setRemoteStream(stream);
+      setIsRemoteStreamActive(true);
+      setShowRemoteScreenSharePrompt(false);
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = stream;
       }
@@ -72,8 +76,8 @@ const BattlePage = () => {
       if (remoteVideoTrack) {
         remoteVideoTrack.onended = () => {
           console.log('BattlePage: Remote screen share track ended.');
-          setShowScreenSharePrompt(true);
-          setRemoteStream(null); // 상대방 스트림 제거
+          setIsRemoteStreamActive(false);
+          setShowRemoteScreenSharePrompt(true);
         };
       }
     };
@@ -210,11 +214,33 @@ const BattlePage = () => {
         videoTrack.onended = () => {
           setIsLocalStreamActive(false);
           setShowScreenSharePrompt(true); // Show prompt when local stream ends
+          sendMessage(JSON.stringify({ type: 'screen_share_ended' })); // Notify opponent
+
+          // 내 화면 공유가 중지되면 상대방 화면도 즉시 대기 상태로 변경
+          if (sharedRemoteStream) {
+            sharedRemoteStream.getTracks().forEach(track => track.stop());
+            setRemoteStream(null);
+          }
+          setIsRemoteStreamActive(false);
+          setShowRemoteScreenSharePrompt(true);
         };
       }
     } else {
       setIsLocalStreamActive(false);
       setShowScreenSharePrompt(true); // Show prompt if no local stream initially
+    }
+
+    if (sharedRemoteStream) {
+      const remoteVideoTrack = sharedRemoteStream.getVideoTracks()[0];
+      if (remoteVideoTrack) {
+        remoteVideoTrack.onended = () => {
+          setIsRemoteStreamActive(false);
+          setShowRemoteScreenSharePrompt(true);
+        };
+      }
+    } else {
+      setIsRemoteStreamActive(false);
+      setShowRemoteScreenSharePrompt(true);
     }
   }, [sharedLocalStream, sharedRemoteStream, sharedPC]);
 
@@ -253,6 +279,15 @@ const BattlePage = () => {
             ]);
           } else if (data.type === 'webrtc_signal' && data.sender !== user.user_id) {
             handleSignal(data.signal);
+          } else if (data.type === 'screen_share_ended' && data.sender !== user.user_id) {
+            console.log('BattlePage: Opponent screen share ended. Stopping local screen share.');
+            cleanupScreenShare();
+            setShowScreenSharePrompt(true);
+            setShowRemoteScreenSharePrompt(true);
+          } else if (data.type === 'screen_share_restarted' && data.sender !== user.user_id) {
+            console.log('BattlePage: Opponent screen share restarted.');
+            setIsRemoteStreamActive(true);
+            setShowRemoteScreenSharePrompt(false);
           }
         } catch (e) {
           console.error('BattlePage: ws message parse error', e);
@@ -403,6 +438,7 @@ const BattlePage = () => {
 
       setIsLocalStreamActive(true);
       setShowScreenSharePrompt(false); // 화면 공유 시작 시 프롬프트 숨김
+      sendMessage(JSON.stringify({ type: 'screen_share_restarted' })); // Notify opponent that screen share has restarted
     } catch (error) {
       console.error('Error restarting screen share:', error);
       setShowScreenSharePrompt(true); // 에러 발생 시 프롬프트 다시 표시
@@ -697,23 +733,22 @@ const BattlePage = () => {
                 {/* 화면공유 */}
                 <div className="flex-1 min-w-0">
                   <CyberCard className="p-3 flex flex-col items-center justify-center h-full">
-                    {sharedRemoteStream ? (
-                      <video
-                        ref={remoteVideoRef}
-                        autoPlay
-                        playsInline
-                        className="w-full h-full object-contain"
-                      />
+                  {sharedRemoteStream && isRemoteStreamActive ? (
+                      <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-contain" />
                     ) : (
                       <div className="text-xs text-gray-400 text-center">
-                        <Monitor className="h-8 w-8 text-gray-400 mb-2" />
+                        <Monitor className="h-8 w-8 text-gray-400 mb-2 mx-auto" />
                         <div>상대방 화면</div>
-                        <div className="mt-1 text-yellow-400">공유 대기중...</div>
+                        {showRemoteScreenSharePrompt ? (
+                          <div className="mt-1 text-red-400">공유 중지됨. 상대방이 다시 공유해야 합니다.</div>
+                        ) : (
+                          <div className="mt-1 text-yellow-400">공유 대기중...</div>
+                        )}
                       </div>
                     )}
                   {showScreenSharePrompt && (
                     <div className="flex justify-center mt-4">
-                      <CyberButton onClick={handleRestartScreenShare} className="bg-blue-500 hover:bg-blue-600">
+                      <CyberButton onClick={handleRestartScreenShare} className="bg-blue-500 hover:bg-blue-600" size="sm">
                         내 화면 공유 재시작
                       </CyberButton>
                     </div>
