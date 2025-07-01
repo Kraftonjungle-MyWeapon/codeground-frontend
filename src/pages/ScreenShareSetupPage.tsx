@@ -34,6 +34,8 @@ const ScreenShareSetupPage = () => {
   const [countdown, setCountdown] = useState(0);
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [isWebRTCConnected, setIsWebRTCConnected] = useState(false);
+  const [opponentScreenShareStatus, setOpponentScreenShareStatus] = useState<'waiting' | 'connected' | 'disconnected'>('waiting');
+  const [showMyScreenShareRestartButton, setShowMyScreenShareRestartButton] = useState(false);
 
   const startScreenShare = async () => {
     try {
@@ -235,6 +237,29 @@ const ScreenShareSetupPage = () => {
     };
   }, [websocket, user, sendMessage]);
 
+  useEffect(() => {
+    if (!sharedPC) return;
+
+    const handleConnectionStateChange = () => {
+      console.log('ScreenShareSetupPage: sharedPC connectionState changed:', sharedPC.connectionState);
+      if (sharedPC.connectionState === 'disconnected' || sharedPC.connectionState === 'failed' || sharedPC.connectionState === 'closed') {
+        setOpponentScreenShareStatus('disconnected');
+        setShowMyScreenShareRestartButton(true);
+        setIsWebRTCConnected(false); // WebRTC 연결 상태 업데이트
+      } else if (sharedPC.connectionState === 'connected') {
+        setOpponentScreenShareStatus('connected');
+        setShowMyScreenShareRestartButton(false);
+        setIsWebRTCConnected(true); // WebRTC 연결 상태 업데이트
+      }
+    };
+
+    sharedPC.addEventListener('connectionstatechange', handleConnectionStateChange);
+
+    return () => {
+      sharedPC.removeEventListener('connectionstatechange', handleConnectionStateChange);
+    };
+  }, [sharedPC]);
+
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -243,10 +268,16 @@ const ScreenShareSetupPage = () => {
 
     pc.oniceconnectionstatechange = () => {
       console.log('ICE connection state changed:', pc.iceConnectionState);
-      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
-        setIsWebRTCConnected(true);
-      } else {
-        setIsWebRTCConnected(false);
+      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
+        setOpponentScreenShareStatus('disconnected');
+        setShowMyScreenShareRestartButton(true);
+        setRemoteStream(null); // 상대방 스트림 제거
+        setRemoteStreamState(null); // 상대방 스트림 상태 제거
+        setIsWebRTCConnected(false); // WebRTC 연결 상태 업데이트
+      } else if (pc.iceConnectionState === 'connected') {
+        setOpponentScreenShareStatus('connected');
+        setShowMyScreenShareRestartButton(false);
+        setIsWebRTCConnected(true); // WebRTC 연결 상태 업데이트
       }
     };
 
@@ -273,8 +304,21 @@ const ScreenShareSetupPage = () => {
       });
       setRemoteStream(stream);
       setRemoteStreamState(stream);
+      setOpponentScreenShareStatus('connected'); // 상대방 스트림 수신 시 상태 업데이트
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = stream;
+      }
+
+      // 상대방 스트림의 비디오 트랙이 종료될 때 감지
+      const remoteVideoTrack = stream.getVideoTracks()[0];
+      if (remoteVideoTrack) {
+        remoteVideoTrack.onended = () => {
+          console.log('Remote screen share track ended.');
+          setOpponentScreenShareStatus('disconnected');
+          setShowMyScreenShareRestartButton(true);
+          setRemoteStream(null); // 상대방 스트림 제거
+          setRemoteStreamState(null); // 상대방 스트림 상태 제거
+        };
       }
     };
     return pc;
@@ -320,6 +364,56 @@ const ScreenShareSetupPage = () => {
     // pc가 변경되었을 수 있으므로 다시 저장
     setPeerConnection(pc);
   };
+
+  const handleRestartScreenShare = async () => {
+    try {
+      setMyShareStatus('sharing');
+      const mediaStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false,
+      });
+
+      const videoTrack = mediaStream.getVideoTracks()[0];
+      const settings = videoTrack.getSettings() as any;
+
+      console.log('Screen share settings:', settings);
+
+      if (settings.displaySurface === 'monitor') {
+        setMyShareStatus('valid');
+        setMyStream(mediaStream);
+        setLocalStream(mediaStream);
+        // 이미 연결이 존재하면 트랙을 추가하고 재협상
+        if (sharedPC) {
+            mediaStream.getTracks().forEach((track) => sharedPC.addTrack(track, mediaStream));
+            const offer = await sharedPC.createOffer();
+            await sharedPC.setLocalDescription(offer);
+            sendMessage(
+              JSON.stringify({ type: 'webrtc_signal', signal: sharedPC.localDescription })
+            );
+          }
+        // 화면 공유가 종료되었을 때 감지
+        videoTrack.addEventListener('ended', () => {
+            console.log('Screen share ended');
+            setMyShareStatus('waiting');
+            setMyStream(null);
+            setLocalStream(null);
+            setMyReady(false);
+            setIsCountingDown(false);
+            setCountdown(0);
+        });
+      } else {
+        setMyShareStatus('invalid');
+        setMyReady(false);
+        setIsCountingDown(false);
+        setCountdown(0);
+        mediaStream.getTracks().forEach(track => track.stop());
+      }
+    } catch (error) {
+      console.error('Screen share failed:', error);
+      setMyShareStatus('waiting');
+    }
+  };
+
 
   return (
     <div className="min-h-screen cyber-grid bg-cyber-darker">
@@ -415,6 +509,15 @@ const ScreenShareSetupPage = () => {
                       >
                         {opponentReady ? "준비 완료" : "준비 중..."}
                       </span>
+                    </div>
+                    <div className="text-sm text-gray-400 mt-1">
+                      {opponentScreenShareStatus === 'connected' ? (
+                        <span className="text-green-400">화면 공유 연결됨</span>
+                      ) : opponentScreenShareStatus === 'disconnected' ? (
+                        <span className="text-red-400">화면 공유 끊김</span>
+                      ) : (
+                        <span className="text-yellow-400">화면 공유 대기 중</span>
+                      )}
                     </div>
                   </div>
                   <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center">
@@ -518,6 +621,13 @@ const ScreenShareSetupPage = () => {
                   </div>
                 )}
               </div>
+              {showMyScreenShareRestartButton && (
+                <div className="flex justify-center mt-4">
+                  <CyberButton onClick={startScreenShare} className="bg-blue-500 hover:bg-blue-600">
+                    내 화면 공유 재시작
+                  </CyberButton>
+                </div>
+              )}
             </CyberCard>
           </div>
 
