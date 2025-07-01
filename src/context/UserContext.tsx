@@ -4,7 +4,19 @@ interface User {
   email: string;
   username: string;
   user_id: number;
-  // Add other user properties as needed
+  name?: string; // Index.tsx에서 사용
+  totalScore?: number;
+  wins?: number;
+  losses?: number;
+  draws?: number;
+  totalBattles?: number;
+  currentStreak?: number;
+  bestStreak?: number;
+  rank?: number;
+  favoriteLanguage?: string;
+  averageTime?: string;
+  bestTime?: string;
+  joinDate?: string;
 }
 
 interface UserContextType {

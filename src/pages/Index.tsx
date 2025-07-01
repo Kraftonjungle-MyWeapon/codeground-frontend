@@ -49,7 +49,8 @@ const Index = () => {
 
   // 예시 사용자 데이터 (API 데이터가 없을 경우 사용)
   const dummyUser = {
-    name: "CyberCoder",
+    id: 0, // 임의의 ID 추가
+    name: 'CyberCoder',
     totalScore: 1580,
     wins: 87,
     losses: 40,
