@@ -269,10 +269,8 @@ const ScreenShareSetupPage = () => {
         }
       }
     } else if (signal.type === 'join') {
-      // join 시그널은 초기 연결 설정용이므로, offer를 생성하여 보냄
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      wsRef.current?.send(JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription }));
+      // 상대방이 방에 들어왔음을 알리는 시그널. 여기서 offer를 생성하지 않음.
+      // offer 생성은 startScreenShare 함수에서 담당.
     }
     // pc가 변경되었을 수 있으므로 다시 저장
     setPeerConnection(pc);
