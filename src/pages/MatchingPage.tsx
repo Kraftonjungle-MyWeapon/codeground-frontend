@@ -50,6 +50,9 @@ const MatchingPage = () => {
         matchIdRef.current = message.match_id;
         // You might want to update opponent details here based on message.opponent_ids
       } else if (message.type === 'match_accepted') {
+        if (message.problem && message.game_id) {
+          localStorage.setItem(`problem_${message.game_id}`, JSON.stringify(message.problem));
+        }
         setOpponentAccepted(true);
         navigate(`/screen-share-setup?gameId=${message.game_id}`);
       } else if (message.type === 'opponent_accepted') {
@@ -66,6 +69,7 @@ const MatchingPage = () => {
           navigate('/home'); // Go back to home or a suitable page
         }
       }
+      
     };
 
     websocket.onclose = () => {

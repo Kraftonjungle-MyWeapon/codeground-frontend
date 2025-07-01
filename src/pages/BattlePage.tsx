@@ -28,6 +28,8 @@ const BattlePage = () => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
 
+  // 더미 데이터 주석 처리
+  /*
   const problem = {
     title: '문제 설명',
     description: '정수 n을 입력받아 n의 약수를 모두 더한 값을 리턴하는 함수, solution을 완성해주세요.',
@@ -42,6 +44,11 @@ const BattlePage = () => {
     },
     hint: ['수학', '약수', '반복문', '완전탐색']
   };
+*/
+
+  // 실제 문제 상태와 로딩 상태
+  const [problem, setProblem] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
 
   useEffect(() => {
@@ -61,6 +68,33 @@ const BattlePage = () => {
       }
     }
   }, []);
+
+   // 실데이터 fetch
+  useEffect(() => {
+    if (!gameId) return;
+
+    const saved = localStorage.getItem(`problem_${gameId}`);
+    if (saved) {
+      setProblem(JSON.parse(saved));
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    fetch(`http://localhost:8000/api/v1/game/${gameId}/problem`)
+      .then((res) => {
+        if (!res.ok) throw new Error('문제 정보를 불러오지 못했습니다');
+        return res.json();
+      })
+      .then((data) => {
+        console.log('문제 정보:', data)
+        setProblem(data.problem);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('문제 정보 불러오기 실패:', err);
+        setLoading(false);
+      });
+  }, [gameId]);
 
    // 웹소켓 연결
    useEffect(() => {
@@ -206,238 +240,240 @@ const BattlePage = () => {
   const actualLineCount = code ? code.split('\n').length : 1;
   const displayLineCount = Math.max(actualLineCount, 20);
 
-  return (
-    <div className="min-h-screen cyber-grid bg-cyber-darker">
-      {/* 배틀 전용 헤더 */}
-      <header className="sticky top-0 z-50 cyber-card border-b border-cyber-blue/20 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            {/* 좌측 - 로고 */}
-            <div className="flex items-center space-x-3">
-              <span className="text-xl font-bold neon-text">Codeground</span>
-            </div>
-            
-            {/* 중앙 - 타이머 */}
-            <div className="flex items-center space-x-2">
-              <Clock className={`h-6 w-6 ${timeColor}`} />
-              <span className={`text-2xl font-bold font-mono ${timeColor} ${timeLeft <= 60 ? 'animate-pulse' : ''}`}>
-                {formatTime(timeLeft)}
-              </span>
-            </div>
-            
-            {/* 우측 - 항복, 신고 */}
-            <div className="flex items-center space-x-3">
-              <CyberButton onClick={handleSurrender} size="sm" variant="secondary">
-                <Flag className="mr-1 h-4 w-4" />
-                항복
-              </CyberButton>
-              <CyberButton onClick={handleReport} size="sm" variant="secondary">
-                <AlertTriangle className="mr-1 h-4 w-4" />
-                신고
-              </CyberButton>
+return (
+  <div className="min-h-screen cyber-grid bg-cyber-darker">
+    {loading ? (
+      <div className="flex items-center justify-center h-full text-cyber-blue text-2xl font-bold">
+        문제 데이터를 불러오는 중입니다...
+      </div>
+    ) : !problem ? (
+      <div className="flex items-center justify-center h-full text-red-400 text-2xl font-bold">
+        문제 데이터를 불러올 수 없습니다.
+      </div>
+    ) : (
+      <>
+        {/* 배틀 전용 헤더 */}
+        <header className="sticky top-0 z-50 cyber-card border-b border-cyber-blue/20 backdrop-blur-md">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center justify-between">
+              {/* 좌측 - 로고 */}
+              <div className="flex items-center space-x-3">
+                <span className="text-xl font-bold neon-text">Codeground</span>
+              </div>
+              {/* 중앙 - 타이머 */}
+              <div className="flex items-center space-x-2">
+                <Clock className={`h-6 w-6 ${timeColor}`} />
+                <span className={`text-2xl font-bold font-mono ${timeColor} ${timeLeft <= 60 ? 'animate-pulse' : ''}`}>
+                  {formatTime(timeLeft)}
+                </span>
+              </div>
+              {/* 우측 - 항복, 신고 */}
+              <div className="flex items-center space-x-3">
+                <CyberButton onClick={handleSurrender} size="sm" variant="secondary">
+                  <Flag className="mr-1 h-4 w-4" />
+                  항복
+                </CyberButton>
+                <CyberButton onClick={handleReport} size="sm" variant="secondary">
+                  <AlertTriangle className="mr-1 h-4 w-4" />
+                  신고
+                </CyberButton>
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* 메인 컨텐츠 영역 */}
-      <main className="h-[calc(100vh-80px)] p-4">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* 좌측 영역 */}
-          <ResizablePanel defaultSize={40} minSize={30}>
-            <div className="h-full flex flex-col">
-              {/* 좌측 상단 - 문제 */}
-              <div className="flex-1 mb-2">
-                <CyberCard className="h-full p-4 mr-2">
-                  <ScrollArea className="h-full">
-                    <div className="space-y-4 pr-4">
-                      <div className="flex items-start justify-between">
-                        <h1 className="text-xl font-bold neon-text">{problem.title}</h1>
-                        <CyberButton onClick={toggleHint} size="sm" variant="secondary">
-                          <HelpCircle className="mr-1 h-4 w-4" />
-                          힌트
-                        </CyberButton>
-                      </div>
+        {/* 메인 컨텐츠 영역 */}
+        <main className="h-[calc(100vh-80px)] p-4">
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            {/* 좌측 영역 */}
+            <ResizablePanel defaultSize={40} minSize={30}>
+              <div className="h-full flex flex-col">
+                {/* 좌측 상단 - 문제 */}
+                <div className="flex-1 mb-2">
+                  <CyberCard className="h-full p-4 mr-2">
+                    <ScrollArea className="h-full">
+                      <div className="space-y-4 pr-4">
+                        <div className="flex items-start justify-between">
+                          <h1 className="text-xl font-bold neon-text">{problem.title}</h1>
+                          <CyberButton onClick={toggleHint} size="sm" variant="secondary">
+                            <HelpCircle className="mr-1 h-4 w-4" />
+                            힌트
+                          </CyberButton>
+                        </div>
 
-                      {showHint && (
-                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
-                          <h3 className="text-yellow-400 font-semibold mb-2">알고리즘 분류</h3>
-                          <div className="flex flex-wrap gap-2">
-                            {problem.hint.map((tag, index) => (
-                              <span key={index} className="bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded text-sm">
-                                {tag}
-                              </span>
+                        {showHint && (
+                          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                            <h3 className="text-yellow-400 font-semibold mb-2">알고리즘 분류</h3>
+                            <div className="flex flex-wrap gap-2">
+                              {(problem.hint ?? []).map((tag, index) => (
+                                <span key={index} className="bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded text-sm">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div>
+                          <p className="text-gray-300 leading-relaxed">{problem.description}</p>
+                        </div>
+
+                        <div>
+                          <h3 className="text-lg font-semibold text-cyber-blue mb-2">제한 사항</h3>
+                          <ul className="text-gray-300 space-y-1">
+                            {(problem.constraints ?? []).map((constraint, index) => (
+                              <li key={index}>• {constraint}</li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div>
+                          <h3 className="text-lg font-semibold text-cyber-blue mb-2">입출력 예</h3>
+                          <div className="bg-black/30 p-3 rounded-lg border border-gray-700 space-y-2">
+                            {(problem.examples ?? []).map((example, index) => (
+                              <div key={index} className="font-mono text-sm">
+                                <div className="text-gray-400">{example.input}</div>
+                                <div className="text-green-400">{example.output}</div>
+                              </div>
                             ))}
                           </div>
                         </div>
-                      )}
-                      
-                    <div>
-                      <p className="text-gray-300 leading-relaxed">{problem.description}</p>
-                    </div>
 
-                    <div>
-                      <h3 className="text-lg font-semibold text-cyber-blue mb-2">제한 사항</h3>
-                      <ul className="text-gray-300 space-y-1">
-                        {problem.constraints.map((constraint, index) => (
-                          <li key={index}>• {constraint}</li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-semibold text-cyber-blue mb-2">입출력 예</h3>
-                      <div className="bg-black/30 p-3 rounded-lg border border-gray-700 space-y-2">
-                        {problem.examples.map((example, index) => (
-                          <div key={index} className="font-mono text-sm">
-                            <div className="text-gray-400">{example.input}</div>
-                            <div className="text-green-400">{example.output}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-semibold text-cyber-blue mb-2">입출력 예 설명</h3>
-                      <h4 className="text-yellow-400 font-medium mb-1">입출력 예 #1</h4>
-                      <p className="text-gray-300 text-sm">{problem.testCase.description}</p>
-                    </div>
-                  </div>
-                </ScrollArea>
-              </CyberCard>
-              </div>
-
-              {/* 좌측 하단 - 채팅 & 화면공유 (고정 높이) */}
-              <div className="h-48 flex gap-2 mr-2">
-                {/* 채팅 */}
-                <div className="flex-1 min-w-0">
-                  <CyberCard className="p-3 flex flex-col h-full">
-                    <h3 className="text-sm font-semibold text-cyber-blue mb-2">채팅</h3>
-                    <ScrollArea className="flex-1 mb-2">
-                      <div className="space-y-2 pr-3">
-                        {chatMessages.map((msg, index) => (
-                          <div key={index} className="text-xs">
-                            <div className="text-gray-400">{msg.user}: {msg.message}</div>
-                          </div>
-                        ))}
-                        <div ref={chatEndRef} />
-                      </div>
-                    </ScrollArea>
-                    <div className="flex">
-                      <input
-                        type="text"
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                        placeholder="메시지 입력..."
-                        className="flex-1 text-xs bg-black/30 border border-gray-600 rounded-l px-2 py-1 text-white"
-                      />
-                      <button
-                        onClick={handleSendMessage}
-                        className="bg-cyber-blue px-2 py-1 rounded-r"
-                      >
-                        <Send className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </CyberCard>
-                </div>
-
-                {/* 화면공유 */}
-                <div className="flex-1 min-w-0">
-                  <CyberCard className="p-3 flex flex-col items-center justify-center h-full">
-                  {sharedRemoteStream ? (
-                      <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-contain" />
-                    ) : (
-                      <div className="text-xs text-gray-400 text-center">
-                        <Monitor className="h-8 w-8 text-gray-400 mb-2" />
-                        <div>상대방 화면</div>
-                        <div className="mt-1 text-yellow-400">공유 대기중...</div>
-                      </div>
-                    )}
-                  </CyberCard>
-                </div>
-              </div>
-            </div>
-          </ResizablePanel>
-
-          <ResizableHandle withHandle />
-
-          {/* 우측 영역 */}
-          <ResizablePanel defaultSize={60} minSize={40}>
-            <ResizablePanelGroup direction="vertical">
-              {/* 우측 상단 - 코드 에디터 */}
-              <ResizablePanel defaultSize={75} minSize={50}>
-                <CyberCard className="h-full flex flex-col ml-2 mb-1">
-                  {/* 최소화된 헤더 */}
-                  <div className="flex items-center px-3 py-1 border-b border-gray-700/50 bg-black/20">
-                    <div className="text-xs text-gray-400">Code Editor</div>
-                  </div>
-                  
-                  {/* 코드 에디터 영역 */}
-                  <div className="flex-1 overflow-hidden">
-                    <div className="h-full flex bg-black/30">
-                      {/* 줄 번호 */}
-                      <div 
-                        ref={lineNumbersRef}
-                        className="flex-shrink-0 w-12 bg-black/20 border-r border-gray-700 overflow-hidden"
-                        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                      >
-                        <div className="text-xs text-gray-500 leading-5 text-right py-3 px-2">
-                          {Array.from({length: displayLineCount}, (_, i) => (
-                            <div key={i} className="h-5">{i + 1}</div>
-                          ))}
+                        <div>
+                          <h3 className="text-lg font-semibold text-cyber-blue mb-2">입출력 예 설명</h3>
+                          <h4 className="text-yellow-400 font-medium mb-1">입출력 예 #1</h4>
+                          <p className="text-gray-300 text-sm">{problem.testCase?.description ?? ''}</p>
                         </div>
                       </div>
-                      
-                      <div className="flex-1 overflow-hidden">
-                        <textarea
-                          ref={textareaRef}
-                          value={code}
-                          onChange={(e) => setCode(e.target.value)}
-                          onScroll={handleScroll}
-                          placeholder="" // 빈 placeholder로 변경
-                          className="w-full h-full bg-transparent px-3 py-3 text-green-400 font-mono resize-none focus:outline-none text-sm leading-5 border-none"
-                          style={{ 
-                            fontFamily: 'Monaco, Consolas, "Courier New", monospace'
-                          }}
+                    </ScrollArea>
+                  </CyberCard>
+                </div>
+
+                {/* 좌측 하단 - 채팅 & 화면공유 (고정 높이) */}
+                <div className="h-48 flex gap-2 mr-2">
+                  {/* 채팅 */}
+                  <div className="flex-1 min-w-0">
+                    <CyberCard className="p-3 flex flex-col h-full">
+                      <h3 className="text-sm font-semibold text-cyber-blue mb-2">채팅</h3>
+                      <ScrollArea className="flex-1 mb-2">
+                        <div className="space-y-2 pr-3">
+                          {chatMessages.map((msg, index) => (
+                            <div key={index} className="text-xs">
+                              <div className="text-gray-400">{msg.user}: {msg.message}</div>
+                            </div>
+                          ))}
+                          <div ref={chatEndRef} />
+                        </div>
+                      </ScrollArea>
+                      <div className="flex">
+                        <input
+                          type="text"
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                          placeholder="메시지 입력..."
+                          className="flex-1 text-xs bg-black/30 border border-gray-600 rounded-l px-2 py-1 text-white"
                         />
+                        <button
+                          onClick={handleSendMessage}
+                          className="bg-cyber-blue px-2 py-1 rounded-r"
+                        >
+                          <Send className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </CyberCard>
+                  </div>
+
+                  {/* 화면공유 */}
+                  <div className="flex-1 min-w-0">
+                    <CyberCard className="p-3 flex flex-col items-center justify-center h-full">
+                      {sharedRemoteStream ? (
+                        <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-contain" />
+                      ) : (
+                        <div className="text-xs text-gray-400 text-center">
+                          <Monitor className="h-8 w-8 text-gray-400 mb-2" />
+                          <div>상대방 화면</div>
+                          <div className="mt-1 text-yellow-400">공유 대기중...</div>
+                        </div>
+                      )}
+                    </CyberCard>
+                  </div>
+                </div>
+              </div>
+            </ResizablePanel>
+
+            <ResizableHandle withHandle />
+
+            {/* 우측 영역 */}
+            <ResizablePanel defaultSize={60} minSize={40}>
+              <ResizablePanelGroup direction="vertical">
+                {/* 우측 상단 - 코드 에디터 */}
+                <ResizablePanel defaultSize={75} minSize={50}>
+                  <CyberCard className="h-full flex flex-col ml-2 mb-1">
+                    <div className="flex items-center px-3 py-1 border-b border-gray-700/50 bg-black/20">
+                      <div className="text-xs text-gray-400">Code Editor</div>
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <div className="h-full flex bg-black/30">
+                        <div 
+                          ref={lineNumbersRef}
+                          className="flex-shrink-0 w-12 bg-black/20 border-r border-gray-700 overflow-hidden"
+                          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                        >
+                          <div className="text-xs text-gray-500 leading-5 text-right py-3 px-2">
+                            {Array.from({length: displayLineCount}, (_, i) => (
+                              <div key={i} className="h-5">{i + 1}</div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                          <textarea
+                            ref={textareaRef}
+                            value={code}
+                            onChange={(e) => setCode(e.target.value)}
+                            onScroll={handleScroll}
+                            placeholder=""
+                            className="w-full h-full bg-transparent px-3 py-3 text-green-400 font-mono resize-none focus:outline-none text-sm leading-5 border-none"
+                            style={{ fontFamily: 'Monaco, Consolas, "Courier New", monospace' }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CyberCard>
-              </ResizablePanel>
+                  </CyberCard>
+                </ResizablePanel>
 
-              <ResizableHandle withHandle />
+                <ResizableHandle withHandle />
 
-              {/* 우측 하단 - 실행 결과 */}
-              <ResizablePanel defaultSize={25} minSize={15}>
-                <CyberCard className="h-full flex flex-col ml-2 mt-1">
-                  <div className="flex items-center justify-between px-3 py-1 border-b border-gray-700/50">
-                    <h3 className="text-sm font-semibold text-cyber-blue">실행 결과</h3>
-                    <div className="flex space-x-1">
-                      <CyberButton onClick={handleRun} size="sm" variant="secondary" className="px-6">
-                        <Play className="mr-1 h-3 w-3" />
-                        실행
-                      </CyberButton>
-                      <CyberButton onClick={handleSubmit} size="sm" className="px-6">
-                        제출
-                      </CyberButton>
+                {/* 우측 하단 - 실행 결과 */}
+                <ResizablePanel defaultSize={25} minSize={15}>
+                  <CyberCard className="h-full flex flex-col ml-2 mt-1">
+                    <div className="flex items-center justify-between px-3 py-1 border-b border-gray-700/50">
+                      <h3 className="text-sm font-semibold text-cyber-blue">실행 결과</h3>
+                      <div className="flex space-x-1">
+                        <CyberButton onClick={handleRun} size="sm" variant="secondary" className="px-6">
+                          <Play className="mr-1 h-3 w-3" />
+                          실행
+                        </CyberButton>
+                        <CyberButton onClick={handleSubmit} size="sm" className="px-6">
+                          제출
+                        </CyberButton>
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex-1 p-2">
-                    <ScrollArea className="h-full bg-black/30 border border-gray-700 rounded p-3">
-                      <pre className="font-mono text-xs text-gray-300 whitespace-pre-wrap">{executionResult}</pre>
-                    </ScrollArea>
-                  </div>
-                </CyberCard>
-              </ResizablePanel>
-            </ResizablePanelGroup>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </main>
-    </div>
-  );
+                    <div className="flex-1 p-2">
+                      <ScrollArea className="h-full bg-black/30 border border-gray-700 rounded p-3">
+                        <pre className="font-mono text-xs text-gray-300 whitespace-pre-wrap">{executionResult}</pre>
+                      </ScrollArea>
+                    </div>
+                  </CyberCard>
+                </ResizablePanel>
+              </ResizablePanelGroup>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </main>
+      </>
+    )}
+  </div>
+);
 };
 
 export default BattlePage;
