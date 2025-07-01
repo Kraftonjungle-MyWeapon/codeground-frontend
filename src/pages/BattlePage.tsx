@@ -12,13 +12,14 @@ import { getLanguageConfig } from '@/utils/languageConfig';
 import { CodeEditorHandler } from '@/utils/codeEditorHandlers';
 import usePreventNavigation from '@/hooks/usePreventNavigation';
 import GameExitModal from '@/components/GameExitModal';
+import useWebSocketStore from '@/stores/websocketStore';
 
 const BattlePage = () => {
   const navigate = useNavigate();
   const { user } = useUser();
   const [searchParams] = useSearchParams();
-  const gameId = searchParams.get("gameId");
-  const wsRef = useRef<WebSocket | null>(null);
+  const gameId = searchParams.get('gameId');
+  const { websocket, sendMessage, disconnect } = useWebSocketStore();
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const [timeLeft, setTimeLeft] = useState(930);
@@ -83,6 +84,15 @@ const BattlePage = () => {
   };
 
   useEffect(() => {
+    console.log('BattlePage: sharedLocalStream', sharedLocalStream);
+    console.log('BattlePage: sharedRemoteStream', sharedRemoteStream);
+    console.log('BattlePage: sharedPC', sharedPC);
+
+    if (sharedPC) {
+      console.log('BattlePage: sharedPC signalingState', sharedPC.signalingState);
+      console.log('BattlePage: sharedPC iceConnectionState', sharedPC.iceConnectionState);
+    }
+
     if (localVideoRef.current && sharedLocalStream) {
       localVideoRef.current.srcObject = sharedLocalStream;
     }
@@ -98,18 +108,13 @@ const BattlePage = () => {
         };
       }
     }
-  }, []);
+  }, [sharedLocalStream, sharedRemoteStream, sharedPC]);
 
-  // 웹소켓 연결
-  useEffect(() => {
-    if (!gameId || !user?.user_id) return;
+   // 웹소켓 연결
+   useEffect(() => {
+    if (!websocket || !user?.user_id) return;
 
-    const ws = new WebSocket(
-      `ws://localhost:8000/api/v1/game/ws/game/${gameId}?user_id=${user.user_id}`,
-    );
-    wsRef.current = ws;
-
-    ws.onmessage = (event) => {
+    websocket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === "chat" && data.sender !== user.user_id) {
@@ -125,17 +130,7 @@ const BattlePage = () => {
         console.error("Failed to parse message", e);
       }
     };
-
-    return () => {
-      if (wsRef.current) {
-        console.log('Websocket cleanup triggered. isLeavingGame:', isLeavingGame, 'isConfirmedExit:', isConfirmedExitRef.current);
-        if (isConfirmedExitRef.current) {
-          // Only close WebSocket if intentionally leaving the game via modal confirmation
-          wsRef.current.close();
-        }
-      }
-    };
-  }, [gameId, user, isLeavingGame]);
+  }, [websocket, user]);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -175,9 +170,9 @@ const BattlePage = () => {
 
     const msgObj = { type: "chat", message: newMessage };
 
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(msgObj));
-      setChatMessages((prev) => [...prev, { user: "나", message: newMessage }]);
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      sendMessage(JSON.stringify(msgObj));
+      setChatMessages((prev) => [...prev, { user: '나', message: newMessage }]);
     }
 
     setNewMessage("");
@@ -188,11 +183,11 @@ const BattlePage = () => {
     setIsLeavingGame(true); // 게임을 떠나는 중임을 표시
 
     // 항복 웹소켓 메시지 전송
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
       const surrenderMessage = { type: 'surrender', message: 'User surrendered' };
-      wsRef.current.send(JSON.stringify(surrenderMessage));
+      sendMessage(JSON.stringify(surrenderMessage));
       console.log('Surrender message sent.');
-      wsRef.current.close(); // 웹소켓 명시적 종료
+      disconnect(); // 웹소켓 명시적 종료
     }
 
     // WebRTC 관련 리소스 정리
