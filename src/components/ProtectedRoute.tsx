@@ -1,7 +1,7 @@
-import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { useUser } from '../context/UserContext';
-import { getCookie } from '@/lib/utils';
+import React from "react";
+import { Navigate, Outlet } from "react-router-dom";
+import { useUser } from "../context/UserContext";
+import { getCookie } from "@/lib/utils";
 
 interface ProtectedRouteProps {
   children?: React.ReactNode;
@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, isLoading } = useUser();
-  const token = getCookie('access_token');
+  const token = getCookie("access_token");
 
   if (isLoading) {
     return <div>Loading...</div>; // Or a proper loading spinner component

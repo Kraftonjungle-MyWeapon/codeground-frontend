@@ -1,5 +1,4 @@
-
-import { Loader } from 'lucide-react';
+import { Loader } from "lucide-react";
 
 const CyberLoadingSpinner = () => {
   return (
@@ -7,7 +6,10 @@ const CyberLoadingSpinner = () => {
       <div className="text-center">
         <div className="relative">
           <div className="w-16 h-16 border-4 border-cyber-blue/20 border-t-cyber-blue rounded-full animate-spin mx-auto mb-4"></div>
-          <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-r-cyber-purple rounded-full animate-spin mx-auto" style={{animationDirection: 'reverse', animationDuration: '1.5s'}}></div>
+          <div
+            className="absolute inset-0 w-16 h-16 border-4 border-transparent border-r-cyber-purple rounded-full animate-spin mx-auto"
+            style={{ animationDirection: "reverse", animationDuration: "1.5s" }}
+          ></div>
         </div>
         <div className="flex items-center justify-center space-x-2">
           <Loader className="h-5 w-5 text-cyber-blue animate-spin" />

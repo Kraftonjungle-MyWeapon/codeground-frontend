@@ -1,50 +1,54 @@
-
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Header from '@/components/Header';
-import CyberCard from '@/components/CyberCard';
-import CyberButton from '@/components/CyberButton';
-import RoomSettingsModal from '@/components/RoomSettingsModal';
-import { User, Settings, MessageCircle, Send } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import Header from "@/components/Header";
+import CyberCard from "@/components/CyberCard";
+import CyberButton from "@/components/CyberButton";
+import RoomSettingsModal from "@/components/RoomSettingsModal";
+import { User, Settings, MessageCircle, Send } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 const WaitingRoomPage = () => {
   const navigate = useNavigate();
   const [isHost, setIsHost] = useState(true); // 예시로 방장으로 설정
   const [isReady, setIsReady] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [chatMessage, setChatMessage] = useState('');
+  const [chatMessage, setChatMessage] = useState("");
   const [chatMessages, setChatMessages] = useState([
-    { type: 'system', message: 'CyberCoder님이 대기실을 생성했습니다.' },
-    { type: 'system', message: 'Player2님이 입장했습니다.' }
+    { type: "system", message: "CyberCoder님이 대기실을 생성했습니다." },
+    { type: "system", message: "Player2님이 입장했습니다." },
   ]);
-  
+
   const [roomSettings] = useState({
-    title: '알고리즘 기초 대결',
-    language: 'Python',
-    category: '자료구조',
-    difficulty: '초급'
+    title: "알고리즘 기초 대결",
+    language: "Python",
+    category: "자료구조",
+    difficulty: "초급",
   });
 
   const handleReady = () => {
     setIsReady(!isReady);
-    const message = isReady ? 'CyberCoder님이 준비를 취소했습니다.' : 'CyberCoder님이 준비 완료했습니다.';
-    setChatMessages(prev => [...prev, { type: 'system', message }]);
+    const message = isReady
+      ? "CyberCoder님이 준비를 취소했습니다."
+      : "CyberCoder님이 준비 완료했습니다.";
+    setChatMessages((prev) => [...prev, { type: "system", message }]);
   };
 
   const handleGameStart = () => {
-    navigate('/battle');
+    navigate("/battle");
   };
 
   const handleSendMessage = () => {
     if (chatMessage.trim()) {
-      setChatMessages(prev => [...prev, { type: 'user', message: `CyberCoder: ${chatMessage}` }]);
-      setChatMessage('');
+      setChatMessages((prev) => [
+        ...prev,
+        { type: "user", message: `CyberCoder: ${chatMessage}` },
+      ]);
+      setChatMessage("");
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleSendMessage();
     }
   };
@@ -52,16 +56,18 @@ const WaitingRoomPage = () => {
   return (
     <div className="min-h-screen cyber-grid">
       <Header />
-      
+
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           {/* 대기실 설정 정보 */}
           <CyberCard className="mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-3xl font-bold text-cyber-blue">{roomSettings.title}</h1>
+              <h1 className="text-3xl font-bold text-cyber-blue">
+                {roomSettings.title}
+              </h1>
               {isHost && (
-                <CyberButton 
-                  size="sm" 
+                <CyberButton
+                  size="sm"
                   variant="secondary"
                   onClick={() => setIsSettingsModalOpen(true)}
                 >
@@ -73,15 +79,21 @@ const WaitingRoomPage = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               <div>
                 <div className="text-sm text-gray-400">사용 언어</div>
-                <div className="text-lg font-semibold text-white">{roomSettings.language}</div>
+                <div className="text-lg font-semibold text-white">
+                  {roomSettings.language}
+                </div>
               </div>
               <div>
                 <div className="text-sm text-gray-400">문제 분야</div>
-                <div className="text-lg font-semibold text-white">{roomSettings.category}</div>
+                <div className="text-lg font-semibold text-white">
+                  {roomSettings.category}
+                </div>
               </div>
               <div>
                 <div className="text-sm text-gray-400">난이도</div>
-                <div className="text-lg font-semibold text-white">{roomSettings.difficulty}</div>
+                <div className="text-lg font-semibold text-white">
+                  {roomSettings.difficulty}
+                </div>
               </div>
               <div>
                 <div className="text-sm text-gray-400">참가자</div>
@@ -102,12 +114,14 @@ const WaitingRoomPage = () => {
                       <User className="h-10 w-10 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-white">CyberCoder</h3>
+                      <h3 className="text-xl font-bold text-white">
+                        CyberCoder
+                      </h3>
                       <p className="text-cyber-blue font-semibold">방장</p>
                       <p className="text-sm text-gray-400">MMR: 1847</p>
                     </div>
                     {isHost ? (
-                      <CyberButton 
+                      <CyberButton
                         onClick={handleGameStart}
                         disabled={!isReady}
                         className="w-full"
@@ -115,7 +129,9 @@ const WaitingRoomPage = () => {
                         게임 시작
                       </CyberButton>
                     ) : (
-                      <div className="text-green-400 font-semibold">준비 완료</div>
+                      <div className="text-green-400 font-semibold">
+                        준비 완료
+                      </div>
                     )}
                   </div>
                 </CyberCard>
@@ -132,16 +148,18 @@ const WaitingRoomPage = () => {
                       <p className="text-sm text-gray-400">MMR: 1623</p>
                     </div>
                     {!isHost ? (
-                      <CyberButton 
+                      <CyberButton
                         onClick={handleReady}
-                        variant={isReady ? 'secondary' : 'primary'}
+                        variant={isReady ? "secondary" : "primary"}
                         className="w-full"
                       >
-                        {isReady ? '준비 취소' : '준비'}
+                        {isReady ? "준비 취소" : "준비"}
                       </CyberButton>
                     ) : (
-                      <div className={`font-semibold ${isReady ? 'text-green-400' : 'text-yellow-400'}`}>
-                        {isReady ? '준비 완료' : '준비 중...'}
+                      <div
+                        className={`font-semibold ${isReady ? "text-green-400" : "text-yellow-400"}`}
+                      >
+                        {isReady ? "준비 완료" : "준비 중..."}
                       </div>
                     )}
                   </div>
@@ -156,17 +174,22 @@ const WaitingRoomPage = () => {
                   <MessageCircle className="mr-2 h-5 w-5 text-cyber-blue" />
                   <h3 className="text-xl font-bold text-cyber-blue">채팅</h3>
                 </div>
-                
+
                 <div className="space-y-3 h-64 overflow-y-auto mb-4">
                   {chatMessages.map((msg, index) => (
-                    <div key={index} className={`text-sm ${
-                      msg.type === 'system' ? 'text-gray-400 italic' : 'text-white'
-                    }`}>
+                    <div
+                      key={index}
+                      className={`text-sm ${
+                        msg.type === "system"
+                          ? "text-gray-400 italic"
+                          : "text-white"
+                      }`}
+                    >
                       {msg.message}
                     </div>
                   ))}
                 </div>
-                
+
                 <div className="flex space-x-2">
                   <Input
                     value={chatMessage}
@@ -185,8 +208,8 @@ const WaitingRoomPage = () => {
         </div>
       </main>
 
-      <RoomSettingsModal 
-        isOpen={isSettingsModalOpen} 
+      <RoomSettingsModal
+        isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
         currentSettings={roomSettings}
       />

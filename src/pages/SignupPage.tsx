@@ -1,89 +1,102 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import CyberCard from '@/components/CyberCard';
-import CyberButton from '@/components/CyberButton';
-import { UserPlus, Mail, Lock, User } from 'lucide-react';
-import { authFetch } from '../utils/api';
-import { useUser } from '../context/UserContext';
-import { setCookie } from '@/lib/utils';
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import CyberCard from "@/components/CyberCard";
+import CyberButton from "@/components/CyberButton";
+import { UserPlus, Mail, Lock, User } from "lucide-react";
+import { authFetch } from "../utils/api";
+import { useUser } from "../context/UserContext";
+import { setCookie } from "@/lib/utils";
 
 const SignupPage = () => {
   const navigate = useNavigate();
   const { setUser } = useUser();
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [formData, setFormData] = useState({
-    username: '',
-    nickname: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
+    username: "",
+    nickname: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (formData.password !== formData.confirmPassword) {
-      alert('비밀번호가 일치하지 않습니다.');
+      alert("비밀번호가 일치하지 않습니다.");
       return;
     }
-    
+
     setIsSigningUp(true);
-    
+
     try {
-      console.log('Attempting signup with data:', JSON.stringify({
-        email: formData.email,
-        username: formData.username,
-        password: formData.password,
-        nickname: formData.nickname,
-        use_lang: 'python3',
-      }));
-      const response = await authFetch('http://localhost:8000/api/v1/auth/sign-up', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      console.log(
+        "Attempting signup with data:",
+        JSON.stringify({
           email: formData.email,
           username: formData.username,
           password: formData.password,
           nickname: formData.nickname,
-          use_lang: 'python3', // Default to python3 as requested
+          use_lang: "python3",
         }),
-      });
+      );
+      const response = await authFetch(
+        "http://localhost:8000/api/v1/auth/sign-up",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            username: formData.username,
+            password: formData.password,
+            nickname: formData.nickname,
+            use_lang: "python3", // Default to python3 as requested
+          }),
+        },
+      );
 
-      console.log('Signup API response status:', response.status);
-      console.log('Signup API response ok:', response.ok);
+      console.log("Signup API response status:", response.status);
+      console.log("Signup API response ok:", response.ok);
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Signup API response data:', data);
+        console.log("Signup API response data:", data);
         const accessToken = data.access_token;
-        console.log('Extracted access_token:', accessToken);
-        setCookie('access_token', accessToken, 7); // Store token in cookie for persistence
-        console.log('access_token stored in cookie.');
+        console.log("Extracted access_token:", accessToken);
+        setCookie("access_token", accessToken, 7); // Store token in cookie for persistence
+        console.log("access_token stored in cookie.");
 
         // Fetch user data and set context immediately after signup
-        const userResponse = await authFetch('http://localhost:8000/api/v1/user/me');
+        const userResponse = await authFetch(
+          "http://localhost:8000/api/v1/user/me",
+        );
         if (userResponse.ok) {
           const userData = await userResponse.json();
           setUser(userData); // Set user data in context
-          console.log('User data fetched and set in context:', userData);
+          console.log("User data fetched and set in context:", userData);
         } else {
-          console.error('Failed to fetch user data after signup.');
+          console.error("Failed to fetch user data after signup.");
           // Even if user data fetch fails, we still navigate, but log the error.
         }
 
-        alert('회원가입이 성공적으로 완료되었습니다. 추가 정보를 입력해주세요.');
-        navigate('/setup-profile');
-        console.log('Navigated to /setup-profile');
+        alert(
+          "회원가입이 성공적으로 완료되었습니다. 추가 정보를 입력해주세요.",
+        );
+        navigate("/setup-profile");
+        console.log("Navigated to /setup-profile");
       } else {
         const errorData = await response.json();
-        console.error('Signup failed:', errorData);
-        alert('회원가입 실패: ' + (errorData.detail ? errorData.detail[0].msg : '알 수 없는 오류'));
+        console.error("Signup failed:", errorData);
+        alert(
+          "회원가입 실패: " +
+            (errorData.detail ? errorData.detail[0].msg : "알 수 없는 오류"),
+        );
       }
     } catch (error) {
-      console.error('Network error during signup:', error);
-      alert('네트워크 오류가 발생했습니다.');
+      console.error("Network error during signup:", error);
+      alert("네트워크 오류가 발생했습니다.");
     } finally {
       setIsSigningUp(false);
     }
@@ -93,7 +106,7 @@ const SignupPage = () => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: value
+      [name]: value,
     });
   };
 
@@ -105,13 +118,15 @@ const SignupPage = () => {
             <div className="text-center mb-8">
               <Link to="/" className="inline-block mb-6">
                 <div className="flex flex-col items-center space-y-2">
-                  <img 
-                    src="/lovable-uploads/af0ff57a-93d9-40b0-a0ff-1f22a23418ce.png" 
+                  <img
+                    src="/lovable-uploads/af0ff57a-93d9-40b0-a0ff-1f22a23418ce.png"
                     alt="Codeground Logo"
                     className="h-16 w-auto select-none pointer-events-none"
                     draggable="false"
                   />
-                  <span className="text-2xl font-bold text-cyber-blue">CODEGROUND</span>
+                  <span className="text-2xl font-bold text-cyber-blue">
+                    CODEGROUND
+                  </span>
                 </div>
               </Link>
               <h1 className="text-2xl font-bold text-white mb-2">회원가입</h1>
@@ -121,8 +136,11 @@ const SignupPage = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="realName" className="block text-sm font-medium text-gray-300 mb-2">
-                  본명
+                  <label
+                    htmlFor="realName"
+                    className="block text-sm font-medium text-gray-300 mb-2"
+                  >
+                    본명
                   </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -140,7 +158,10 @@ const SignupPage = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="nickname" className="block text-sm font-medium text-gray-300 mb-2">
+                  <label
+                    htmlFor="nickname"
+                    className="block text-sm font-medium text-gray-300 mb-2"
+                  >
                     닉네임
                   </label>
                   <div className="relative">
@@ -159,7 +180,10 @@ const SignupPage = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-gray-300 mb-2"
+                  >
                     이메일
                   </label>
                   <div className="relative">
@@ -178,7 +202,10 @@ const SignupPage = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                  <label
+                    htmlFor="password"
+                    className="block text-sm font-medium text-gray-300 mb-2"
+                  >
                     비밀번호
                   </label>
                   <div className="relative">
@@ -197,7 +224,10 @@ const SignupPage = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
+                  <label
+                    htmlFor="confirmPassword"
+                    className="block text-sm font-medium text-gray-300 mb-2"
+                  >
                     비밀번호 확인
                   </label>
                   <div className="relative">
@@ -222,14 +252,17 @@ const SignupPage = () => {
                 disabled={isSigningUp}
               >
                 <UserPlus className="h-5 w-5" />
-                {isSigningUp ? '가입 중...' : '회원가입'}
+                {isSigningUp ? "가입 중..." : "회원가입"}
               </CyberButton>
             </form>
 
             <div className="mt-6 text-center">
               <p className="text-gray-400">
-                이미 계정이 있으신가요?{' '}
-                <Link to="/login" className="text-cyber-blue hover:text-cyber-blue/80 font-medium">
+                이미 계정이 있으신가요?{" "}
+                <Link
+                  to="/login"
+                  className="text-cyber-blue hover:text-cyber-blue/80 font-medium"
+                >
                   로그인
                 </Link>
               </p>

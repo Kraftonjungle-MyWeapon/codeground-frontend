@@ -1,10 +1,14 @@
-
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import CyberButton from '@/components/CyberButton';
-import { User, Upload } from 'lucide-react';
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import CyberButton from "@/components/CyberButton";
+import { User, Upload } from "lucide-react";
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -12,15 +16,19 @@ interface ProfileEditModalProps {
   currentUsername: string;
 }
 
-const ProfileEditModal = ({ isOpen, onClose, currentUsername }: ProfileEditModalProps) => {
+const ProfileEditModal = ({
+  isOpen,
+  onClose,
+  currentUsername,
+}: ProfileEditModalProps) => {
   const [formData, setFormData] = useState({
     username: currentUsername,
-    profileImage: null as File | null
+    profileImage: null as File | null,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('프로필 업데이트:', formData);
+    console.log("프로필 업데이트:", formData);
     // TODO: 실제 프로필 업데이트 로직 구현
     onClose();
   };
@@ -28,17 +36,17 @@ const ProfileEditModal = ({ isOpen, onClose, currentUsername }: ProfileEditModal
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        profileImage: file
+        profileImage: file,
       }));
     }
   };
 
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      username: e.target.value
+      username: e.target.value,
     }));
   };
 
@@ -50,16 +58,18 @@ const ProfileEditModal = ({ isOpen, onClose, currentUsername }: ProfileEditModal
             프로필 편집
           </DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* 프로필 사진 */}
           <div className="space-y-4 text-center">
             <div className="w-24 h-24 bg-gradient-to-r from-cyber-blue to-cyber-purple rounded-full mx-auto flex items-center justify-center">
               <User className="h-12 w-12 text-white" />
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="profileImage" className="text-gray-300">프로필 사진</Label>
+              <Label htmlFor="profileImage" className="text-gray-300">
+                프로필 사진
+              </Label>
               <div className="flex items-center justify-center">
                 <label htmlFor="profileImage" className="cursor-pointer">
                   <div className="flex items-center space-x-2 px-4 py-2 bg-black/30 border border-gray-600 rounded-lg hover:border-cyber-blue/40 transition-colors">
@@ -85,7 +95,9 @@ const ProfileEditModal = ({ isOpen, onClose, currentUsername }: ProfileEditModal
 
           {/* 닉네임 */}
           <div className="space-y-2">
-            <Label htmlFor="username" className="text-gray-300">닉네임</Label>
+            <Label htmlFor="username" className="text-gray-300">
+              닉네임
+            </Label>
             <Input
               id="username"
               value={formData.username}
@@ -101,9 +113,9 @@ const ProfileEditModal = ({ isOpen, onClose, currentUsername }: ProfileEditModal
             <CyberButton type="submit" className="flex-1">
               저장
             </CyberButton>
-            <CyberButton 
+            <CyberButton
               type="button"
-              variant="secondary" 
+              variant="secondary"
               onClick={onClose}
               className="flex-1"
             >
