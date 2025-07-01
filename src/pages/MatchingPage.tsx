@@ -52,6 +52,8 @@ const MatchingPage = () => {
       } else if (message.type === 'match_accepted') {
         setOpponentAccepted(true);
         navigate(`/screen-share-setup?gameId=${message.game_id}`);
+      } else if (message.type === 'opponent_accepted') {
+        setOpponentAccepted(true);
       } else if (message.type === 'match_cancelled') {
         console.log('Match cancelled:', message.reason);
         setFoundOpponent(false);
@@ -296,7 +298,7 @@ const MatchingPage = () => {
                   </div>
 
                   {/* 수락/거절 버튼 또는 상태 */}
-                  {!userAccepted && !opponentAccepted && (
+                  {!userAccepted && (
                     <div className="flex justify-center gap-8">
                       <CyberButton
                         onClick={handleAccept}
