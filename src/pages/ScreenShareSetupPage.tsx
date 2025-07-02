@@ -1,23 +1,32 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import CyberCard from '@/components/CyberCard';
-import CyberButton from '@/components/CyberButton';
-import { Monitor, User, Clock, AlertTriangle, Check } from 'lucide-react';
-import { useUser } from '@/context/UserContext';
-import { localStream as sharedLocalStream, remoteStream as sharedRemoteStream, 
-    setLocalStream, setRemoteStream, setPeerConnection, peerConnection as sharedPC } from '@/utils/webrtcStore';
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import CyberCard from "@/components/CyberCard";
+import CyberButton from "@/components/CyberButton";
+import { Monitor, User, Clock, AlertTriangle, Check } from "lucide-react";
+import { useUser } from "@/context/UserContext";
+import {
+  localStream as sharedLocalStream,
+  remoteStream as sharedRemoteStream,
+  setLocalStream,
+  setRemoteStream,
+  setPeerConnection,
+  peerConnection as sharedPC,
+} from "@/utils/webrtcStore";
 
 const ScreenShareSetupPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const gameId = searchParams.get('gameId');
+  const gameId = searchParams.get("gameId");
   const { user } = useUser();
   const wsRef = useRef<WebSocket | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const [myStream, setMyStream] = useState<MediaStream | null>(null);
-  const [remoteStreamState, setRemoteStreamState] = useState<MediaStream | null>(null);
-  const [myShareStatus, setMyShareStatus] = useState<'waiting' | 'sharing' | 'invalid' | 'valid'>('waiting');
+  const [remoteStreamState, setRemoteStreamState] =
+    useState<MediaStream | null>(null);
+  const [myShareStatus, setMyShareStatus] = useState<
+    "waiting" | "sharing" | "invalid" | "valid"
+  >("waiting");
   const [opponentReady, setOpponentReady] = useState(false);
   const [myReady, setMyReady] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -25,99 +34,113 @@ const ScreenShareSetupPage = () => {
 
   const startScreenShare = async () => {
     try {
-      setMyShareStatus('sharing');
+      setMyShareStatus("sharing");
       const mediaStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
-        audio: false
+        audio: false,
       });
 
       const videoTrack = mediaStream.getVideoTracks()[0];
       const settings = videoTrack.getSettings() as any;
 
-      console.log('Screen share settings:', settings);
+      console.log("Screen share settings:", settings);
 
-      if (settings.displaySurface === 'monitor') {
-        setMyShareStatus('valid');
+      if (settings.displaySurface === "monitor") {
+        setMyShareStatus("valid");
         setMyStream(mediaStream);
         setLocalStream(mediaStream);
         // 이미 연결이 존재하면 트랙을 추가하고 재협상
         if (sharedPC) {
-            mediaStream.getTracks().forEach((track) => sharedPC.addTrack(track, mediaStream));
-            const offer = await sharedPC.createOffer();
-            await sharedPC.setLocalDescription(offer);
-            wsRef.current?.send(
-              JSON.stringify({ type: 'webrtc_signal', signal: sharedPC.localDescription })
-            );
-          }
+          mediaStream
+            .getTracks()
+            .forEach((track) => sharedPC.addTrack(track, mediaStream));
+          const offer = await sharedPC.createOffer();
+          await sharedPC.setLocalDescription(offer);
+          wsRef.current?.send(
+            JSON.stringify({
+              type: "webrtc_signal",
+              signal: sharedPC.localDescription,
+            }),
+          );
+        }
         // 화면 공유가 종료되었을 때 감지
-        videoTrack.addEventListener('ended', () => {
-            console.log('Screen share ended');
-            setMyShareStatus('waiting');
-            setMyStream(null);
-            setLocalStream(null);
-            setMyReady(false);
-            setIsCountingDown(false);
-            setCountdown(0);
+        videoTrack.addEventListener("ended", () => {
+          console.log("Screen share ended");
+          setMyShareStatus("waiting");
+          setMyStream(null);
+          setLocalStream(null);
+          setMyReady(false);
+          setIsCountingDown(false);
+          setCountdown(0);
         });
       } else {
-        setMyShareStatus('invalid');
+        setMyShareStatus("invalid");
         setMyReady(false);
         setIsCountingDown(false);
         setCountdown(0);
-        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream.getTracks().forEach((track) => track.stop());
       }
     } catch (error) {
-      console.error('Screen share failed:', error);
-      setMyShareStatus('waiting');
+      console.error("Screen share failed:", error);
+      setMyShareStatus("waiting");
     }
   };
 
   const handleRetryShare = () => {
-    setMyShareStatus('waiting');
+    setMyShareStatus("waiting");
     startScreenShare();
   };
 
   const handleReady = () => {
-    if (myShareStatus === 'valid') {
+    if (myShareStatus === "valid") {
       setMyReady(true);
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: 'ready' }));
+        wsRef.current.send(JSON.stringify({ type: "ready" }));
       }
     }
   };
 
   useEffect(() => {
     if (myReady && opponentReady && !isCountingDown) {
-      console.log('Starting countdown...');
+      console.log("Starting countdown...");
       setIsCountingDown(true);
       setCountdown(3);
     }
-}, [myReady, opponentReady, isCountingDown]);
+  }, [myReady, opponentReady, isCountingDown]);
 
   useEffect(() => {
     if (isCountingDown && countdown > 0) {
-      console.log('Countdown:', countdown);
+      console.log("Countdown:", countdown);
       const timer = setTimeout(() => {
-        setCountdown(prev => prev - 1);
+        setCountdown((prev) => prev - 1);
       }, 1000);
 
       return () => clearTimeout(timer);
     } else if (isCountingDown && countdown === 0) {
-      console.log('Game starting...');
+      console.log("Game starting...");
       if (gameId) {
         navigate(`/battle?gameId=${gameId}`);
       } else {
-        navigate('/battle');
+        navigate("/battle");
       }
     }
   }, [isCountingDown, countdown, myStream, navigate, gameId]);
 
   useEffect(() => {
     if (myStream && localVideoRef.current) {
-      console.log('Assigning myStream to localVideoRef.current:', myStream, localVideoRef.current);
-      console.log('myStream active:', myStream.active);
-      myStream.getVideoTracks().forEach(track => {
-        console.log('Video track readyState:', track.readyState, 'enabled:', track.enabled);
+      console.log(
+        "Assigning myStream to localVideoRef.current:",
+        myStream,
+        localVideoRef.current,
+      );
+      console.log("myStream active:", myStream.active);
+      myStream.getVideoTracks().forEach((track) => {
+        console.log(
+          "Video track readyState:",
+          track.readyState,
+          "enabled:",
+          track.enabled,
+        );
       });
       localVideoRef.current.srcObject = myStream;
     }
@@ -129,38 +152,42 @@ const ScreenShareSetupPage = () => {
     }
   }, [remoteStreamState]);
 
-
   useEffect(() => {
     if (!gameId || !user?.user_id) return;
 
     const ws = new WebSocket(
-      `ws://localhost:8000/api/v1/game/ws/game/${gameId}?user_id=${user.user_id}`
+      `ws://localhost:8000/api/v1/game/ws/game/${gameId}?user_id=${user.user_id}`,
     );
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log('ScreenShareSetupPage WebSocket connected');
-      ws.send(JSON.stringify({ type: 'webrtc_signal', signal: { type: 'join' } }));
+      console.log("ScreenShareSetupPage WebSocket connected");
+      ws.send(
+        JSON.stringify({ type: "webrtc_signal", signal: { type: "join" } }),
+      );
     };
 
     ws.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.type === 'webrtc_signal' && data.sender !== user.user_id) {
+        if (data.type === "webrtc_signal" && data.sender !== user.user_id) {
           await handleSignal(data.signal);
-        } else if (data.type === 'player_ready' && data.user_id !== user.user_id) {
+        } else if (
+          data.type === "player_ready" &&
+          data.user_id !== user.user_id
+        ) {
           setOpponentReady(true);
-        } else if (data.type === 'all_ready') {
+        } else if (data.type === "all_ready") {
           setOpponentReady(true);
           setMyReady(true);
         }
       } catch (e) {
-        console.error('ws message parse error', e);
+        console.error("ws message parse error", e);
       }
     };
 
     ws.onclose = () => {
-      console.log('ScreenShareSetupPage WebSocket disconnected');
+      console.log("ScreenShareSetupPage WebSocket disconnected");
     };
 
     return () => {
@@ -170,7 +197,7 @@ const ScreenShareSetupPage = () => {
 
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
     setPeerConnection(pc);
     const stream = myStream || sharedLocalStream;
@@ -180,14 +207,22 @@ const ScreenShareSetupPage = () => {
     pc.onicecandidate = ({ candidate }) => {
       if (candidate) {
         wsRef.current?.send(
-          JSON.stringify({ type: 'webrtc_signal', signal: { type: 'candidate', candidate } })
+          JSON.stringify({
+            type: "webrtc_signal",
+            signal: { type: "candidate", candidate },
+          }),
         );
       }
     };
     pc.ontrack = ({ streams: [stream] }) => {
-      console.log('Received remote stream:', stream);
-      stream.getVideoTracks().forEach(track => {
-        console.log('Remote video track readyState:', track.readyState, 'enabled:', track.enabled);
+      console.log("Received remote stream:", stream);
+      stream.getVideoTracks().forEach((track) => {
+        console.log(
+          "Remote video track readyState:",
+          track.readyState,
+          "enabled:",
+          track.enabled,
+        );
       });
       setRemoteStream(stream);
       setRemoteStreamState(stream);
@@ -200,33 +235,36 @@ const ScreenShareSetupPage = () => {
 
   const handleSignal = async (signal: any) => {
     let pc = sharedPC || null;
-    if (signal.type === 'join') {
+    if (signal.type === "join") {
       if (!pc) pc = createPeerConnection();
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      wsRef.current?.send(JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription }));
-    } else if (signal.type === 'offer') {
+      wsRef.current?.send(
+        JSON.stringify({ type: "webrtc_signal", signal: pc.localDescription }),
+      );
+    } else if (signal.type === "offer") {
       if (!pc) pc = createPeerConnection();
       await pc.setRemoteDescription(new RTCSessionDescription(signal));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      wsRef.current?.send(JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription }));
-    } else if (signal.type === 'answer') {
+      wsRef.current?.send(
+        JSON.stringify({ type: "webrtc_signal", signal: pc.localDescription }),
+      );
+    } else if (signal.type === "answer") {
       if (pc) {
         await pc.setRemoteDescription(new RTCSessionDescription(signal));
       }
-    } else if (signal.type === 'candidate') {
+    } else if (signal.type === "candidate") {
       if (pc && signal.candidate) {
         try {
           await pc.addIceCandidate(signal.candidate);
         } catch (err) {
-          console.error('Error adding ice candidate', err);
+          console.error("Error adding ice candidate", err);
         }
       }
     }
     if (pc) setPeerConnection(pc);
   };
-
 
   return (
     <div className="min-h-screen cyber-grid bg-cyber-darker">
@@ -246,8 +284,9 @@ const ScreenShareSetupPage = () => {
                 key={countdown}
                 className="inline-block animate-pulse"
                 style={{
-                  animation: 'pulse 0.5s ease-in-out, bounce 0.6s ease-in-out',
-                  textShadow: '0 0 30px rgba(0, 200, 255, 0.8), 0 0 60px rgba(0, 200, 255, 0.6)'
+                  animation: "pulse 0.5s ease-in-out, bounce 0.6s ease-in-out",
+                  textShadow:
+                    "0 0 30px rgba(0, 200, 255, 0.8), 0 0 60px rgba(0, 200, 255, 0.6)",
                 }}
               >
                 {countdown}
@@ -261,7 +300,7 @@ const ScreenShareSetupPage = () => {
                 className="h-full bg-gradient-to-r from-cyber-blue to-cyber-purple rounded-full transition-all duration-1000 ease-linear"
                 style={{
                   width: `${((4 - countdown) / 3) * 100}%`,
-                  boxShadow: '0 0 10px rgba(0, 200, 255, 0.5)'
+                  boxShadow: "0 0 10px rgba(0, 200, 255, 0.5)",
                 }}
               />
             </div>
@@ -281,18 +320,25 @@ const ScreenShareSetupPage = () => {
                   <div>
                     <div className="text-white font-semibold">나</div>
                     <div className="flex items-center space-x-2">
-                      {myShareStatus === 'valid' && (
+                      {myShareStatus === "valid" && (
                         <Check className="h-4 w-4 text-green-400" />
                       )}
-                      <span className={`text-sm ${
-                        myShareStatus === 'valid' ? 'text-green-400' :
-                        myShareStatus === 'invalid' ? 'text-red-400' :
-                        'text-yellow-400'
-                      }`}>
-                        {myShareStatus === 'valid' ? '화면 공유 완료' :
-                         myShareStatus === 'invalid' ? '전체 화면 필요' :
-                         myShareStatus === 'sharing' ? '공유 설정 중...' :
-                         '화면 공유 대기'}
+                      <span
+                        className={`text-sm ${
+                          myShareStatus === "valid"
+                            ? "text-green-400"
+                            : myShareStatus === "invalid"
+                              ? "text-red-400"
+                              : "text-yellow-400"
+                        }`}
+                      >
+                        {myShareStatus === "valid"
+                          ? "화면 공유 완료"
+                          : myShareStatus === "invalid"
+                            ? "전체 화면 필요"
+                            : myShareStatus === "sharing"
+                              ? "공유 설정 중..."
+                              : "화면 공유 대기"}
                       </span>
                     </div>
                   </div>
@@ -302,13 +348,17 @@ const ScreenShareSetupPage = () => {
 
                 <div className="flex items-center space-x-4">
                   <div>
-                    <div className="text-white font-semibold text-right">상대방</div>
+                    <div className="text-white font-semibold text-right">
+                      상대방
+                    </div>
                     <div className="flex items-center justify-end space-x-2">
                       {opponentReady && (
                         <Check className="h-4 w-4 text-green-400" />
                       )}
-                      <span className={`text-sm ${opponentReady ? 'text-green-400' : 'text-yellow-400'}`}>
-                        {opponentReady ? '준비 완료' : '준비 중...'}
+                      <span
+                        className={`text-sm ${opponentReady ? "text-green-400" : "text-yellow-400"}`}
+                      >
+                        {opponentReady ? "준비 완료" : "준비 중..."}
                       </span>
                     </div>
                   </div>
@@ -323,23 +373,34 @@ const ScreenShareSetupPage = () => {
           <div className="grid grid-cols-2 gap-8 mb-8">
             <CyberCard className="p-6">
               <h3 className="text-lg font-semibold text-cyber-blue mb-4 flex items-center">
-                <Monitor className="mr-2 h-5 w-5" />
-                내 화면 공유
+                <Monitor className="mr-2 h-5 w-5" />내 화면 공유
               </h3>
 
               <div className="aspect-video bg-black/50 rounded-lg border-2 border-cyber-blue/30 flex items-center justify-center mb-4">
-                {myShareStatus === 'valid' ? (
-                 <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
-                ) : myShareStatus === 'invalid' ? (
+                {myShareStatus === "valid" ? (
+                  <video
+                    ref={localVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-contain"
+                  />
+                ) : myShareStatus === "invalid" ? (
                   <div className="text-center">
                     <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-2" />
-                    <div className="text-red-400 font-semibold">전체 화면이 아님</div>
-                    <div className="text-sm text-gray-400">창이나 탭이 아닌 전체 화면을 선택해주세요</div>
+                    <div className="text-red-400 font-semibold">
+                      전체 화면이 아님
+                    </div>
+                    <div className="text-sm text-gray-400">
+                      창이나 탭이 아닌 전체 화면을 선택해주세요
+                    </div>
                   </div>
-                ) : myShareStatus === 'sharing' ? (
+                ) : myShareStatus === "sharing" ? (
                   <div className="text-center">
                     <Clock className="h-12 w-12 text-yellow-400 mx-auto mb-2 animate-spin" />
-                    <div className="text-yellow-400 font-semibold">공유 설정 중...</div>
+                    <div className="text-yellow-400 font-semibold">
+                      공유 설정 중...
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center">
@@ -350,13 +411,19 @@ const ScreenShareSetupPage = () => {
               </div>
 
               <div className="flex justify-center space-x-3">
-                {(myShareStatus === 'invalid' || myShareStatus === 'waiting') && (
+                {(myShareStatus === "invalid" ||
+                  myShareStatus === "waiting") && (
                   <CyberButton onClick={handleRetryShare} size="sm">
-                    {myShareStatus === 'waiting' ? '화면 공유 시작' : '다시 시도'}
+                    {myShareStatus === "waiting"
+                      ? "화면 공유 시작"
+                      : "다시 시도"}
                   </CyberButton>
                 )}
-                {myShareStatus === 'valid' && !myReady && (
-                  <CyberButton onClick={handleReady} className="bg-gradient-to-r from-green-500 to-emerald-600">
+                {myShareStatus === "valid" && !myReady && (
+                  <CyberButton
+                    onClick={handleReady}
+                    className="bg-gradient-to-r from-green-500 to-emerald-600"
+                  >
                     준비 완료
                   </CyberButton>
                 )}
@@ -377,12 +444,22 @@ const ScreenShareSetupPage = () => {
 
               <div className="aspect-video bg-black/50 rounded-lg border-2 border-cyber-blue/30 flex items-center justify-center mb-4">
                 {remoteStreamState ? (
-                  <video ref={remoteVideoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
+                  <video
+                    ref={remoteVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-contain"
+                  />
                 ) : (
                   <div className="text-center">
                     <Clock className="h-12 w-12 text-yellow-400 mx-auto mb-2 animate-pulse" />
-                    <div className="text-yellow-400 font-semibold">대기 중...</div>
-                    <div className="text-sm text-gray-400">상대방이 화면 공유를 설정하고 있습니다</div>
+                    <div className="text-yellow-400 font-semibold">
+                      대기 중...
+                    </div>
+                    <div className="text-sm text-gray-400">
+                      상대방이 화면 공유를 설정하고 있습니다
+                    </div>
                   </div>
                 )}
               </div>

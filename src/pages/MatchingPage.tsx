@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Header from '@/components/Header';
-import CyberCard from '@/components/CyberCard';
-import CyberButton from '@/components/CyberButton';
-import { User, Clock, Check, X } from 'lucide-react';
-import { useUser } from '../context/UserContext';
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import Header from "@/components/Header";
+import CyberCard from "@/components/CyberCard";
+import CyberButton from "@/components/CyberButton";
+import { User, Clock, Check, X } from "lucide-react";
+import { useUser } from "../context/UserContext";
 
 const MatchingPage = () => {
   const navigate = useNavigate();
@@ -15,65 +15,74 @@ const MatchingPage = () => {
   const [userAccepted, setUserAccepted] = useState(false);
   const [opponentAccepted, setOpponentAccepted] = useState(false);
   const [opponent] = useState({
-    name: 'CodeWarrior',
+    name: "CodeWarrior",
     mmr: 1823,
-    rank: 'Gold II',
-    winRate: 58.3
+    rank: "Gold II",
+    winRate: 58.3,
   });
 
   const [ws, setWs] = useState<WebSocket | null>(null);
   const matchIdRef = useRef<number | null>(null); // To store match_id
-  
+
   useEffect(() => {
-    if (!user || !user.user_id) { // Check if user and user.user_id are available
-      console.error('User ID not found. Redirecting to home.');
-      navigate('/home'); // Redirect if user ID is not available
+    if (!user || !user.user_id) {
+      // Check if user and user.user_id are available
+      console.error("User ID not found. Redirecting to home.");
+      navigate("/home"); // Redirect if user ID is not available
       return;
     }
 
-    const websocket = new WebSocket(`ws://localhost:8000/api/v1/match/ws/match/${user.user_id}`);
+    const websocket = new WebSocket(
+      `ws://localhost:8000/api/v1/match/ws/match/${user.user_id}`,
+    );
     setWs(websocket);
 
     websocket.onopen = () => {
-      console.log('WebSocket connected');
+      console.log("WebSocket connected");
     };
 
     websocket.onmessage = (event) => {
       const message = JSON.parse(event.data);
-      console.log('Received message:', message);
+      console.log("Received message:", message);
 
-      if (message.type === 'match_found') {
+      if (message.type === "match_found") {
         setFoundOpponent(true);
         setUserAccepted(false);
         setOpponentAccepted(false);
         setAcceptTimeLeft(message.time_limit);
         matchIdRef.current = message.match_id;
         // You might want to update opponent details here based on message.opponent_ids
-      } else if (message.type === 'match_accepted') {
+      } else if (message.type === "match_accepted") {
+        if (message.problem && message.game_id) {
+          localStorage.setItem(
+            `problem_${message.game_id}`,
+            JSON.stringify(message.problem),
+          );
+        }
         setOpponentAccepted(true);
         navigate(`/screen-share-setup?gameId=${message.game_id}`);
-      } else if (message.type === 'opponent_accepted') {
+      } else if (message.type === "opponent_accepted") {
         setOpponentAccepted(true);
-      } else if (message.type === 'match_cancelled') {
-        console.log('Match cancelled:', message.reason);
+      } else if (message.type === "match_cancelled") {
+        console.log("Match cancelled:", message.reason);
         setFoundOpponent(false);
         setMatchingTime(0);
         setAcceptTimeLeft(20);
         setUserAccepted(false);
         setOpponentAccepted(false);
         matchIdRef.current = null;
-        if (message.reason === 'timeout or rejection') {
-          navigate('/home'); // Go back to home or a suitable page
+        if (message.reason === "timeout or rejection") {
+          navigate("/home"); // Go back to home or a suitable page
         }
       }
     };
 
     websocket.onclose = () => {
-      console.log('WebSocket disconnected');
+      console.log("WebSocket disconnected");
     };
 
     websocket.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error("WebSocket error:", error);
     };
 
     return () => {
@@ -83,7 +92,7 @@ const MatchingPage = () => {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setMatchingTime(prev => prev + 1);
+      setMatchingTime((prev) => prev + 1);
     }, 1000);
 
     return () => {
@@ -95,7 +104,7 @@ const MatchingPage = () => {
   useEffect(() => {
     if (foundOpponent) {
       const acceptTimer = setInterval(() => {
-        setAcceptTimeLeft(prev => {
+        setAcceptTimeLeft((prev) => {
           if (prev <= 1) {
             clearInterval(acceptTimer);
             // navigate('/'); // 시간 초과시 홈으로 - handled by websocket message
@@ -112,34 +121,41 @@ const MatchingPage = () => {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const handleAccept = () => {
-    console.log('handleAccept called');
+    console.log("handleAccept called");
     if (ws && matchIdRef.current) {
       setUserAccepted(true);
-      const message = { type: 'match_accept', match_id: matchIdRef.current };
-      console.log('Sending WebSocket message:', message);
+      const message = { type: "match_accept", match_id: matchIdRef.current };
+      console.log("Sending WebSocket message:", message);
       ws.send(JSON.stringify(message));
     } else {
-      console.warn('WebSocket not connected or matchId not set. ws:', ws, 'matchIdRef.current:', matchIdRef.current);
+      console.warn(
+        "WebSocket not connected or matchId not set. ws:",
+        ws,
+        "matchIdRef.current:",
+        matchIdRef.current,
+      );
     }
   };
 
   const handleDecline = () => {
     if (userAccepted) return; // 이미 수락한 경우 거절 불가
     if (ws && matchIdRef.current) {
-      ws.send(JSON.stringify({ type: 'match_reject', match_id: matchIdRef.current }));
+      ws.send(
+        JSON.stringify({ type: "match_reject", match_id: matchIdRef.current }),
+      );
     }
-    navigate('/home'); // Navigate away after declining
+    navigate("/home"); // Navigate away after declining
   };
 
   const handleCancel = () => {
     if (ws) {
-      ws.send(JSON.stringify({ type: 'cancel_queue' }));
+      ws.send(JSON.stringify({ type: "cancel_queue" }));
     }
-    navigate('/home'); // Navigate away after cancelling
+    navigate("/home"); // Navigate away after cancelling
   };
 
   // 원형 진행률 계산 (SVG용)
@@ -148,7 +164,7 @@ const MatchingPage = () => {
   return (
     <div className="min-h-screen cyber-grid">
       <Header />
-      
+
       <main className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[calc(100vh-200px)]">
         <div className="w-full max-w-2xl">
           {!foundOpponent ? (
@@ -157,7 +173,7 @@ const MatchingPage = () => {
                 <h1 className="text-3xl font-bold neon-text">
                   상대방을 찾고 있습니다...
                 </h1>
-                
+
                 {/* 매칭 아이콘 */}
                 <div className="relative">
                   <div className="w-32 h-32 mx-auto">
@@ -172,16 +188,16 @@ const MatchingPage = () => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-center space-x-2 text-xl">
                     <Clock className="h-6 w-6 text-cyber-blue" />
-                    <span className="text-cyber-blue font-mono">{formatTime(matchingTime)}</span>
+                    <span className="text-cyber-blue font-mono">
+                      {formatTime(matchingTime)}
+                    </span>
                   </div>
-                  
-                  <div className="text-gray-300">
-                    평균 매칭 시간: 30초
-                  </div>
+
+                  <div className="text-gray-300">평균 매칭 시간: 30초</div>
                 </div>
 
                 <div className="flex justify-center">
-                  <CyberButton 
+                  <CyberButton
                     onClick={handleCancel}
                     variant="secondary"
                     className="w-48"
@@ -195,7 +211,7 @@ const MatchingPage = () => {
             <div className="relative">
               {/* 배경 오버레이 */}
               <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-40"></div>
-              
+
               {/* 수락창 */}
               <div className="relative z-50 flex items-center justify-center">
                 <div className="text-center space-y-8">
@@ -206,7 +222,10 @@ const MatchingPage = () => {
                   {/* 원형 수락창 */}
                   <div className="relative w-80 h-80 mx-auto">
                     {/* 외부 원형 진행바 */}
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <svg
+                      className="w-full h-full transform -rotate-90"
+                      viewBox="0 0 100 100"
+                    >
                       {/* 배경 원 */}
                       <circle
                         cx="50"
@@ -230,7 +249,13 @@ const MatchingPage = () => {
                         className="transition-all duration-1000 ease-linear"
                       />
                       <defs>
-                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <linearGradient
+                          id="gradient"
+                          x1="0%"
+                          y1="0%"
+                          x2="100%"
+                          y2="0%"
+                        >
                           <stop offset="0%" stopColor="#00F6FF" />
                           <stop offset="100%" stopColor="#8B5CF6" />
                         </linearGradient>
@@ -240,7 +265,9 @@ const MatchingPage = () => {
                     {/* 중앙 컨텐츠 */}
                     <div className="absolute inset-8 bg-gradient-to-br from-cyber-blue/20 to-cyber-purple/20 rounded-full border border-cyber-blue/30 backdrop-blur-sm flex flex-col items-center justify-center">
                       <div className="text-center space-y-4">
-                        <div className="text-2xl font-bold text-white">코딩 배틀</div>
+                        <div className="text-2xl font-bold text-white">
+                          코딩 배틀
+                        </div>
                         <div className="text-sm text-gray-300">랭크 매칭</div>
                         {!userAccepted || !opponentAccepted ? (
                           <div className="text-lg text-cyber-blue font-mono">
@@ -278,15 +305,19 @@ const MatchingPage = () => {
                           </div>
                         )}
                       </div>
-                      
+
                       <div className="text-2xl font-bold neon-text">VS</div>
-                      
+
                       <div className="text-center">
                         <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-pink-500 rounded-full mx-auto flex items-center justify-center mb-2">
                           <User className="h-6 w-6 text-white" />
                         </div>
-                        <div className="text-sm text-white">{opponent.name}</div>
-                        <div className="text-xs text-red-400">{opponent.rank}</div>
+                        <div className="text-sm text-white">
+                          {opponent.name}
+                        </div>
+                        <div className="text-xs text-red-400">
+                          {opponent.rank}
+                        </div>
                         {opponentAccepted && (
                           <div className="text-xs text-green-400 mt-1 flex items-center justify-center">
                             <Check className="h-3 w-3 mr-1" />
