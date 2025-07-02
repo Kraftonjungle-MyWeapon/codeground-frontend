@@ -107,6 +107,12 @@ const useWebSocketStore = create<WebSocketState>((set, get) => ({
     const { reconnectAttempts, maxReconnectAttempts, reconnectUrl, connect } = get();
 
     if (reconnectAttempts < maxReconnectAttempts && reconnectUrl) {
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/battle' && currentPath !== '/screen-share-setup') {
+        console.log('Not on battle or screen share setup page. Skipping reconnect.');
+        set({ isReconnecting: false, reconnectAttempts: 0, reconnectTimeoutId: null });
+        return;
+      }
       const delay = Math.pow(2, reconnectAttempts) * 1000; // Exponential backoff
       console.log(`Attempting to reconnect in ${delay / 1000} seconds (attempt ${reconnectAttempts + 1}/${maxReconnectAttempts})...`);
       set({ isReconnecting: true, reconnectAttempts: reconnectAttempts + 1 });

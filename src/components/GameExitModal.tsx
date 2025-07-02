@@ -29,7 +29,11 @@ const GameExitModal: React.FC<GameExitModalProps> = ({
             </CyberButton>
           </AlertDialogCancel>
           <AlertDialogAction asChild>
-            <CyberButton variant="destructive" onClick={onConfirmExit} className="flex-1">
+            <CyberButton variant="destructive" onClick={() => {
+              localStorage.removeItem('gameId');
+              localStorage.removeItem('problemId');
+              onConfirmExit();
+            }} className="flex-1">
               네, 기권하고 나가겠습니다.
             </CyberButton>
           </AlertDialogAction>
