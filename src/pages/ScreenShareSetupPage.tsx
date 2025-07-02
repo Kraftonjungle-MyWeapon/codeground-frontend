@@ -1,24 +1,26 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import CyberCard from "@/components/CyberCard";
-import CyberButton from "@/components/CyberButton";
-import { Monitor, User, Clock, AlertTriangle, Check } from "lucide-react";
-import { useUser } from "@/context/UserContext";
-import {
-  localStream as sharedLocalStream,
-  remoteStream as sharedRemoteStream,
-  setLocalStream,
-  setRemoteStream,
-  setPeerConnection,
-  peerConnection as sharedPC,
-} from "@/utils/webrtcStore";
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import CyberCard from '@/components/CyberCard';
+import CyberButton from '@/components/CyberButton';
+import { Monitor, User, Clock, AlertTriangle, Check } from 'lucide-react';
+import { useUser } from '@/context/UserContext';
+import { localStream as sharedLocalStream, remoteStream as sharedRemoteStream, 
+    setLocalStream, setRemoteStream, setPeerConnection, peerConnection as sharedPC } from '@/utils/webrtcStore';
+import useWebSocketStore from '@/stores/websocketStore';
 
 const ScreenShareSetupPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const gameId = searchParams.get("gameId");
   const { user } = useUser();
-  const wsRef = useRef<WebSocket | null>(null);
+  const { websocket, connect, disconnect, sendMessage } = useWebSocketStore();
+
+  // effectiveGameId와 userId를 컴포넌트 최상위 레벨에서 정의
+  const currentUrlGameId = searchParams.get('gameId');
+  const storedGameId = localStorage.getItem('currentGameId');
+  const effectiveGameId = currentUrlGameId || storedGameId;
+  const userId = user?.user_id;
+
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const [myStream, setMyStream] = useState<MediaStream | null>(null);
@@ -31,6 +33,41 @@ const ScreenShareSetupPage = () => {
   const [myReady, setMyReady] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [isCountingDown, setIsCountingDown] = useState(false);
+  const [isWebRTCConnected, setIsWebRTCConnected] = useState(false);
+  const [opponentScreenShareStatus, setOpponentScreenShareStatus] = useState<'waiting' | 'connected' | 'disconnected'>('waiting');
+  const [showMyScreenShareRestartButton, setShowMyScreenShareRestartButton] = useState(false);
+
+  useEffect(() => {
+    // 기존 WebRTC 연결 및 스트림 정리
+    if (sharedPC) {
+      sharedPC.close();
+      setPeerConnection(null);
+      console.log('ScreenShareSetupPage: Closed existing PeerConnection.');
+    }
+    if (sharedLocalStream) {
+      sharedLocalStream.getTracks().forEach(track => track.stop());
+      setLocalStream(null);
+      console.log('ScreenShareSetupPage: Stopped existing local stream.');
+    }
+    if (sharedRemoteStream) {
+      sharedRemoteStream.getTracks().forEach(track => track.stop());
+      setRemoteStream(null);
+      console.log('ScreenShareSetupPage: Stopped existing remote stream.');
+    }
+
+    // 상태 초기화
+    setMyStream(null);
+    setRemoteStreamState(null);
+    setMyShareStatus('waiting');
+    setOpponentReady(false);
+    setMyReady(false);
+    setCountdown(0);
+    setIsCountingDown(false);
+    setIsWebRTCConnected(false);
+    setOpponentScreenShareStatus('waiting');
+    setShowMyScreenShareRestartButton(false);
+
+  }, []);
 
   const startScreenShare = async () => {
     try {
@@ -51,18 +88,13 @@ const ScreenShareSetupPage = () => {
         setLocalStream(mediaStream);
         // 이미 연결이 존재하면 트랙을 추가하고 재협상
         if (sharedPC) {
-          mediaStream
-            .getTracks()
-            .forEach((track) => sharedPC.addTrack(track, mediaStream));
-          const offer = await sharedPC.createOffer();
-          await sharedPC.setLocalDescription(offer);
-          wsRef.current?.send(
-            JSON.stringify({
-              type: "webrtc_signal",
-              signal: sharedPC.localDescription,
-            }),
-          );
-        }
+            mediaStream.getTracks().forEach((track) => sharedPC.addTrack(track, mediaStream));
+            const offer = await sharedPC.createOffer();
+            await sharedPC.setLocalDescription(offer);
+            sendMessage(
+              JSON.stringify({ type: 'webrtc_signal', signal: sharedPC.localDescription })
+            );
+          }
         // 화면 공유가 종료되었을 때 감지
         videoTrack.addEventListener("ended", () => {
           console.log("Screen share ended");
@@ -94,19 +126,17 @@ const ScreenShareSetupPage = () => {
   const handleReady = () => {
     if (myShareStatus === "valid") {
       setMyReady(true);
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: "ready" }));
-      }
+      sendMessage(JSON.stringify({ type: 'ready' }));
     }
   };
 
   useEffect(() => {
-    if (myReady && opponentReady && !isCountingDown) {
-      console.log("Starting countdown...");
+    if (myReady && opponentReady && isWebRTCConnected && !isCountingDown) {
+      console.log('Starting countdown...');
       setIsCountingDown(true);
       setCountdown(3);
     }
-  }, [myReady, opponentReady, isCountingDown]);
+}, [myReady, opponentReady, isWebRTCConnected, isCountingDown]);
 
   useEffect(() => {
     if (isCountingDown && countdown > 0) {
@@ -153,21 +183,64 @@ const ScreenShareSetupPage = () => {
   }, [remoteStreamState]);
 
   useEffect(() => {
-    if (!gameId || !user?.user_id) return;
+    const currentUrlGameId = searchParams.get('gameId');
+    const storedGameId = localStorage.getItem('currentGameId');
+    const userId = user?.user_id;
 
-    const ws = new WebSocket(
-      `ws://localhost:8000/api/v1/game/ws/game/${gameId}?user_id=${user.user_id}`,
-    );
-    wsRef.current = ws;
+    let effectiveGameId = null;
+    if (currentUrlGameId) {
+      effectiveGameId = currentUrlGameId;
+    } else if (storedGameId) {
+      effectiveGameId = storedGameId;
+    }
 
-    ws.onopen = () => {
-      console.log("ScreenShareSetupPage WebSocket connected");
-      ws.send(
-        JSON.stringify({ type: "webrtc_signal", signal: { type: "join" } }),
-      );
+    if (!effectiveGameId || !userId) {
+      console.log('ScreenShareSetupPage: Cannot connect WebSocket. Missing effectiveGameId or userId.', { effectiveGameId, userId });
+      return;
+    }
+
+    const wsUrl = `ws://localhost:8000/api/v1/game/ws/game/${effectiveGameId}?user_id=${userId}`;
+    console.log('ScreenShareSetupPage: Attempting to connect WebSocket to:', wsUrl);
+
+    if (!wsUrl) { // wsUrl이 없으면 연결 시도 안 함
+        console.log('ScreenShareSetupPage: wsUrl is not valid. Skipping connect.');
+        return;
+    }
+
+    // 웹소켓이 이미 연결되어 있고, 연결하려는 URL과 동일하다면 다시 연결하지 않음
+    if (websocket && websocket.readyState === WebSocket.OPEN && websocket.url === wsUrl) {
+      console.log('ScreenShareSetupPage: WebSocket already connected to the target URL. Skipping connect.');
+      return;
+    }
+
+    // PeerConnection이 초기화되지 않았다면 초기화
+    if (!sharedPC) {
+      console.log('ScreenShareSetupPage: sharedPC is null, creating new PeerConnection.');
+      createPeerConnection();
+    } else {
+      console.log('ScreenShareSetupPage: sharedPC already exists.');
+    }
+
+    connect(wsUrl); // 항상 현재 세션에 맞는 정확한 URL을 connect 함수에 전달
+
+    return () => {
+      // Disconnect only if this component is responsible for the connection
+      // and if the connection is still active.
+      // This prevents disconnecting a shared WebSocket if another component
+      // is also using it.
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+        // You might want to add a more sophisticated check here
+        // to ensure you only disconnect if this component initiated the connection
+        // or if it's the last one using it.
+        // For now, we'll rely on the global state.
+      }
     };
+  }, [effectiveGameId, userId, connect, disconnect]);
 
-    ws.onmessage = async (event) => {
+  useEffect(() => {
+    if (!websocket) return;
+
+    websocket.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === "webrtc_signal" && data.sender !== user.user_id) {
@@ -186,31 +259,68 @@ const ScreenShareSetupPage = () => {
       }
     };
 
-    ws.onclose = () => {
-      console.log("ScreenShareSetupPage WebSocket disconnected");
+    websocket.onopen = () => {
+      console.log('ScreenShareSetupPage WebSocket connected');
+      sendMessage(JSON.stringify({ type: 'webrtc_signal', signal: { type: 'join' } }));
     };
 
-    return () => {
-      ws.close();
+    websocket.onclose = () => {
+      console.log('ScreenShareSetupPage WebSocket disconnected');
     };
-  }, [gameId, user]);
+  }, [websocket, user, sendMessage]);
+
+  useEffect(() => {
+    if (!sharedPC) return;
+
+    const handleConnectionStateChange = () => {
+      console.log('ScreenShareSetupPage: sharedPC connectionState changed:', sharedPC.connectionState);
+      if (sharedPC.connectionState === 'disconnected' || sharedPC.connectionState === 'failed' || sharedPC.connectionState === 'closed') {
+        setOpponentScreenShareStatus('disconnected');
+        setShowMyScreenShareRestartButton(true);
+        setIsWebRTCConnected(false); // WebRTC 연결 상태 업데이트
+      } else if (sharedPC.connectionState === 'connected') {
+        setOpponentScreenShareStatus('connected');
+        setShowMyScreenShareRestartButton(false);
+        setIsWebRTCConnected(true); // WebRTC 연결 상태 업데이트
+      }
+    };
+
+    sharedPC.addEventListener('connectionstatechange', handleConnectionStateChange);
+
+    return () => {
+      sharedPC.removeEventListener('connectionstatechange', handleConnectionStateChange);
+    };
+  }, [sharedPC]);
 
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
-    setPeerConnection(pc);
+    setPeerConnection(pc); // 여기서 sharedPC를 업데이트
+
+    pc.oniceconnectionstatechange = () => {
+      console.log('ICE connection state changed:', pc.iceConnectionState);
+      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
+        setOpponentScreenShareStatus('disconnected');
+        setShowMyScreenShareRestartButton(true);
+        setRemoteStream(null); // 상대방 스트림 제거
+        setRemoteStreamState(null); // 상대방 스트림 상태 제거
+        setIsWebRTCConnected(false); // WebRTC 연결 상태 업데이트
+      } else if (pc.iceConnectionState === 'connected') {
+        setOpponentScreenShareStatus('connected');
+        setShowMyScreenShareRestartButton(false);
+        setIsWebRTCConnected(true); // WebRTC 연결 상태 업데이트
+      }
+    };
+
     const stream = myStream || sharedLocalStream;
     if (stream) {
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
     }
     pc.onicecandidate = ({ candidate }) => {
       if (candidate) {
-        wsRef.current?.send(
-          JSON.stringify({
-            type: "webrtc_signal",
-            signal: { type: "candidate", candidate },
-          }),
+        sendMessage(
+          JSON.stringify({ type: 'webrtc_signal', signal: { type: 'candidate', candidate } })
         );
       }
     };
@@ -226,45 +336,116 @@ const ScreenShareSetupPage = () => {
       });
       setRemoteStream(stream);
       setRemoteStreamState(stream);
+      setOpponentScreenShareStatus('connected'); // 상대방 스트림 수신 시 상태 업데이트
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = stream;
+      }
+
+      // 상대방 스트림의 비디오 트랙이 종료될 때 감지
+      const remoteVideoTrack = stream.getVideoTracks()[0];
+      if (remoteVideoTrack) {
+        remoteVideoTrack.onended = () => {
+          console.log('Remote screen share track ended.');
+          setOpponentScreenShareStatus('disconnected');
+          setShowMyScreenShareRestartButton(true);
+          setRemoteStream(null); // 상대방 스트림 제거
+          setRemoteStreamState(null); // 상대방 스트림 상태 제거
+        };
       }
     };
     return pc;
   };
 
   const handleSignal = async (signal: any) => {
-    let pc = sharedPC || null;
-    if (signal.type === "join") {
-      if (!pc) pc = createPeerConnection();
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      wsRef.current?.send(
-        JSON.stringify({ type: "webrtc_signal", signal: pc.localDescription }),
-      );
-    } else if (signal.type === "offer") {
-      if (!pc) pc = createPeerConnection();
+    let pc = sharedPC; // sharedPC를 직접 사용
+    if (!pc) {
+      pc = createPeerConnection();
+    }
+
+    if (signal.type === 'offer') {
+      // offer를 받으면, 현재 signalingState가 stable이 아니면 기다림
+      if (pc.signalingState !== 'stable') {
+        await Promise.all([
+          pc.localDescription ? pc.setLocalDescription(pc.localDescription) : Promise.resolve(),
+          pc.remoteDescription ? pc.setRemoteDescription(pc.remoteDescription) : Promise.resolve(),
+        ]);
+      }
       await pc.setRemoteDescription(new RTCSessionDescription(signal));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      wsRef.current?.send(
-        JSON.stringify({ type: "webrtc_signal", signal: pc.localDescription }),
-      );
-    } else if (signal.type === "answer") {
-      if (pc) {
+      sendMessage(JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription }));
+    } else if (signal.type === 'answer') {
+      if (pc.signalingState === 'have-local-offer') {
         await pc.setRemoteDescription(new RTCSessionDescription(signal));
+      } else {
+        console.warn('Received answer in unexpected signaling state:', pc.signalingState, 'Signal:', signal);
       }
-    } else if (signal.type === "candidate") {
-      if (pc && signal.candidate) {
+    } else if (signal.type ===
+     'candidate') {
+      if (signal.candidate) {
         try {
           await pc.addIceCandidate(signal.candidate);
         } catch (err) {
           console.error("Error adding ice candidate", err);
         }
       }
+    } else if (signal.type === 'join') {
+      // 상대방이 방에 들어왔음을 알리는 시그널. 여기서 offer를 생성하지 않음.
+      // offer 생성은 startScreenShare 함수에서 담당.
     }
-    if (pc) setPeerConnection(pc);
+    // pc가 변경되었을 수 있으므로 다시 저장
+    setPeerConnection(pc);
   };
+
+  const handleRestartScreenShare = async () => {
+    try {
+      setMyShareStatus('sharing');
+      const mediaStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false,
+      });
+
+      const videoTrack = mediaStream.getVideoTracks()[0];
+      const settings = videoTrack.getSettings() as any;
+
+      console.log('Screen share settings:', settings);
+
+      if (settings.displaySurface === 'monitor') {
+        setMyShareStatus('valid');
+        setMyStream(mediaStream);
+        setLocalStream(mediaStream);
+        // 이미 연결이 존재하면 트랙을 추가하고 재협상
+        if (sharedPC) {
+            mediaStream.getTracks().forEach((track) => sharedPC.addTrack(track, mediaStream));
+            const offer = await sharedPC.createOffer();
+            await sharedPC.setLocalDescription(offer);
+            sendMessage(
+              JSON.stringify({ type: 'webrtc_signal', signal: sharedPC.localDescription })
+            );
+          }
+        // 화면 공유가 종료되었을 때 감지
+        videoTrack.addEventListener('ended', () => {
+            console.log('Screen share ended');
+            setMyShareStatus('waiting');
+            setMyStream(null);
+            setLocalStream(null);
+            setMyReady(false);
+            setIsCountingDown(false);
+            setCountdown(0);
+        });
+      } else {
+        setMyShareStatus('invalid');
+        setMyReady(false);
+        setIsCountingDown(false);
+        setCountdown(0);
+        mediaStream.getTracks().forEach(track => track.stop());
+      }
+    } catch (error) {
+      console.error('Screen share failed:', error);
+      setMyShareStatus('waiting');
+    }
+  };
+
 
   return (
     <div className="min-h-screen cyber-grid bg-cyber-darker">
@@ -360,6 +541,15 @@ const ScreenShareSetupPage = () => {
                       >
                         {opponentReady ? "준비 완료" : "준비 중..."}
                       </span>
+                    </div>
+                    <div className="text-sm text-gray-400 mt-1">
+                      {opponentScreenShareStatus === 'connected' ? (
+                        <span className="text-green-400">화면 공유 연결됨</span>
+                      ) : opponentScreenShareStatus === 'disconnected' ? (
+                        <span className="text-red-400">화면 공유 끊김</span>
+                      ) : (
+                        <span className="text-yellow-400">화면 공유 대기 중</span>
+                      )}
                     </div>
                   </div>
                   <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center">
@@ -463,6 +653,13 @@ const ScreenShareSetupPage = () => {
                   </div>
                 )}
               </div>
+              {showMyScreenShareRestartButton && (
+                <div className="flex justify-center mt-4">
+                  <CyberButton onClick={startScreenShare} className="bg-blue-500 hover:bg-blue-600">
+                    내 화면 공유 재시작
+                  </CyberButton>
+                </div>
+              )}
             </CyberCard>
           </div>
 

@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import CyberLoadingSpinner from "@/components/CyberLoadingSpinner";
-// Lazy load components
+import NavigationHandler from './components/NavigationHandler';
 const Index = lazy(() => import("./pages/Index"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -32,7 +32,7 @@ import { getCookie, eraseCookie } from "@/lib/utils";
 const queryClient = new QueryClient();
 
 const App = () => {
-  const { setUser, setIsLoading } = useUser();
+  const { setUser, setIsLoading, isLoading } = useUser();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -67,32 +67,35 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Suspense fallback={<CyberLoadingSpinner />}>
-            <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/signup" element={<SignupPage />} />
-              {/* Protected Routes */}
-              <Route element={<ProtectedRoute />}>
-                <Route path="/home" element={<Index />} />
-                <Route path="/setup-profile" element={<ProfileSetupPage />} />
-                <Route path="/matching" element={<MatchingPage />} />
-                <Route path="/waiting-room" element={<WaitingRoomPage />} />
-                <Route
-                  path="/screen-share-setup"
-                  element={<ScreenShareSetupPage />}
-                />
-                <Route path="/battle" element={<BattlePage />} />
-                <Route path="/result" element={<ResultPage />} />
-                <Route path="/tier-promotion" element={<TierPromotionPage />} />
-                <Route path="/tier-demotion" element={<TierDemotionPage />} />
-                <Route path="/ranking" element={<RankingPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
+          {isLoading ? (
+            <CyberLoadingSpinner />
+          ) : (
+            <Suspense fallback={<CyberLoadingSpinner />}>
+              <NavigationHandler>
+                <Routes>
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/signup" element={<SignupPage />} />
+                  {/* Protected Routes */}
+                  <Route element={<ProtectedRoute />}>
+                    <Route path="/home" element={<Index />} />
+                    <Route path="/setup-profile" element={<ProfileSetupPage />} />
+                    <Route path="/matching" element={<MatchingPage />} />
+                    <Route path="/waiting-room" element={<WaitingRoomPage />} />
+                    <Route path="/screen-share-setup" element={<ScreenShareSetupPage />} />
+                    <Route path="/battle" element={<BattlePage />} />
+                    <Route path="/result" element={<ResultPage />} />
+                    <Route path="/tier-promotion" element={<TierPromotionPage />} />
+                    <Route path="/tier-demotion" element={<TierDemotionPage />} />
+                    <Route path="/ranking" element={<RankingPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                  </Route>
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </NavigationHandler>
+            </Suspense>
+          )}
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

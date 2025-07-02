@@ -1,37 +1,26 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { useUser } from "@/context/UserContext";
-import CyberCard from "@/components/CyberCard";
-import CyberButton from "@/components/CyberButton";
-import {
-  Clock,
-  Play,
-  Send,
-  Monitor,
-  Flag,
-  AlertTriangle,
-  HelpCircle,
-} from "lucide-react";
-import { authFetch } from "@/utils/api";
-import {
-  localStream as sharedLocalStream,
-  remoteStream as sharedRemoteStream,
-  setLocalStream,
-  peerConnection as sharedPC,
-} from "@/utils/webrtcStore";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useUser } from '@/context/UserContext';
+import CyberCard from '@/components/CyberCard';
+import CyberButton from '@/components/CyberButton';
+import { Clock, Play, Send, Monitor, Flag, AlertTriangle, HelpCircle } from 'lucide-react';
+import { localStream as sharedLocalStream, remoteStream as sharedRemoteStream, setLocalStream, peerConnection as sharedPC, setPeerConnection, setRemoteStream } from '@/utils/webrtcStore';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { ProgrammingLanguage } from '@/types/codeEditor';
+import { getLanguageConfig } from '@/utils/languageConfig';
+import { CodeEditorHandler } from '@/utils/codeEditorHandlers';
+import usePreventNavigation from '@/hooks/usePreventNavigation';
+import GameExitModal from '@/components/GameExitModal';
+import useWebSocketStore from '@/stores/websocketStore';
+import { authFetch } from '@/utils/api';
 
 const BattlePage = () => {
   const navigate = useNavigate();
   const { user } = useUser();
   const [searchParams] = useSearchParams();
-  const gameId = searchParams.get("gameId");
-  const wsRef = useRef<WebSocket | null>(null);
+  const gameId = searchParams.get('gameId');
+  const { websocket, sendMessage, disconnect, connect } = useWebSocketStore();
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const [timeLeft, setTimeLeft] = useState(930);
@@ -45,29 +34,160 @@ const BattlePage = () => {
   const [runStatus, setRunStatus] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [isLocalStreamActive, setIsLocalStreamActive] = useState(true);
-  const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const [showScreenSharePrompt, setShowScreenSharePrompt] = useState(false); // New state for screen share prompt
+  const [isRemoteStreamActive, setIsRemoteStreamActive] = useState(true); // New state for remote stream active
+  const [showRemoteScreenSharePrompt, setShowRemoteScreenSharePrompt] = useState(false); // New state for remote screen share prompt
+  const [isLeavingGame, setIsLeavingGame] = useState(false); // New state to control cleanup
+  const isConfirmedExitRef = useRef(false); // New ref to track explicit exit confirmation
+  const [problem, setProblem] = useState<any>(null);
+  const [currentLanguage] = useState<ProgrammingLanguage>('python'); // 현재는 python 고정, 추후 변경 가능
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const lineNumbersRef = useRef<HTMLDivElement>(null);
+  const createPeerConnection = useCallback(() => {
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+    setPeerConnection(pc); // 여기서 sharedPC를 업데이트
 
-  const problem = {
-    title: "문제 설명",
-    description:
-      "정수 n을 입력받아 n의 약수를 모두 더한 값을 리턴하는 함수, solution을 완성해주세요.",
-    constraints: ["n은 0 이상 3000이하인 정수입니다."],
-    examples: [
-      { input: "n: 12", output: "return: 28" },
-      { input: "n: 5", output: "return: 6" },
-    ],
-    testCase: {
-      title: "입출력 예 설명",
-      description:
-        "12의 약수는 1, 2, 3, 4, 6, 12입니다. 이를 모두 더하면 28입니다.",
-    },
-    hint: ["수학", "약수", "반복문", "완전탐색"],
-  };
+    pc.oniceconnectionstatechange = () => {
+      console.log('BattlePage: ICE connection state changed:', pc.iceConnectionState);
+      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
+        setShowScreenSharePrompt(true);
+        setRemoteStream(null); // 상대방 스트림 제거
+      } else if (pc.iceConnectionState === 'connected') {
+        // Do not hide the screen share prompt here. It should only be hidden when the user explicitly starts sharing.
+      }
+    };
+
+    pc.onicecandidate = ({ candidate }) => {
+      if (candidate) {
+        sendMessage(
+          JSON.stringify({ type: 'webrtc_signal', signal: { type: 'candidate', candidate } })
+        );
+      }
+    };
+    pc.ontrack = ({ streams: [stream] }) => {
+      console.log('BattlePage: Received remote stream:', stream);
+      setRemoteStream(stream);
+      setIsRemoteStreamActive(true);
+      setShowRemoteScreenSharePrompt(false);
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = stream;
+      }
+
+      const remoteVideoTrack = stream.getVideoTracks()[0];
+      if (remoteVideoTrack) {
+        remoteVideoTrack.onended = () => {
+          console.log('BattlePage: Remote screen share track ended.');
+          setIsRemoteStreamActive(false);
+          setShowRemoteScreenSharePrompt(true);
+        };
+      }
+    };
+    return pc;
+  }, [sendMessage]);
+
+  const handleSignal = useCallback(async (signal: any) => {
+    let pc = sharedPC; // sharedPC를 직접 사용
+    if (!pc) {
+      pc = createPeerConnection();
+    }
+
+    if (signal.type === 'offer') {
+      if (pc.signalingState !== 'stable') {
+        await Promise.all([
+          pc.localDescription ? pc.setLocalDescription(pc.localDescription) : Promise.resolve(),
+          pc.remoteDescription ? pc.setRemoteDescription(pc.remoteDescription) : Promise.resolve(),
+        ]);
+      }
+      await pc.setRemoteDescription(new RTCSessionDescription(signal));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      sendMessage(JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription }));
+    } else if (signal.type === 'answer') {
+      if (pc.signalingState === 'have-local-offer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(signal));
+      } else {
+        console.warn('BattlePage: Received answer in unexpected signaling state:', pc.signalingState, 'Signal:', signal);
+      }
+    } else if (signal.type === 'candidate') {
+      if (signal.candidate) {
+        try {
+          await pc.addIceCandidate(signal.candidate);
+        } catch (err) {
+          console.error('BattlePage: Error adding ice candidate', err);
+        }
+      }
+    } else if (signal.type === 'join') {
+      // 상대방이 방에 들어왔음을 알리는 시그널. 여기서 offer를 생성하지 않음.
+      // offer 생성은 handleRestartScreenShare 함수에서 담당.
+    }
+    setPeerConnection(pc);
+  }, [createPeerConnection, sendMessage]);
 
   useEffect(() => {
+    if (!websocket) return;
+
+    websocket.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'chat' && data.sender !== user.user_id) {
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              user: '상대',
+              message: data.message,
+            },
+          ]);
+        } else if (data.type === 'webrtc_signal' && data.sender !== user.user_id) {
+          await handleSignal(data.signal);
+        }
+      } catch (e) {
+        console.error('BattlePage: ws message parse error', e);
+      }
+    };
+  }, [websocket, user, handleSignal]);
+
+  // 화면 공유 스트림 정리 함수
+  const cleanupScreenShare = useCallback(() => {
+    if (sharedLocalStream) {
+      sharedLocalStream.getTracks().forEach(track => track.stop());
+      setLocalStream(null);
+      console.log('Local screen share stream stopped.');
+    }
+  }, []);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+  const [confirmExitCallback, setConfirmExitCallback] = useState<(() => void) | null>(null);
+  const [cancelExitCallback, setCancelExitCallback] = useState<(() => void) | null>(null);
+
+  const { isNavigationBlocked } = usePreventNavigation({
+    shouldPrevent: true, // BattlePage에서는 항상 이탈 방지
+    onAttemptNavigation: (confirm, cancel) => {
+      setIsExitModalOpen(true);
+      setConfirmExitCallback(() => confirm);
+      setCancelExitCallback(() => cancel);
+    },
+  });
+  
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lineNumbersRef = useRef<HTMLDivElement>(null);
+  const editorHandlerRef = useRef<CodeEditorHandler>(new CodeEditorHandler('python'));
+
+  // 언어 설정
+  const languageConfig = getLanguageConfig(currentLanguage);
+
+  
+
+  useEffect(() => {
+    console.log('BattlePage: sharedLocalStream', sharedLocalStream);
+    console.log('BattlePage: sharedRemoteStream', sharedRemoteStream);
+    console.log('BattlePage: sharedPC', sharedPC);
+
+    if (sharedPC) {
+      console.log('BattlePage: sharedPC signalingState', sharedPC.signalingState);
+      console.log('BattlePage: sharedPC iceConnectionState', sharedPC.iceConnectionState);
+    }
+
     if (localVideoRef.current && sharedLocalStream) {
       localVideoRef.current.srcObject = sharedLocalStream;
     }
@@ -80,41 +200,90 @@ const BattlePage = () => {
       if (videoTrack) {
         videoTrack.onended = () => {
           setIsLocalStreamActive(false);
+          setShowScreenSharePrompt(true); // Show prompt when local stream ends
+          sendMessage(JSON.stringify({ type: 'screen_share_ended' })); // Notify opponent
+
+          // 내 화면 공유가 중지되면 상대방 화면도 즉시 대기 상태로 변경
+          if (sharedRemoteStream) {
+            sharedRemoteStream.getTracks().forEach(track => track.stop());
+            setRemoteStream(null);
+          }
+          setIsRemoteStreamActive(false);
+          setShowRemoteScreenSharePrompt(true);
         };
       }
+    } else {
+      setIsLocalStreamActive(false);
+      setShowScreenSharePrompt(true); // Show prompt if no local stream initially
     }
-  }, []);
 
-  // 웹소켓 연결
-  useEffect(() => {
-    if (!gameId || !user?.user_id) return;
-
-    const ws = new WebSocket(
-      `ws://localhost:8000/api/v1/game/ws/game/${gameId}?user_id=${user.user_id}`,
-    );
-    wsRef.current = ws;
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === "chat" && data.sender !== user.user_id) {
-          setChatMessages((prev) => [
-            ...prev,
-            {
-              user: "상대",
-              message: data.message,
-            },
-          ]);
-        }
-      } catch (e) {
-        console.error("Failed to parse message", e);
+    if (sharedRemoteStream) {
+      const remoteVideoTrack = sharedRemoteStream.getVideoTracks()[0];
+      if (remoteVideoTrack) {
+        remoteVideoTrack.onended = () => {
+          setIsRemoteStreamActive(false);
+          setShowRemoteScreenSharePrompt(true);
+        };
       }
-    };
+    } else {
+      setIsRemoteStreamActive(false);
+      setShowRemoteScreenSharePrompt(true);
+    }
+  }, [sharedLocalStream, sharedRemoteStream, sharedPC]);
 
-    return () => {
-      ws.close();
-    };
-  }, [gameId, user]);
+   // 웹소켓 연결
+  useEffect(() => {
+    const storedWebsocketUrl = localStorage.getItem('websocketUrl');
+    let wsUrl: string | null = null;
+
+    if (storedWebsocketUrl) {
+      wsUrl = storedWebsocketUrl;
+      console.log('BattlePage: Using stored WebSocket URL from localStorage:', wsUrl);
+    } else if (user?.user_id && gameId) {
+      wsUrl = `ws://localhost:8000/api/v1/game/ws/game/${gameId}?user_id=${user.user_id}`;
+      console.log('BattlePage: Constructing WebSocket URL from gameId and userId:', wsUrl);
+    } else {
+      console.log('BattlePage: Cannot connect WebSocket. Missing gameId, userId, or stored URL.', { gameId, userId: user?.user_id });
+      return;
+    }
+
+    if (!websocket || websocket.readyState === WebSocket.CLOSED) {
+      console.log('BattlePage: WebSocket not connected or closed. Attempting to connect.');
+      connect(wsUrl);
+    }
+
+    if (websocket) {
+      websocket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'chat' && data.sender !== user.user_id) {
+            setChatMessages((prev) => [
+              ...prev,
+              {
+                user: '상대',
+                message: data.message,
+              },
+            ]);
+          } else if (data.type === 'webrtc_signal' && data.sender !== user.user_id) {
+            handleSignal(data.signal);
+          } else if (data.type === 'match_accepted') {
+            setProblem(data.problem);
+          } else if (data.type === 'screen_share_ended' && data.sender !== user.user_id) {
+            console.log('BattlePage: Opponent screen share ended. Stopping local screen share.');
+            cleanupScreenShare();
+            setShowScreenSharePrompt(true);
+            setShowRemoteScreenSharePrompt(true);
+          } else if (data.type === 'screen_share_restarted' && data.sender !== user.user_id) {
+            console.log('BattlePage: Opponent screen share restarted.');
+            setIsRemoteStreamActive(true);
+            setShowRemoteScreenSharePrompt(false);
+          }
+        } catch (e) {
+          console.error('BattlePage: ws message parse error', e);
+        }
+      };
+    }
+  }, [websocket, user, gameId, connect, handleSignal]);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -129,14 +298,18 @@ const BattlePage = () => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          navigate("/result");
+          cleanupScreenShare(); // 타이머 종료 시 화면 공유 중단
+          navigate('/result');
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      cleanupScreenShare(); // 컴포넌트 언마운트 시 화면 공유 중단
+    };
   }, [navigate]);
 
   const formatTime = (seconds: number) => {
@@ -150,19 +323,58 @@ const BattlePage = () => {
 
     const msgObj = { type: "chat", message: newMessage };
 
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(msgObj));
-      setChatMessages((prev) => [...prev, { user: "나", message: newMessage }]);
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      sendMessage(JSON.stringify(msgObj));
+      setChatMessages((prev) => [...prev, { user: '나', message: newMessage }]);
     }
 
     setNewMessage("");
   };
 
-  const handleSurrender = () => {
-    if (confirm("정말 항복하시겠습니까?")) {
-      navigate("/result");
+  const handleSurrender = useCallback(() => {
+    console.log('handleSurrender called. isLeavingGame:', isLeavingGame);
+    setIsLeavingGame(true); // 게임을 떠나는 중임을 표시
+
+    // 항복 웹소켓 메시지 전송
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      const surrenderMessage = { type: 'surrender', message: 'User surrendered' };
+      sendMessage(JSON.stringify(surrenderMessage));
+      console.log('Surrender message sent.');
+      disconnect(); // 웹소켓 명시적 종료
     }
-  };
+
+    // WebRTC 관련 리소스 정리
+    if (sharedPC) {
+      sharedPC.close();
+      setPeerConnection(null);
+    }
+    cleanupScreenShare(); // 화면 공유 중단 함수 호출
+    if (sharedRemoteStream) {
+      sharedRemoteStream.getTracks().forEach(track => track.stop());
+      setRemoteStream(null);
+    }
+
+    // 결과 페이지로 이동
+    navigate('/result');
+  }, [navigate]);
+
+  const handleConfirmExit = useCallback(() => {
+    console.log('handleConfirmExit called.');
+    isConfirmedExitRef.current = true; // 명시적 종료 확정
+    setIsExitModalOpen(false);
+    if (confirmExitCallback) {
+      handleSurrender(); // 항복 처리
+      confirmExitCallback();
+    }
+  }, [confirmExitCallback, handleSurrender]);
+
+  const handleCancelExit = useCallback(() => {
+    console.log('handleCancelExit called.');
+    setIsExitModalOpen(false);
+    if (cancelExitCallback) {
+      cancelExitCallback();
+    }
+  }, [cancelExitCallback]);
 
   const handleReport = () => {
     alert("신고가 접수되었습니다.");
@@ -170,6 +382,12 @@ const BattlePage = () => {
 
   const handleRestartScreenShare = async () => {
     try {
+      // 기존 스트림이 있다면 중지
+      if (sharedLocalStream) {
+        sharedLocalStream.getTracks().forEach(track => track.stop());
+        setLocalStream(null);
+      }
+
       const mediaStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: false,
@@ -181,24 +399,38 @@ const BattlePage = () => {
 
       setLocalStream(mediaStream);
 
-      if (sharedPC) {
-        const videoTrack = mediaStream.getVideoTracks()[0];
-        const sender = sharedPC
-          .getSenders()
-          .find((s) => s.track?.kind === "video");
-        if (sender) {
-          sender.replaceTrack(videoTrack);
-        }
+      let pc = sharedPC;
+      if (!pc) {
+        pc = createPeerConnection();
       }
+
+      // 기존 트랙 제거 및 새 트랙 추가
+      pc.getSenders().forEach(sender => {
+        if (sender.track && sender.track.kind === 'video') {
+          pc.removeTrack(sender);
+        }
+      });
+      mediaStream.getTracks().forEach((track) => pc.addTrack(track, mediaStream));
+
+      // Offer 생성 및 전송
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      sendMessage(
+        JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription })
+      );
 
       const videoTrack = mediaStream.getVideoTracks()[0];
       videoTrack.onended = () => {
         setIsLocalStreamActive(false);
+        setShowScreenSharePrompt(true);
       };
 
       setIsLocalStreamActive(true);
+      setShowScreenSharePrompt(false); // 화면 공유 시작 시 프롬프트 숨김
+      sendMessage(JSON.stringify({ type: 'screen_share_restarted' })); // Notify opponent that screen share has restarted
     } catch (error) {
-      console.error("Error restarting screen share:", error);
+      console.error('Error restarting screen share:', error);
+      setShowScreenSharePrompt(true); // 에러 발생 시 프롬프트 다시 표시
     }
   };
 
@@ -271,7 +503,8 @@ const BattlePage = () => {
   };
 
   const handleSubmit = () => {
-    navigate("/result");
+    cleanupScreenShare(); // 코드 제출 시 화면 공유 중단
+    navigate('/result');
   };
 
   const toggleHint = () => {
@@ -284,6 +517,41 @@ const BattlePage = () => {
       lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
     }
   };
+
+  // 코드 에디터 키 핸들링 함수 - 언어별 핸들러 사용
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const textarea = e.currentTarget;
+    
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      editorHandlerRef.current.handleTabKey(textarea, e.shiftKey);
+      setCode(textarea.value);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      editorHandlerRef.current.handleEnterKey(textarea);
+      setCode(textarea.value);
+    }
+  };
+
+  useEffect(() => {
+    const gameId = searchParams.get('gameId');
+    console.log("BattlePage: Searching for problem with gameId:", gameId);
+    if (gameId) {
+      const storedProblem = localStorage.getItem(`problem_${gameId}`);
+      console.log("BattlePage: Fetched problem from localStorage:", storedProblem);
+      if (storedProblem) {
+        try {
+          const parsedProblem = JSON.parse(storedProblem);
+          console.log("BattlePage: Parsed problem:", parsedProblem);
+          setProblem(parsedProblem);
+        } catch (error) {
+          console.error("BattlePage: Error parsing problem from localStorage:", error);
+        }
+      } else {
+        console.log("BattlePage: No problem found in localStorage for this gameId.");
+      }
+    }
+  }, [searchParams]);
 
   // 동적으로 줄 번호 생성
   const actualLineCount = code ? code.split("\n").length : 1;
@@ -339,88 +607,67 @@ const BattlePage = () => {
               <div className="flex-1 mb-2">
                 <CyberCard className="h-[calc(100vh-24em)] p-4 mr-2 max-h-[860px]">
                   <ScrollArea className="h-full">
-                    <div className="space-y-4 pr-4">
-                      <div className="flex items-start justify-between">
-                        <h1 className="text-xl font-bold neon-text">
-                          {problem.title}
-                        </h1>
-                        <CyberButton
-                          onClick={toggleHint}
-                          size="sm"
-                          variant="secondary"
-                        >
-                          <HelpCircle className="mr-1 h-4 w-4" />
-                          힌트
-                        </CyberButton>
+                    {problem ? (
+                      <div className="space-y-4 pr-4">
+                        <div className="flex items-start justify-between">
+                          <h1 className="text-xl font-bold neon-text">{problem.title}</h1>
+                          <CyberButton onClick={toggleHint} size="sm" variant="secondary">
+                            <HelpCircle className="mr-1 h-4 w-4" />
+                            힌트
+                          </CyberButton>
+                        </div>
+
+                        {showHint && problem.category && (
+                          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                            <h3 className="text-yellow-400 font-semibold mb-2">알고리즘 분류</h3>
+                            <div className="flex flex-wrap gap-2">
+                              {problem.category.map((tag, index) => (
+                                <span key={index} className="bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded text-sm">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                      <div>
+                        <p className="text-gray-300 leading-relaxed">{problem.description}</p>
                       </div>
 
-                      {showHint && (
-                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
-                          <h3 className="text-yellow-400 font-semibold mb-2">
-                            알고리즘 분류
-                          </h3>
-                          <div className="flex flex-wrap gap-2">
-                            {problem.hint.map((tag, index) => (
-                              <span
-                                key={index}
-                                className="bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded text-sm"
-                              >
-                                {tag}
-                              </span>
+                      {problem.description && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-cyber-blue mb-2">제한 사항</h3>
+                          <ul className="text-gray-300 space-y-1">
+                            <li>• {problem.description}</li>
+                          </ul>
+                        </div>
+                      )}
+
+                      {problem.examples && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-cyber-blue mb-2">입출력 예</h3>
+                          <div className="bg-black/30 p-3 rounded-lg border border-gray-700 space-y-2">
+                            {problem.examples.map((example, index) => (
+                              <div key={index} className="font-mono text-sm">
+                                <div className="text-gray-400">{example.input}</div>
+                                <div className="text-green-400">{example.output}</div>
+                              </div>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      <div
-                        style={{ whiteSpace: "pre-wrap", overflowY: "auto" }}
-                      >
-                        <p className="text-gray-300 leading-relaxed">
-                          {problem.description}
-                        </p>
-                      </div>
-
-                      <div>
-                        <h3 className="text-lg font-semibold text-cyber-blue mb-2">
-                          제한 사항
-                        </h3>
-                        <ul className="text-gray-300 space-y-1">
-                          {problem.constraints.map((constraint, index) => (
-                            <li key={index}>• {constraint}</li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div>
-                        <h3 className="text-lg font-semibold text-cyber-blue mb-2">
-                          입출력 예
-                        </h3>
-                        <div className="bg-black/30 p-3 rounded-lg border border-gray-700 space-y-2">
-                          {problem.examples.map((example, index) => (
-                            <div key={index} className="font-mono text-sm">
-                              <div className="text-gray-400">
-                                {example.input}
-                              </div>
-                              <div className="text-green-400">
-                                {example.output}
-                              </div>
-                            </div>
-                          ))}
+                      {problem.testCase && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-cyber-blue mb-2">입출력 예 설명</h3>
+                          <h4 className="text-yellow-400 font-medium mb-1">입출력 예 #1</h4>
+                          <p className="text-gray-300 text-sm">{problem.testCase.description}</p>
                         </div>
-                      </div>
-
-                      <div>
-                        <h3 className="text-lg font-semibold text-cyber-blue mb-2">
-                          입출력 예 설명
-                        </h3>
-                        <h4 className="text-yellow-400 font-medium mb-1">
-                          입출력 예 #1
-                        </h4>
-                        <p className="text-gray-300 text-sm">
-                          {problem.testCase.description}
-                        </p>
-                      </div>
+                      )}
                     </div>
+                    ) : (
+                      <div className="text-center text-gray-400">문제 로딩 중...</div>
+                    )}
                   </ScrollArea>
                 </CyberCard>
               </div>
@@ -469,22 +716,26 @@ const BattlePage = () => {
                 {/* 화면공유 */}
                 <div className="flex-1 min-w-0">
                   <CyberCard className="p-3 flex flex-col items-center justify-center h-full">
-                    {sharedRemoteStream ? (
-                      <video
-                        ref={remoteVideoRef}
-                        autoPlay
-                        playsInline
-                        className="w-full h-full object-contain"
-                      />
+                  {sharedRemoteStream && isRemoteStreamActive ? (
+                      <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-contain" />
                     ) : (
                       <div className="text-xs text-gray-400 text-center">
-                        <Monitor className="h-8 w-8 text-gray-400 mb-2" />
+                        <Monitor className="h-8 w-8 text-gray-400 mb-2 mx-auto" />
                         <div>상대방 화면</div>
-                        <div className="mt-1 text-yellow-400">
-                          공유 대기중...
-                        </div>
+                        {showRemoteScreenSharePrompt ? (
+                          <div className="mt-1 text-red-400">공유 중지됨. 상대방이 다시 공유해야 합니다.</div>
+                        ) : (
+                          <div className="mt-1 text-yellow-400">공유 대기중...</div>
+                        )}
                       </div>
                     )}
+                  {showScreenSharePrompt && (
+                    <div className="flex justify-center mt-4">
+                      <CyberButton onClick={handleRestartScreenShare} className="bg-blue-500 hover:bg-blue-600" size="sm">
+                        내 화면 공유 재시작
+                      </CyberButton>
+                    </div>
+                  )}
                   </CyberCard>
                 </div>
               </div>
@@ -501,7 +752,7 @@ const BattlePage = () => {
                 <CyberCard className="h-full flex flex-col ml-2 mb-1">
                   {/* 최소화된 헤더 */}
                   <div className="flex items-center px-3 py-1 border-b border-gray-700/50 bg-black/20">
-                    <div className="text-xs text-gray-400">Code Editor</div>
+                  <div className="text-xs text-gray-400">{languageConfig.name} Code Editor</div>
                   </div>
 
                   {/* 코드 에디터 영역 */}
@@ -524,18 +775,19 @@ const BattlePage = () => {
                           ))}
                         </div>
                       </div>
-
-                      <div className="flex-1 overflow-hidden">
+                      
+                      <div className="flex-1 overflow-hidden relative">
                         <textarea
                           ref={textareaRef}
                           value={code}
                           onChange={(e) => setCode(e.target.value)}
                           onScroll={handleScroll}
-                          placeholder="" // 빈 placeholder로 변경
+                          onKeyDown={handleKeyDown}
+                          placeholder={languageConfig.placeholder}
                           className="w-full h-full bg-transparent px-3 py-3 text-green-400 font-mono resize-none focus:outline-none text-sm leading-5 border-none"
-                          style={{
-                            fontFamily:
-                              'Monaco, Consolas, "Courier New", monospace',
+                          style={{ 
+                            fontFamily: languageConfig.fontFamily,
+                            tabSize: languageConfig.indentSize
                           }}
                         />
                       </div>
@@ -596,6 +848,12 @@ const BattlePage = () => {
           </ResizablePanel>
         </ResizablePanelGroup>
       </main>
+
+      <GameExitModal
+        isOpen={isExitModalOpen}
+        onConfirmExit={handleConfirmExit}
+        onCancelExit={handleCancelExit}
+      />
     </div>
   );
 };

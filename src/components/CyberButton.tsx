@@ -5,8 +5,8 @@ interface CyberButtonProps {
   children: React.ReactNode;
   onClick?: () => void;
   className?: string;
-  variant?: "primary" | "secondary" | "danger";
-  size?: "sm" | "md" | "lg";
+  variant?: 'primary' | 'secondary' | 'danger' | 'destructive';
+  size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
   type?: "button" | "submit" | "reset";
 }
@@ -23,9 +23,10 @@ const CyberButton = ({
   const baseClasses = "cyber-button flex items-center justify-center gap-2";
 
   const variantClasses = {
-    primary: "from-cyber-blue to-cyber-purple",
-    secondary: "from-gray-600 to-gray-700",
-    danger: "from-red-500 to-red-600",
+    primary: 'from-cyber-blue to-cyber-purple',
+    secondary: 'from-gray-600 to-gray-700',
+    danger: 'from-red-500 to-red-600',
+    destructive: 'from-red-600 to-red-700',
   };
 
   const sizeClasses = {

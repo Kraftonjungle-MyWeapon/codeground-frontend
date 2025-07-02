@@ -1,14 +1,23 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import Header from "@/components/Header";
-import CyberCard from "@/components/CyberCard";
-import CyberButton from "@/components/CyberButton";
-import RoomSettingsModal from "@/components/RoomSettingsModal";
-import { User, Settings, MessageCircle, Send } from "lucide-react";
-import { Input } from "@/components/ui/input";
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Header from '@/components/Header';
+import CyberCard from '@/components/CyberCard';
+import CyberButton from '@/components/CyberButton';
+import RoomSettingsModal from '@/components/RoomSettingsModal';
+import { User, Settings, MessageCircle, Send } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import usePreventNavigation from '@/hooks/usePreventNavigation';
+import GameExitModal from '@/components/GameExitModal';
+import { useUser } from '@/context/UserContext';
+import { useSearchParams } from 'react-router-dom';
 
 const WaitingRoomPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const gameId = searchParams.get('gameId');
+  const { user } = useUser();
+  const wsRef = useRef<WebSocket | null>(null);
   const [isHost, setIsHost] = useState(true); // 예시로 방장으로 설정
   const [isReady, setIsReady] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -17,6 +26,19 @@ const WaitingRoomPage = () => {
     { type: "system", message: "CyberCoder님이 대기실을 생성했습니다." },
     { type: "system", message: "Player2님이 입장했습니다." },
   ]);
+  const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+  const [confirmExitCallback, setConfirmExitCallback] = useState<(() => void) | null>(null);
+  const [cancelExitCallback, setCancelExitCallback] = useState<(() => void) | null>(null);
+  const isConfirmedExitRef = useRef(false); // New ref to track explicit exit confirmation
+
+  const { isNavigationBlocked } = usePreventNavigation({
+    shouldPrevent: true, // WaitingRoomPage에서는 항상 이탈 방지
+    onAttemptNavigation: (confirm, cancel) => {
+      setIsExitModalOpen(true);
+      setConfirmExitCallback(() => confirm);
+      setCancelExitCallback(() => cancel);
+    },
+  });
 
   const [roomSettings] = useState({
     title: "알고리즘 기초 대결",
@@ -24,6 +46,67 @@ const WaitingRoomPage = () => {
     category: "자료구조",
     difficulty: "초급",
   });
+
+  // 웹소켓 연결
+  useEffect(() => {
+    if (!gameId || !user?.user_id) return;
+
+    const ws = new WebSocket(
+      `ws://localhost:8000/api/v1/game/ws/waiting-room/${gameId}?user_id=${user.user_id}`
+    );
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log('WaitingRoomPage WebSocket connected');
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        // TODO: 웹소켓 메시지 처리 로직 추가 (채팅, 준비 상태 동기화 등)
+        console.log('Received WS message:', data);
+      } catch (e) {
+        console.error('ws message parse error', e);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log('WaitingRoomPage WebSocket disconnected');
+    };
+
+    return () => {
+      if (wsRef.current) {
+        console.log('WaitingRoomPage Websocket cleanup triggered. isConfirmedExit:', isConfirmedExitRef.current);
+        if (isConfirmedExitRef.current) {
+          wsRef.current.close();
+        }
+      }
+    };
+  }, [gameId, user]);
+
+  const handleLeaveRoom = useCallback(() => {
+    isConfirmedExitRef.current = true; // 명시적 종료 확정
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      // TODO: 방 나가기 웹소켓 메시지 전송 (필요하다면)
+      wsRef.current.close();
+    }
+    navigate('/home'); // 홈 또는 이전 페이지로 이동
+  }, [navigate]);
+
+  const handleConfirmExit = useCallback(() => {
+    setIsExitModalOpen(false);
+    if (confirmExitCallback) {
+      handleLeaveRoom(); // 방 나가기 처리
+      confirmExitCallback();
+    }
+  }, [confirmExitCallback, handleLeaveRoom]);
+
+  const handleCancelExit = useCallback(() => {
+    setIsExitModalOpen(false);
+    if (cancelExitCallback) {
+      cancelExitCallback();
+    }
+  }, [cancelExitCallback]);
 
   const handleReady = () => {
     setIsReady(!isReady);
@@ -212,6 +295,12 @@ const WaitingRoomPage = () => {
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
         currentSettings={roomSettings}
+      />
+
+      <GameExitModal
+        isOpen={isExitModalOpen}
+        onConfirmExit={handleConfirmExit}
+        onCancelExit={handleCancelExit}
       />
     </div>
   );

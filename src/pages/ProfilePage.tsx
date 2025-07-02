@@ -29,9 +29,10 @@ const ProfilePage = () => {
 
   // 예시 사용자 데이터 (더 자세한 더미 데이터)
   const dummyUser = {
-    name: "CyberCoder",
-    email: "cybercoder@example.com",
-    joinDate: "2024-01-15",
+    user_id: 0, // 임의의 ID 추가
+    username: 'CyberCoder',
+    email: 'cybercoder@example.com',
+    joinDate: '2024-01-15',
     totalScore: 1580,
     wins: 87,
     losses: 40,
