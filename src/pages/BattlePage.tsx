@@ -605,7 +605,7 @@ const BattlePage = () => {
             <div className="h-full flex flex-col">
               {/* 좌측 상단 - 문제 */}
               <div className="flex-1 mb-2">
-                <CyberCard className="h-full p-4 mr-2">
+                <CyberCard className="h-[calc(100vh-24em)] p-4 mr-2 max-h-[860px]">
                   <ScrollArea className="h-full">
                     {problem ? (
                       <div className="space-y-4 pr-4">
