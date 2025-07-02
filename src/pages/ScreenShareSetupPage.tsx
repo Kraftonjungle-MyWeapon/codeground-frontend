@@ -12,6 +12,24 @@ const ScreenShareSetupPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const gameId = searchParams.get("gameId");
+  /**
+   * 아래 skipScreenShare 변수는 디버그 모드에서 화면 공유를 건너뛰기 위한 설정임.
+   * 이를 실제로 사용하려면 웹 브라우저의 개발자 콘솔에서 아래와 같이 입력:
+   *   localStorage.setItem('debug_skip_screen_share', 'true');
+   */
+  const skipScreenShare = 
+    searchParams.get('debugSkip') === '1' ||
+    localStorage.getItem('debug_skip_screen_share') === 'true';
+
+  useEffect(() => {
+    if (skipScreenShare) {
+      if (gameId) {
+        navigate(`/battle?gameId=${gameId}`);
+      } else {
+        navigate('/battle');
+      }
+    }
+  }, [skipScreenShare, gameId, navigate]);  // skipScreenShare가 true인 경우, 화면 공유 설정 페이지를 건너뛰고 바로 전투 페이지로 이동
   const { user } = useUser();
   const { websocket, connect, disconnect, sendMessage } = useWebSocketStore();
 
