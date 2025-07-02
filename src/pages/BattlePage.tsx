@@ -13,6 +13,7 @@ import { CodeEditorHandler } from '@/utils/codeEditorHandlers';
 import usePreventNavigation from '@/hooks/usePreventNavigation';
 import GameExitModal from '@/components/GameExitModal';
 import useWebSocketStore from '@/stores/websocketStore';
+import { authFetch } from '@/utils/api';
 
 const BattlePage = () => {
   const navigate = useNavigate();
