@@ -22,6 +22,7 @@ const BattlePage = () => {
   const [chatMessages, setChatMessages] = useState<{ user: string; message: string }[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [executionResult, setExecutionResult] = useState('실행 결과가 여기에 표시됩니다.');
+  const [runStatus, setRunStatus] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [isLocalStreamActive, setIsLocalStreamActive] = useState(true);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
@@ -183,6 +184,7 @@ const BattlePage = () => {
 
   const handleRun = async () => {
     setExecutionResult('코드를 실행하고 있습니다...');
+    setRunStatus(null);
 
     try {
       const response = await authFetch('http://localhost:8000/api/v1/game/submit', {
@@ -226,6 +228,7 @@ const BattlePage = () => {
               setExecutionResult(prev =>
                 `${prev}\n채점 완료. All Passed: ${data.allPassed ? 'Yes' : 'No'}`,
               );
+              setRunStatus(data.allPassed ? '성공' : '실패');
             }
           }
         }
@@ -296,7 +299,7 @@ const BattlePage = () => {
             <div className="h-full flex flex-col">
               {/* 좌측 상단 - 문제 */}
               <div className="flex-1 mb-2">
-                <CyberCard className="h-full p-4 mr-2">
+                <CyberCard className="h-[calc(100vh-24em)] p-4 mr-2 max-h-[860px]">
                   <ScrollArea className="h-full">
                     <div className="space-y-4 pr-4">
                       <div className="flex items-start justify-between">
@@ -320,7 +323,7 @@ const BattlePage = () => {
                         </div>
                       )}
                       
-                    <div>
+                    <div style={{ whiteSpace: 'pre-wrap', overflowY: 'auto' }}>
                       <p className="text-gray-300 leading-relaxed">{problem.description}</p>
                     </div>
 
@@ -356,7 +359,7 @@ const BattlePage = () => {
               </div>
 
               {/* 좌측 하단 - 채팅 & 화면공유 (고정 높이) */}
-              <div className="h-48 flex gap-2 mr-2">
+              <div className="h-1/3 min-h-[16em] flex gap-2 mr-2" >
                 {/* 채팅 */}
                 <div className="flex-1 min-w-0">
                   <CyberCard className="p-3 flex flex-col h-full">
@@ -461,7 +464,16 @@ const BattlePage = () => {
               <ResizablePanel defaultSize={25} minSize={15}>
                 <CyberCard className="h-full flex flex-col ml-2 mt-1">
                   <div className="flex items-center justify-between px-3 py-1 border-b border-gray-700/50">
-                    <h3 className="text-sm font-semibold text-cyber-blue">실행 결과</h3>
+                    <h3 className="text-sm font-semibold text-cyber-blue">
+                      실행 결과
+                      {runStatus && (
+                        <span
+                          className={`ml-2 text-xs ${runStatus === '성공' ? 'text-green-400' : 'text-red-400'}`}
+                        >
+                          {runStatus}
+                        </span>
+                      )}
+                    </h3>
                     <div className="flex space-x-1">
                       <CyberButton onClick={handleRun} size="sm" variant="secondary" className="px-6">
                         <Play className="mr-1 h-3 w-3" />
@@ -473,10 +485,12 @@ const BattlePage = () => {
                     </div>
                   </div>
                   
-                  <div className="flex-1 p-2">
-                    <ScrollArea className="h-full bg-black/30 border border-gray-700 rounded p-3">
-                      <pre className="font-mono text-xs text-gray-300 whitespace-pre-wrap">{executionResult}</pre>
-                    </ScrollArea>
+                  <div className="flex-1 p-2" style={{ height: 'calc(100% - 40px)' }}>
+                    <div className="h-full bg-black/30 border border-gray-700 rounded p-3 overflow-auto">
+                      <pre className="font-mono text-xs text-gray-300 whitespace-pre-wrap break-words">
+                        {executionResult}
+                      </pre>
+                    </div>
                   </div>
                 </CyberCard>
               </ResizablePanel>
