@@ -4,6 +4,7 @@ import { useUser } from '@/context/UserContext';
 import CyberCard from '@/components/CyberCard';
 import CyberButton from '@/components/CyberButton';
 import { Clock, Play, Send, Monitor, Flag, AlertTriangle, HelpCircle } from 'lucide-react';
+import { authFetch } from '@/utils/api';
 import { localStream as sharedLocalStream, remoteStream as sharedRemoteStream, setLocalStream, peerConnection as sharedPC } from '@/utils/webrtcStore';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -180,11 +181,58 @@ const BattlePage = () => {
 
   const timeColor = timeLeft <= 60 ? 'text-red-400' : timeLeft <= 180 ? 'text-yellow-400' : 'text-cyber-blue';
 
-  const handleRun = () => {
+  const handleRun = async () => {
     setExecutionResult('코드를 실행하고 있습니다...');
-    setTimeout(() => {
-      setExecutionResult(`실행 완료\n\n테스트 케이스 1: 통과\n테스트 케이스 2: 통과\n\n실행 시간: 0.02ms`);
-    }, 2000);
+
+    try {
+      const response = await authFetch('http://localhost:8000/api/v1/game/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+        },
+        body: JSON.stringify({
+          language: 'python',
+          code,
+          problem_id: '3',
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        const text = await response.text();
+        setExecutionResult(`실행 실패: ${text}`);
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\r\n\r\n');
+        buffer = parts.pop() || '';
+        for (const chunk of parts) {
+          const line = chunk.trim();
+          if (line.startsWith('data:')) {
+            const data = JSON.parse(line.slice(5));
+            if (data.type === 'progress') {
+              setExecutionResult(prev =>
+                `${prev}\n[${data.index + 1}/${data.total}] stdout: ${data.result.stdout}`,
+              );
+            } else if (data.type === 'final') {
+              setExecutionResult(prev =>
+                `${prev}\n채점 완료. All Passed: ${data.allPassed ? 'Yes' : 'No'}`,
+              );
+            }
+          }
+        }
+      }
+    } catch (error) {
+      setExecutionResult('실행 중 오류가 발생했습니다.');
+    }
   };
 
   const handleSubmit = () => {
