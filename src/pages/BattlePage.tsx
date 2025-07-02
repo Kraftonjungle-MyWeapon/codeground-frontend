@@ -39,6 +39,7 @@ const BattlePage = () => {
   const [showRemoteScreenSharePrompt, setShowRemoteScreenSharePrompt] = useState(false); // New state for remote screen share prompt
   const [isLeavingGame, setIsLeavingGame] = useState(false); // New state to control cleanup
   const isConfirmedExitRef = useRef(false); // New ref to track explicit exit confirmation
+  const [problem, setProblem] = useState<any>(null);
   const [currentLanguage] = useState<ProgrammingLanguage>('python'); // 현재는 python 고정, 추후 변경 가능
 
   const createPeerConnection = useCallback(() => {
@@ -175,22 +176,7 @@ const BattlePage = () => {
   // 언어 설정
   const languageConfig = getLanguageConfig(currentLanguage);
 
-  const problem = {
-    title: "문제 설명",
-    description:
-      "정수 n을 입력받아 n의 약수를 모두 더한 값을 리턴하는 함수, solution을 완성해주세요.",
-    constraints: ["n은 0 이상 3000이하인 정수입니다."],
-    examples: [
-      { input: "n: 12", output: "return: 28" },
-      { input: "n: 5", output: "return: 6" },
-    ],
-    testCase: {
-      title: "입출력 예 설명",
-      description:
-        "12의 약수는 1, 2, 3, 4, 6, 12입니다. 이를 모두 더하면 28입니다.",
-    },
-    hint: ["수학", "약수", "반복문", "완전탐색"],
-  };
+  
 
   useEffect(() => {
     console.log('BattlePage: sharedLocalStream', sharedLocalStream);
@@ -280,6 +266,8 @@ const BattlePage = () => {
             ]);
           } else if (data.type === 'webrtc_signal' && data.sender !== user.user_id) {
             handleSignal(data.signal);
+          } else if (data.type === 'match_accepted') {
+            setProblem(data.problem);
           } else if (data.type === 'screen_share_ended' && data.sender !== user.user_id) {
             console.log('BattlePage: Opponent screen share ended. Stopping local screen share.');
             cleanupScreenShare();
@@ -545,10 +533,25 @@ const BattlePage = () => {
     }
   };
 
-  // 언어가 변경될 때 핸들러 업데이트
   useEffect(() => {
-    editorHandlerRef.current = new CodeEditorHandler(currentLanguage);
-  }, [currentLanguage]);
+    const gameId = searchParams.get('gameId');
+    console.log("BattlePage: Searching for problem with gameId:", gameId);
+    if (gameId) {
+      const storedProblem = localStorage.getItem(`problem_${gameId}`);
+      console.log("BattlePage: Fetched problem from localStorage:", storedProblem);
+      if (storedProblem) {
+        try {
+          const parsedProblem = JSON.parse(storedProblem);
+          console.log("BattlePage: Parsed problem:", parsedProblem);
+          setProblem(parsedProblem);
+        } catch (error) {
+          console.error("BattlePage: Error parsing problem from localStorage:", error);
+        }
+      } else {
+        console.log("BattlePage: No problem found in localStorage for this gameId.");
+      }
+    }
+  }, [searchParams]);
 
   // 동적으로 줄 번호 생성
   const actualLineCount = code ? code.split("\n").length : 1;
@@ -602,90 +605,69 @@ const BattlePage = () => {
             <div className="h-full flex flex-col">
               {/* 좌측 상단 - 문제 */}
               <div className="flex-1 mb-2">
-                <CyberCard className="h-[calc(100vh-24em)] p-4 mr-2 max-h-[860px]">
+                <CyberCard className="h-full p-4 mr-2">
                   <ScrollArea className="h-full">
-                    <div className="space-y-4 pr-4">
-                      <div className="flex items-start justify-between">
-                        <h1 className="text-xl font-bold neon-text">
-                          {problem.title}
-                        </h1>
-                        <CyberButton
-                          onClick={toggleHint}
-                          size="sm"
-                          variant="secondary"
-                        >
-                          <HelpCircle className="mr-1 h-4 w-4" />
-                          힌트
-                        </CyberButton>
+                    {problem ? (
+                      <div className="space-y-4 pr-4">
+                        <div className="flex items-start justify-between">
+                          <h1 className="text-xl font-bold neon-text">{problem.title}</h1>
+                          <CyberButton onClick={toggleHint} size="sm" variant="secondary">
+                            <HelpCircle className="mr-1 h-4 w-4" />
+                            힌트
+                          </CyberButton>
+                        </div>
+
+                        {showHint && problem.category && (
+                          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                            <h3 className="text-yellow-400 font-semibold mb-2">알고리즘 분류</h3>
+                            <div className="flex flex-wrap gap-2">
+                              {problem.category.map((tag, index) => (
+                                <span key={index} className="bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded text-sm">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                      <div>
+                        <p className="text-gray-300 leading-relaxed">{problem.description}</p>
                       </div>
 
-                      {showHint && (
-                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
-                          <h3 className="text-yellow-400 font-semibold mb-2">
-                            알고리즘 분류
-                          </h3>
-                          <div className="flex flex-wrap gap-2">
-                            {problem.hint.map((tag, index) => (
-                              <span
-                                key={index}
-                                className="bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded text-sm"
-                              >
-                                {tag}
-                              </span>
+                      {problem.description && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-cyber-blue mb-2">제한 사항</h3>
+                          <ul className="text-gray-300 space-y-1">
+                            <li>• {problem.description}</li>
+                          </ul>
+                        </div>
+                      )}
+
+                      {problem.examples && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-cyber-blue mb-2">입출력 예</h3>
+                          <div className="bg-black/30 p-3 rounded-lg border border-gray-700 space-y-2">
+                            {problem.examples.map((example, index) => (
+                              <div key={index} className="font-mono text-sm">
+                                <div className="text-gray-400">{example.input}</div>
+                                <div className="text-green-400">{example.output}</div>
+                              </div>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      <div
-                        style={{ whiteSpace: "pre-wrap", overflowY: "auto" }}
-                      >
-                        <p className="text-gray-300 leading-relaxed">
-                          {problem.description}
-                        </p>
-                      </div>
-
-                      <div>
-                        <h3 className="text-lg font-semibold text-cyber-blue mb-2">
-                          제한 사항
-                        </h3>
-                        <ul className="text-gray-300 space-y-1">
-                          {problem.constraints.map((constraint, index) => (
-                            <li key={index}>• {constraint}</li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div>
-                        <h3 className="text-lg font-semibold text-cyber-blue mb-2">
-                          입출력 예
-                        </h3>
-                        <div className="bg-black/30 p-3 rounded-lg border border-gray-700 space-y-2">
-                          {problem.examples.map((example, index) => (
-                            <div key={index} className="font-mono text-sm">
-                              <div className="text-gray-400">
-                                {example.input}
-                              </div>
-                              <div className="text-green-400">
-                                {example.output}
-                              </div>
-                            </div>
-                          ))}
+                      {problem.testCase && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-cyber-blue mb-2">입출력 예 설명</h3>
+                          <h4 className="text-yellow-400 font-medium mb-1">입출력 예 #1</h4>
+                          <p className="text-gray-300 text-sm">{problem.testCase.description}</p>
                         </div>
-                      </div>
-
-                      <div>
-                        <h3 className="text-lg font-semibold text-cyber-blue mb-2">
-                          입출력 예 설명
-                        </h3>
-                        <h4 className="text-yellow-400 font-medium mb-1">
-                          입출력 예 #1
-                        </h4>
-                        <p className="text-gray-300 text-sm">
-                          {problem.testCase.description}
-                        </p>
-                      </div>
+                      )}
                     </div>
+                    ) : (
+                      <div className="text-center text-gray-400">문제 로딩 중...</div>
+                    )}
                   </ScrollArea>
                 </CyberCard>
               </div>
