@@ -14,6 +14,11 @@ import usePreventNavigation from '@/hooks/usePreventNavigation';
 import GameExitModal from '@/components/GameExitModal';
 import useWebSocketStore from '@/stores/websocketStore';
 import { authFetch } from '@/utils/api';
+import hljs from 'highlight.js/lib/core';
+import python from 'highlight.js/lib/languages/python';
+import 'highlight.js/styles/vs2015.css';
+
+hljs.registerLanguage('python', python);
 
 const BattlePage = () => {
   const navigate = useNavigate();
@@ -172,10 +177,21 @@ const BattlePage = () => {
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
+  const highlightRef = useRef<HTMLPreElement>(null);
   const editorHandlerRef = useRef<CodeEditorHandler>(new CodeEditorHandler('python'));
 
   // 언어 설정
   const languageConfig = getLanguageConfig(currentLanguage);
+
+  // 코드 하이라이트 업데이트
+  useEffect(() => {
+    if (highlightRef.current) {
+      highlightRef.current.innerHTML = hljs.highlight(code, { language: 'python' }).value + (code.endsWith('\n') ? '\n' : '');
+      if (textareaRef.current) {
+        highlightRef.current.style.transform = `translateY(-${textareaRef.current.scrollTop}px)`;
+      }
+    }
+  }, [code]);
 
   
 
@@ -517,6 +533,9 @@ const BattlePage = () => {
     if (textareaRef.current && lineNumbersRef.current) {
       lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
     }
+    if (textareaRef.current && highlightRef.current) {
+      highlightRef.current.style.transform = `translateY(-${textareaRef.current.scrollTop}px)`;
+    }
   };
 
   // 코드 에디터 키 핸들링 함수 - 언어별 핸들러 사용
@@ -783,6 +802,11 @@ const BattlePage = () => {
                       </div>
                       
                       <div className="flex-1 overflow-hidden relative">
+                        <pre
+                          ref={highlightRef}
+                          className="hljs pointer-events-none w-full h-full px-3 py-3 text-sm leading-5 font-mono whitespace-pre-wrap"
+                          style={{ fontFamily: languageConfig.fontFamily }}
+                        />
                         <textarea
                           ref={textareaRef}
                           value={code}
@@ -790,10 +814,14 @@ const BattlePage = () => {
                           onScroll={handleScroll}
                           onKeyDown={handleKeyDown}
                           placeholder={languageConfig.placeholder}
-                          className="w-full h-full bg-transparent px-3 py-3 text-green-400 font-mono resize-none focus:outline-none text-sm leading-5 border-none"
-                          style={{ 
+                          spellCheck={false}
+                          className="w-full h-full absolute top-0 left-0 bg-transparent px-3 py-3 font-mono resize-none focus:outline-none text-sm leading-5 border-none"
+                          style={{
                             fontFamily: languageConfig.fontFamily,
-                            tabSize: languageConfig.indentSize
+                            tabSize: languageConfig.indentSize,
+                            color: 'transparent',
+                            caretColor: '#ffffff',
+                            WebkitTextFillColor: 'transparent'
                           }}
                         />
                       </div>
