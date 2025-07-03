@@ -19,7 +19,7 @@ export const LANGUAGE_CONFIGS: Record<ProgrammingLanguage, LanguageConfig> = {
       'raise', 'return', 'try', 'while', 'with', 'yield', 'True', 'False', 'None'
     ],
     placeholder: '# Python 코드를 입력하세요',
-    fontFamily: 'Monaco, Consolas, "Courier New", monospace'
+    fontFamily: 'Monaco, Consolas, "Noto Sans KR", monospace'
   },
   c: {
     name: 'C',
@@ -38,7 +38,7 @@ export const LANGUAGE_CONFIGS: Record<ProgrammingLanguage, LanguageConfig> = {
       'struct', 'switch', 'typedef', 'union', 'unsigned', 'void', 'volatile', 'while'
     ],
     placeholder: '// C 코드를 입력하세요\n#include <stdio.h>\n\nint main() {\n    \n    return 0;\n}',
-    fontFamily: 'Monaco, Consolas, "Courier New", monospace'
+    fontFamily: 'Monaco, Consolas, "Noto Sans KR", monospace'
   },
   cpp: {
     name: 'C++',
@@ -65,7 +65,7 @@ export const LANGUAGE_CONFIGS: Record<ProgrammingLanguage, LanguageConfig> = {
       'volatile', 'wchar_t', 'while', 'xor', 'xor_eq'
     ],
     placeholder: '// C++ 코드를 입력하세요\n#include <iostream>\n\nint main() {\n    \n    return 0;\n}',
-    fontFamily: 'Monaco, Consolas, "Courier New", monospace'
+    fontFamily: 'Monaco, Consolas, "Noto Sans KR", monospace'
   },
   java: {
     name: 'Java',
@@ -87,7 +87,7 @@ export const LANGUAGE_CONFIGS: Record<ProgrammingLanguage, LanguageConfig> = {
       'transient', 'try', 'void', 'volatile', 'while', 'true', 'false', 'null'
     ],
     placeholder: '// Java 코드를 입력하세요\npublic class Main {\n    public static void main(String[] args) {\n        \n    }\n}',
-    fontFamily: 'Monaco, Consolas, "Courier New", monospace'
+    fontFamily: 'Monaco, Consolas, "Noto Sans KR", monospace'
   }
 };
 
