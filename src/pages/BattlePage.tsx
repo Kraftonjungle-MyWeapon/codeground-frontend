@@ -40,6 +40,7 @@ const BattlePage = () => {
   const [isLeavingGame, setIsLeavingGame] = useState(false); // New state to control cleanup
   const isConfirmedExitRef = useRef(false); // New ref to track explicit exit confirmation
   const [problem, setProblem] = useState<any>(null);
+  const problemId = problem?.id ?? problem?.problem_id; // 게임 도중 문제 ID가 변경되지는 않으므로 굳이 useState는 안 씀.
   const [currentLanguage] = useState<ProgrammingLanguage>('python'); // 현재는 python 고정, 추후 변경 가능
 
   const createPeerConnection = useCallback(() => {
@@ -457,7 +458,7 @@ const BattlePage = () => {
           body: JSON.stringify({
             language: "python",
             code,
-            problem_id: "3",
+            problem_id: `${problemId}`,
           }),
         },
       );
@@ -610,7 +611,12 @@ const BattlePage = () => {
                     {problem ? (
                       <div className="space-y-4 pr-4">
                         <div className="flex items-start justify-between">
-                          <h1 className="text-xl font-bold neon-text">{problem.title}</h1>
+                          <div className="flex flex-col">
+                            <h1 className="text-xl font-bold neon-text">{problem.title}</h1>
+                            {problemId && (
+                                <span className="text-[9px] text-gray-400 mt-1">ID: {problemId}</span>
+                            )}
+                          </div>
                           <CyberButton onClick={toggleHint} size="sm" variant="secondary">
                             <HelpCircle className="mr-1 h-4 w-4" />
                             힌트
