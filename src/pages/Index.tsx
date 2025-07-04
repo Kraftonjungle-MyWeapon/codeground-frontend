@@ -56,7 +56,7 @@ const Index = () => {
   };
 
   const { tier, lp } = parseTotalScore(currentUser.totalScore);
-  const winRate = ((currentUser.wins / currentUser.totalBattles) * 100).toFixed(1);
+    const winRate = user?.win_rate != null ? user.win_rate.toFixed(2) : "0.00";
 
   if (isLoading) {
     return <div>Loading user data...</div>;
@@ -293,13 +293,13 @@ const Index = () => {
                 <div className="grid grid-cols-3 gap-4 text-center mb-4">
                   <div>
                     <div className="text-lg font-bold text-green-400">
-                      {user.wins}
+                      {user.win}
                     </div>
                     <div className="text-sm text-gray-400">승리</div>
                   </div>
                   <div>
                     <div className="text-lg font-bold text-red-400">
-                      {user.losses}
+                      {user.loss}
                     </div>
                     <div className="text-sm text-gray-400">패배</div>
                   </div>

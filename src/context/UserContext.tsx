@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
-import { authFetch } from "@/utils/api";
+import { authFetch, getUserWinRate } from "@/utils/api";
 import { getCookie } from "@/lib/utils";
 
 interface User {
@@ -8,12 +8,12 @@ interface User {
   user_id: number;
   nickname: string;
   use_lang?: string;
-  
-  name?: string; // Index.tsx에서 사용
+  name?: string;
   totalScore?: number;
-  wins?: number;
-  losses?: number;
-  draws?: number;
+  win?: number;
+  loss?: number;
+  draw?: number;
+  win_rate?: number;
   totalBattles?: number;
   currentStreak?: number;
   bestStreak?: number;
@@ -47,8 +47,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         const response = await authFetch("http://localhost:8000/api/v1/user/me");
         if (response.ok) {
           const userData = await response.json();
+          const winRateData = await getUserWinRate(userData.user_id);
+
           setUser({
             ...userData,
+            ...winRateData,
             totalScore: userData.user_mmr,
             name: userData.nickname || userData.username,
           });
