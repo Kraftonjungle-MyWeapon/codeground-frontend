@@ -1,0 +1,47 @@
+name: Codeground FE CI/CD
+
+on:
+  push:
+    branches:
+      - develop    # 원하는 브랜치에 맞게 설정 (예: main, deploy 등)
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-fe:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build FE
+        run: npm run build
+
+      # OIDC 방식으로 AWS 인증 (S3 업로드 권한 필요!)
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ap-northeast-2
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+
+      # S3에 빌드 파일 업로드
+      - name: Sync build folder to S3
+        run: |
+          aws s3 sync ./build s3://${{ secrets.AWS_S3_BUCKET }} --delete
+
+      # CloudFront 캐시 무효화 (Invalidate, 선택)
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
