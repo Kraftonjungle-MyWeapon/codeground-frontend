@@ -76,7 +76,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
       setUser(null);
     }
-  }, []);
+  }, [getCookie("access_token")]); // accessToken 변경 시 fetchUser 재실행
 
   return (
     <UserContext.Provider value={{ user, setUser, isLoading, setIsLoading, isError }}>

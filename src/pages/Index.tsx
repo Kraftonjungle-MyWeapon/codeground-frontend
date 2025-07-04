@@ -41,9 +41,9 @@ const Index = () => {
     id: user.user_id,
     name: user.nickname || user.username || 'CyberCoder',
     totalScore: user.totalScore || 1580,
-    wins: 87, // 백엔드에서 제공되지 않음
-    losses: 40, // 백엔드에서 제공되지 않음
-    totalBattles: 127, // 백엔드에서 제공되지 않음
+    wins: user.win || 87, // 백엔드에서 제공되지 않음
+    losses: user.loss || 40, // 백엔드에서 제공되지 않음
+    totalBattles: user.totalBattles || 127, // 백엔드에서 제공되지 않음
     rank: 15, // 백엔드에서 제공되지 않음
   } : {
     id: 0,
