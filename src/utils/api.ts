@@ -25,3 +25,11 @@ export async function authFetch(
 
   return response;
 }
+
+export async function getRankings(language: string = "python3") {
+  const response = await authFetch(`http://localhost:8000/api/v1/ranking/?language=${language}`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch rankings");
+  }
+  return response.json();
+}

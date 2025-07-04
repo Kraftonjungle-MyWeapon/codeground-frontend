@@ -52,7 +52,12 @@ const LoginPage = () => {
 
         if (userResponse.ok) {
           const userData = await userResponse.json();
-          setUser(userData); // Store user data in context
+          setUser({
+            ...userData,
+            totalScore: userData.user_mmr, // user_mmr를 totalScore로 매핑
+            name: userData.nickname || userData.username, // nickname 또는 username을 name으로 매핑
+          }); // Store user data in context
+          alert("로그인이 완료되었습니다!");
           navigate("/home");
         } else {
           console.error("Failed to fetch user data");
