@@ -8,6 +8,7 @@ interface Options {
   gameId?: string | null;
   remoteVideoRef?: React.RefObject<HTMLVideoElement>;
   containerRef?: React.RefObject<HTMLElement>;
+  isActive?: boolean;
 }
 
 // ReportModal과 공유할 타입
@@ -16,7 +17,7 @@ export interface ReportPayload {
   description: string;
 }
 
-export default function useCheatDetection({ gameId, remoteVideoRef, containerRef }: Options) {
+export default function useCheatDetection({ gameId, remoteVideoRef, containerRef, isActive = true }: Options) {
   const { sendMessage } = useWebSocketStore();
   const { toast } = useToast();
 
@@ -61,6 +62,7 @@ export default function useCheatDetection({ gameId, remoteVideoRef, containerRef
   }, []);
 
   useEffect(() => {
+    if (!isActive) return;
     const videoEl = remoteVideoRef?.current;
     if (!videoEl) return;
 
@@ -81,7 +83,7 @@ export default function useCheatDetection({ gameId, remoteVideoRef, containerRef
       videoEl.removeEventListener('loadedmetadata', handleStreamLoaded);
       stopRecording();
     };
-  }, [remoteVideoRef, startRecording, stopRecording]);
+  }, [remoteVideoRef, startRecording, stopRecording, isActive]);
 
   const reportCheating = useCallback(
     async ({ reason, description }: ReportPayload) => {
@@ -113,6 +115,7 @@ export default function useCheatDetection({ gameId, remoteVideoRef, containerRef
   );
 
   useEffect(() => {
+    if (!isActive) return;
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
         tabWarningsRef.current += 1;
@@ -134,9 +137,10 @@ export default function useCheatDetection({ gameId, remoteVideoRef, containerRef
 
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [sendMessage, toast]);
+  }, [sendMessage, toast, isActive]);
 
   useEffect(() => {
+    if (!isActive) return;
     const container = containerRef?.current || document;
 
     const handleLeave = (event: MouseEvent) => {
@@ -161,7 +165,7 @@ export default function useCheatDetection({ gameId, remoteVideoRef, containerRef
 
     container.addEventListener('mouseleave', handleLeave);
     return () => container.removeEventListener('mouseleave', handleLeave);
-  }, [sendMessage, toast, containerRef]);
+  }, [sendMessage, toast, containerRef, isActive]);
 
   return { reportCheating };
 }

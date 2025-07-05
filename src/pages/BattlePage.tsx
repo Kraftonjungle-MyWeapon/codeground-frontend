@@ -16,6 +16,7 @@ import useWebSocketStore from '@/stores/websocketStore';
 import { authFetch } from '@/utils/api';
 import useCheatDetection, { ReportPayload } from '@/hooks/useCheatDetection';
 import ReportModal from '@/components/ReportModal';
+import { OpponentLeftModal } from '@/components/OpponentLeftModal';
 import hljs from 'highlight.js/lib/core';
 import python from 'highlight.js/lib/languages/python';
 import 'highlight.js/styles/vs2015.css';
@@ -49,6 +50,8 @@ const BattlePage = () => {
   const [isRemoteStreamActive, setIsRemoteStreamActive] = useState(true);
   const [showRemoteScreenSharePrompt, setShowRemoteScreenSharePrompt] = useState(false);
   const [isLeavingGame, setIsLeavingGame] = useState(false);
+  const [showOpponentLeftModal, setShowOpponentLeftModal] = useState(false);
+  const [isCheatDetectionActive, setIsCheatDetectionActive] = useState(true);
   const isConfirmedExitRef = useRef(false);
   const [problem, setProblem] = useState<any>(null);
   const problemId = problem?.id ?? problem?.problem_id;
@@ -60,6 +63,7 @@ const BattlePage = () => {
     gameId,
     remoteVideoRef,
     containerRef,
+    isActive: isCheatDetectionActive,
   });
 
   const createPeerConnection = useCallback(() => {
@@ -148,6 +152,16 @@ const BattlePage = () => {
             {
               user: '시스템',
               message: message,
+              type: 'system',
+            },
+          ]);
+        } else if (data.type === 'opponent_left') {
+          setShowOpponentLeftModal(true);
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              user: '시스템',
+              message: '상대방이 게임을 떠났습니다.',
               type: 'system',
             },
           ]);
@@ -353,6 +367,18 @@ const BattlePage = () => {
   const handleSubmit = () => {
     cleanupScreenShare();
     navigate('/result');
+  };
+
+  const handleStay = () => {
+    cleanupScreenShare();
+    setShowOpponentLeftModal(false);
+    setIsCheatDetectionActive(false);
+  };
+
+  const handleLeave = () => {
+    cleanupScreenShare();
+    setShowOpponentLeftModal(false);
+    navigate('/waiting-room');
   };
 
   const toggleHint = () => {
@@ -607,6 +633,11 @@ const BattlePage = () => {
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
         onSubmit={handleReportSubmit}
+      />
+      <OpponentLeftModal
+        isOpen={showOpponentLeftModal}
+        onStay={handleStay}
+        onLeave={handleLeave}
       />
     </div>
   );
