@@ -294,6 +294,20 @@ const BattlePage = () => {
             console.log('BattlePage: Opponent screen share restarted.');
             setIsRemoteStreamActive(true);
             setShowRemoteScreenSharePrompt(false);
+          } else if (data.type === 'match_result') {
+            console.log('BattlePage: Match result received:', data);
+            try {
+              const matchResultData = {
+                winner: data.winner,
+                reason: data.reason,
+                myEarnedMmr: data.earned, // 내 MMR 획득량
+              };
+              localStorage.setItem('matchResult', JSON.stringify(matchResultData)); // 기존 로직 유지 (혹시 모를 대비)
+              console.log('BattlePage: Match result saved to localStorage.', matchResultData);
+              navigate('/result', { state: { matchResult: matchResultData } });
+            } catch (e) {
+              console.error('BattlePage: Failed to save match result to localStorage or navigate:', e);
+            }
           }
         } catch (e) {
           console.error('BattlePage: ws message parse error', e);
@@ -316,7 +330,13 @@ const BattlePage = () => {
         if (prev <= 1) {
           clearInterval(timer);
           cleanupScreenShare(); // 타이머 종료 시 화면 공유 중단
-          navigate('/result');
+          if (sharedPC) {
+            sharedPC.close();
+            setPeerConnection(null);
+          }
+          // 타임아웃 메시지 발송
+          sendMessage(JSON.stringify({ type: "match_result", reason: "timeout" }));
+          // navigate('/result'); // 결과는 백엔드로부터 match_result를 받은 후 처리
           return 0;
         }
         return prev - 1;
@@ -348,16 +368,16 @@ const BattlePage = () => {
     setNewMessage("");
   };
 
-  const handleSurrender = useCallback(() => {
-    console.log('handleSurrender called. isLeavingGame:', isLeavingGame);
+  const performSurrenderAction = useCallback(() => {
+    console.log('performSurrenderAction called.');
     setIsLeavingGame(true); // 게임을 떠나는 중임을 표시
 
     // 항복 웹소켓 메시지 전송
     if (websocket && websocket.readyState === WebSocket.OPEN) {
-      const surrenderMessage = { type: 'surrender', message: 'User surrendered' };
+      const surrenderMessage = { type: "match_result", reason:"surrender" };
       sendMessage(JSON.stringify(surrenderMessage));
       console.log('Surrender message sent.');
-      disconnect(); // 웹소켓 명시적 종료
+      
     }
 
     // WebRTC 관련 리소스 정리
@@ -371,19 +391,28 @@ const BattlePage = () => {
       setRemoteStream(null);
     }
 
-    // 결과 페이지로 이동
-    navigate('/result');
-  }, [navigate]);
+    
+  }, [websocket, sendMessage, sharedPC, cleanupScreenShare, sharedRemoteStream]);
+
+  const handleSurrenderButtonClick = useCallback(() => {
+    setIsExitModalOpen(true);
+    setConfirmExitCallback(() => () => {
+      performSurrenderAction();
+      navigate('/result'); // 항복 처리 후 결과 페이지로 이동
+    });
+    setCancelExitCallback(() => () => {
+      setIsExitModalOpen(false);
+    });
+  }, [performSurrenderAction, navigate]);
 
   const handleConfirmExit = useCallback(() => {
     console.log('handleConfirmExit called.');
     isConfirmedExitRef.current = true; // 명시적 종료 확정
     setIsExitModalOpen(false);
     if (confirmExitCallback) {
-      handleSurrender(); // 항복 처리
       confirmExitCallback();
     }
-  }, [confirmExitCallback, handleSurrender]);
+  }, [confirmExitCallback]);
 
   const handleCancelExit = useCallback(() => {
     console.log('handleCancelExit called.');
@@ -601,7 +630,7 @@ const BattlePage = () => {
             {/* 우측 - 항복, 신고 */}
             <div className="flex items-center space-x-3">
               <CyberButton
-                onClick={handleSurrender}
+                onClick={handleSurrenderButtonClick}
                 size="sm"
                 variant="secondary"
               >

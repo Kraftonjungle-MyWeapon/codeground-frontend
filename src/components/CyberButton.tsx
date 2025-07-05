@@ -1,32 +1,23 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
-interface CyberButtonProps {
-  children: React.ReactNode;
-  onClick?: () => void;
-  className?: string;
-  variant?: 'primary' | 'secondary' | 'danger' | 'destructive';
-  size?: 'sm' | 'md' | 'lg';
-  disabled?: boolean;
-  type?: "button" | "submit" | "reset";
+interface CyberButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "primary" | "secondary" | "danger" | "destructive";
+  size?: "sm" | "md" | "lg";
 }
 
-const CyberButton = ({
-  children,
-  onClick,
-  className,
-  variant = "primary",
-  size = "md",
-  disabled = false,
-  type = "button",
-}: CyberButtonProps) => {
+const CyberButton = React.forwardRef<
+  HTMLButtonElement,
+  CyberButtonProps
+>(({ className, variant = "primary", size = "md", ...props }, ref) => {
   const baseClasses = "cyber-button flex items-center justify-center gap-2";
 
   const variantClasses = {
-    primary: 'from-cyber-blue to-cyber-purple',
-    secondary: 'from-gray-600 to-gray-700',
-    danger: 'from-red-500 to-red-600',
-    destructive: 'from-red-600 to-red-700',
+    primary: "from-cyber-blue to-cyber-purple",
+    secondary: "from-gray-600 to-gray-700",
+    danger: "from-red-500 to-red-600",
+    destructive: "from-red-600 to-red-700",
   };
 
   const sizeClasses = {
@@ -37,20 +28,19 @@ const CyberButton = ({
 
   return (
     <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
+      ref={ref}
       className={cn(
         baseClasses,
         `bg-gradient-to-r ${variantClasses[variant]}`,
         sizeClasses[size],
-        disabled && "opacity-50 cursor-not-allowed",
-        className,
+        props.disabled && "opacity-50 cursor-not-allowed",
+        className
       )}
-    >
-      {children}
-    </button>
+      {...props}
+    />
   );
-};
+});
+
+CyberButton.displayName = "CyberButton";
 
 export default CyberButton;

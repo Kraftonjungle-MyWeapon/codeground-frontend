@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import CyberCard from "@/components/CyberCard";
 import CyberButton from "@/components/CyberButton";
-import { Crown, Star, Sparkles, ArrowRight } from "lucide-react";
+import { Crown, ArrowRight } from "lucide-react";
 
 const TierPromotionPage = () => {
   const navigate = useNavigate();
@@ -14,11 +14,9 @@ const TierPromotionPage = () => {
 
   useEffect(() => {
     const phases = [
-      { delay: 500, phase: 1 },
-      { delay: 2000, phase: 2 },
-      { delay: 3000, phase: 3 },
-      { delay: 4000, phase: 4 },
-      { delay: 5500, phase: 5 },
+      { delay: 1500, phase: 1 }, // 이전 티어 사라지기 시작
+      { delay: 2500, phase: 2 }, // 새 티어 나타나기 시작
+      { delay: 4000, phase: 3 }, // 최종 정보 표시
     ];
 
     phases.forEach(({ delay, phase }) => {
@@ -44,72 +42,29 @@ const TierPromotionPage = () => {
               </h1>
 
               <div className="relative h-48 flex items-center justify-center">
+                {/* 이전 티어 */}
                 <div
-                  className={`absolute transition-all duration-1000 ${
-                    animationPhase >= 2 ? "animate-bounce" : ""
-                  } ${
-                    animationPhase >= 3
-                      ? "opacity-0 scale-50 rotate-45"
-                      : "opacity-100 scale-100"
+                  className={`absolute transition-opacity duration-1000 ${
+                    animationPhase >= 1 ? "opacity-0" : "opacity-100"
                   }`}
                 >
-                  <div className="flex flex-col items-center space-y-4 relative">
-                    <Crown
-                      className={`h-24 w-24 ${oldTier.color} ${
-                        animationPhase >= 2 ? "animate-pulse" : ""
-                      }`}
-                    />
+                  <div className="flex flex-col items-center space-y-4">
+                    <Crown className={`h-24 w-24 ${oldTier.color}`} />
                     <span className={`text-3xl font-bold ${oldTier.color}`}>
                       {oldTier.name}
                     </span>
-
-                    {/* 왕관 주변 별들 */}
-                    {animationPhase >= 2 && animationPhase < 4 && (
-                      <>
-                        <Star
-                          className="h-8 w-8 text-yellow-300 absolute -top-2 -left-8 animate-ping"
-                          style={{ animationDelay: "0s" }}
-                        />
-                        <Star
-                          className="h-6 w-6 text-yellow-300 absolute -top-4 right-6 animate-ping"
-                          style={{ animationDelay: "0.2s" }}
-                        />
-                        <Sparkles
-                          className="h-10 w-10 text-yellow-300 absolute bottom-8 -left-6 animate-ping"
-                          style={{ animationDelay: "0.4s" }}
-                        />
-                        <Star
-                          className="h-7 w-7 text-yellow-300 absolute bottom-6 -right-8 animate-ping"
-                          style={{ animationDelay: "0.6s" }}
-                        />
-                        <Sparkles
-                          className="h-9 w-9 text-yellow-300 absolute top-2 right-10 animate-ping"
-                          style={{ animationDelay: "0.8s" }}
-                        />
-                      </>
-                    )}
                   </div>
                 </div>
 
+                {/* 새 티어 */}
                 <div
-                  className={`absolute transition-all duration-1000 ${
-                    animationPhase >= 4
-                      ? "opacity-100 scale-110"
-                      : "opacity-0 scale-50"
+                  className={`absolute transition-opacity duration-1000 ${
+                    animationPhase >= 2 ? "opacity-100" : "opacity-0"
                   }`}
                 >
                   <div className="flex flex-col items-center space-y-4">
                     <div className="relative">
-                      <Crown
-                        className={`h-32 w-32 ${newTier.color} animate-pulse`}
-                      />
-                      {animationPhase >= 4 && (
-                        <>
-                          <Star className="h-8 w-8 text-yellow-300 absolute -top-2 -right-2 animate-spin" />
-                          <Star className="h-6 w-6 text-yellow-300 absolute -bottom-1 -left-2 animate-bounce" />
-                          <Sparkles className="h-10 w-10 text-yellow-300 absolute -top-3 -left-3 animate-pulse" />
-                        </>
-                      )}
+                      <Crown className={`h-32 w-32 ${newTier.color}`} />
                     </div>
                     <span
                       className={`text-4xl font-bold ${newTier.color} neon-text`}
@@ -120,7 +75,7 @@ const TierPromotionPage = () => {
                 </div>
               </div>
 
-              {animationPhase >= 5 && (
+              {animationPhase >= 3 && (
                 <div className="space-y-8 animate-fade-in">
                   <h2 className="text-3xl font-bold text-green-400 animate-pulse">
                     축하합니다!
