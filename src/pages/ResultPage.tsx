@@ -24,6 +24,8 @@ import {
 import { getTierFromTotalScore, parseTotalScore, getTierChange } from "@/utils/lpSystem";
 import { authFetch } from "@/utils/api";
 
+const apiUrl = import.meta.env.VITE_API_URL;
+
 // 서버에서 받는 데이터 형식
 interface MatchResult {
   winner: number | null; // winner_id -> winner
@@ -195,7 +197,7 @@ const ResultPage = () => {
 
   const handlePlayAgain = async () => {
     try {
-      const response = await authFetch("http://localhost:8000/api/v1/user/me");
+      const response = await authFetch(`${apiUrl}/api/v1/user/me`);
       if (response.ok) {
         const userData = await response.json();
         setUser({

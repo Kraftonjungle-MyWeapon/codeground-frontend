@@ -7,6 +7,8 @@ import { useUser } from "../context/UserContext";
 import { authFetch } from "../utils/api";
 import { setCookie } from "@/lib/utils";
 
+const apiUrl = import.meta.env.VITE_API_URL;
+
 const LoginPage = () => {
   const navigate = useNavigate();
   const { setUser } = useUser();
@@ -25,7 +27,7 @@ const LoginPage = () => {
     params.append("password", formData.password);
 
     try {
-      const response = await fetch("http://localhost:8000/api/v1/auth/login", {
+      const response = await fetch(`${apiUrl}/api/v1/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -41,7 +43,7 @@ const LoginPage = () => {
 
         // Fetch user data after successful login using authFetch
         const userResponse = await authFetch(
-          "http://localhost:8000/api/v1/user/me",
+          `${apiUrl}/api/v1/user/me`,
           {
             method: "GET",
             headers: {

@@ -7,6 +7,8 @@ import { authFetch } from "../utils/api";
 import { useUser } from "../context/UserContext";
 import { setCookie } from "@/lib/utils";
 
+const apiUrl = import.meta.env.VITE_API_URL;
+
 const SignupPage = () => {
   const navigate = useNavigate();
   const { setUser } = useUser();
@@ -41,7 +43,7 @@ const SignupPage = () => {
         }),
       );
       const response = await authFetch(
-        "http://localhost:8000/api/v1/auth/sign-up",
+        `${apiUrl}/api/v1/auth/sign-up`,
         {
           method: "POST",
           headers: {
@@ -70,7 +72,7 @@ const SignupPage = () => {
 
         // Fetch user data and set context immediately after signup
         const userResponse = await authFetch(
-          "http://localhost:8000/api/v1/user/me",
+          `${apiUrl}/api/v1/user/me`,
         );
         if (userResponse.ok) {
           const userData = await userResponse.json();

@@ -31,6 +31,8 @@ import { getCookie, eraseCookie } from "@/lib/utils";
 
 const queryClient = new QueryClient();
 
+const apiUrl = import.meta.env.VITE_API_URL;
+
 const App = () => {
   const { setUser, setIsLoading, isLoading } = useUser();
 
@@ -41,7 +43,7 @@ const App = () => {
       if (token) {
         try {
           const userResponse = await authFetch(
-            "http://localhost:8000/api/v1/user/me",
+            `${apiUrl}/api/v1/user/me`,
           );
           if (userResponse.ok) {
             const userData = await userResponse.json();

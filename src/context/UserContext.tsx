@@ -34,6 +34,8 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
+const apiUrl = import.meta.env.VITE_API_URL;
+
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,7 +46,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(true);
       setIsError(false);
       try {
-        const response = await authFetch("http://localhost:8000/api/v1/user/me");
+        const response = await authFetch(`${apiUrl}/api/v1/user/me`);
         if (response.ok) {
           const userData = await response.json();
           const winRateData = await getUserWinRate(userData.user_id);

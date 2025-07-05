@@ -18,6 +18,9 @@ import hljs from 'highlight.js/lib/core';
 import python from 'highlight.js/lib/languages/python';
 import 'highlight.js/styles/vs2015.css';
 
+const apiUrl = import.meta.env.VITE_API_URL;
+const wsUrl = apiUrl.replace(/^http/, 'ws');
+
 hljs.registerLanguage('python', python);
 
 const BattlePage = () => {
@@ -257,7 +260,7 @@ const BattlePage = () => {
       wsUrl = storedWebsocketUrl;
       console.log('BattlePage: Using stored WebSocket URL from localStorage:', wsUrl);
     } else if (user?.user_id && gameId) {
-      wsUrl = `ws://localhost:8000/api/v1/game/ws/game/${gameId}?user_id=${user.user_id}`;
+      wsUrl = `${wsUrl}/api/v1/game/ws/game/${gameId}?user_id=${user.user_id}`;
       console.log('BattlePage: Constructing WebSocket URL from gameId and userId:', wsUrl);
     } else {
       console.log('BattlePage: Cannot connect WebSocket. Missing gameId, userId, or stored URL.', { gameId, userId: user?.user_id });
@@ -493,7 +496,7 @@ const BattlePage = () => {
 
     try {
       const response = await authFetch(
-        "http://localhost:8000/api/v1/game/submit",
+        `${apiUrl}/api/v1/game/submit`,
         {
           method: "POST",
           headers: {
@@ -661,9 +664,9 @@ const BattlePage = () => {
                         <div className="flex items-start justify-between">
                           <div className="flex flex-col">
                             <h1 className="text-xl font-bold neon-text">{problem.title}</h1>
-                            {problemId && (
+                            {/* {problemId && (
                                 <span className="text-[9px] text-gray-400 mt-1">ID: {problemId}</span>
-                            )}
+                            )} */}
                           </div>
                           <CyberButton onClick={toggleHint} size="sm" variant="secondary">
                             <HelpCircle className="mr-1 h-4 w-4" />

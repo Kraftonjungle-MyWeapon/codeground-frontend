@@ -6,6 +6,9 @@ import CyberButton from "@/components/CyberButton";
 import { User, Clock, Check, X } from "lucide-react";
 import { useUser } from "../context/UserContext";
 
+const apiUrl = import.meta.env.VITE_API_URL;
+const wsUrl = apiUrl.replace(/^http/, 'ws');
+
 const MatchingPage = () => {
   const navigate = useNavigate();
   const { user } = useUser(); // Get user from context
@@ -33,7 +36,7 @@ const MatchingPage = () => {
     }
 
     const websocket = new WebSocket(
-      `ws://localhost:8000/api/v1/match/ws/match/${user.user_id}`,
+      `${wsUrl}/api/v1/match/ws/match/${user.user_id}`,
     );
     setWs(websocket);
 

@@ -8,6 +8,9 @@ import { localStream as sharedLocalStream, remoteStream as sharedRemoteStream,
     setLocalStream, setRemoteStream, setPeerConnection, peerConnection as sharedPC } from '@/utils/webrtcStore';
 import useWebSocketStore from '@/stores/websocketStore';
 
+const apiUrl = import.meta.env.VITE_API_URL;
+const wsUrl = apiUrl.replace(/^http/, 'ws');
+
 const ScreenShareSetupPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -217,16 +220,16 @@ const ScreenShareSetupPage = () => {
       return;
     }
 
-    const wsUrl = `ws://localhost:8000/api/v1/game/ws/game/${effectiveGameId}?user_id=${userId}`;
-    console.log('ScreenShareSetupPage: Attempting to connect WebSocket to:', wsUrl);
+    const webSocketUrl = `${wsUrl}/api/v1/game/ws/game/${effectiveGameId}?user_id=${userId}`;
+    console.log('ScreenShareSetupPage: Attempting to connect WebSocket to:', webSocketUrl);
 
-    if (!wsUrl) { // wsUrl이 없으면 연결 시도 안 함
+    if (!webSocketUrl) { // wsUrl이 없으면 연결 시도 안 함
         console.log('ScreenShareSetupPage: wsUrl is not valid. Skipping connect.');
         return;
     }
 
     // 웹소켓이 이미 연결되어 있고, 연결하려는 URL과 동일하다면 다시 연결하지 않음
-    if (websocket && websocket.readyState === WebSocket.OPEN && websocket.url === wsUrl) {
+    if (websocket && websocket.readyState === WebSocket.OPEN && websocket.url === webSocketUrl) {
       console.log('ScreenShareSetupPage: WebSocket already connected to the target URL. Skipping connect.');
       return;
     }
@@ -239,7 +242,7 @@ const ScreenShareSetupPage = () => {
       console.log('ScreenShareSetupPage: sharedPC already exists.');
     }
 
-    connect(wsUrl); // 항상 현재 세션에 맞는 정확한 URL을 connect 함수에 전달
+    connect(webSocketUrl); // 항상 현재 세션에 맞는 정확한 URL을 connect 함수에 전달
 
     return () => {
       // Disconnect only if this component is responsible for the connection
