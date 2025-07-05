@@ -27,31 +27,26 @@ const ProfilePage = () => {
   const { user } = useUser();
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // 예시 사용자 데이터 (더 자세한 더미 데이터)
-  const dummyUser = {
-    user_id: 0, // 임의의 ID 추가
-    username: 'CyberCoder',
-    email: 'cybercoder@example.com',
-    joinDate: '2024-01-15',
-    totalScore: 1580,
-    wins: 87,
-    losses: 40,
-    draws: 8,
-    totalBattles: 135,
-    currentStreak: 5,
-    bestStreak: 12,
-    rank: 15,
-    favoriteLanguage: "Python",
-    averageTime: "4:32",
-    bestTime: "1:47",
+  const currentUser = {
+    user_id: user?.user_id || 0,
+    username: user?.nickname || user?.username || 'CyberCoder',
+    email: user?.email || 'cybercoder@example.com',
+    joinDate: '2024-01-15', // Not available from backend, keeping dummy
+    totalScore: user?.totalScore || 1580,
+    wins: user?.win ?? 0,
+    losses: user?.loss ?? 0,
+    draws: user?.draw ?? 0,
+    totalBattles: (user?.win ?? 0) + (user?.loss ?? 0) + (user?.draw ?? 0),
+    currentStreak: 5, // Not available from backend, keeping dummy
+    bestStreak: 12, // Not available from backend, keeping dummy
+    rank: 15, // Not available from backend, keeping dummy
+    favoriteLanguage: user?.use_lang || "Python",
+    averageTime: "4:32", // Not available from backend, keeping dummy
+    bestTime: "1:47", // Not available from backend, keeping dummy
   };
 
-  const currentUser = user || dummyUser; // Use context user if available, otherwise dummy
-
   const { tier, lp } = parseTotalScore(currentUser.totalScore);
-  const winRate = ((currentUser.wins / currentUser.totalBattles) * 100).toFixed(
-    1,
-  );
+  const winRate = user?.win_rate != null ? user.win_rate.toFixed(2) : "0.00";
 
   // 최근 전적 데이터 (더 많은 더미 데이터 추가)
   const recentMatches = [

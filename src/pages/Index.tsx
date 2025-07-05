@@ -10,46 +10,43 @@ import { parseTotalScore } from "@/utils/lpSystem";
 import Header from "@/components/Header";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
+import { useUser } from "@/context/UserContext"; // useUser 훅 import
 
-interface UserData {
-  id: number;
-  email: string;
-  username: string;
-  nickname: string;
-}
 
-const fetchUserData = async (): Promise<UserData> => {
-  const accessToken = getCookie("access_token");
-  if (!accessToken) {
-    throw new Error("No access token found");
-  }
-  const response = await axios.get("/api/v1/user/me", {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-  return response.data;
-};
+
+import { getRankings } from "@/utils/api";
 
 const Index = () => {
   const navigate = useNavigate();
   const [showCreateRoom, setShowCreateRoom] = useState(false);
+  const [topRanking, setTopRanking] = useState<any[]>([]);
 
-  const accessToken = getCookie("access_token");
+  const { user, isLoading, isError } = useUser(); // useUser 훅 사용
 
-  const {
-    data: fetchedUser,
-    isLoading,
-    isError,
-  } = useQuery<UserData, Error>({
-    queryKey: ["userMe"],
-    queryFn: fetchUserData,
-    enabled: !!accessToken, // Only fetch if access_token exists
-  });
+  useEffect(() => {
+    const fetchRankings = async () => {
+      try {
+        const data = await getRankings("python3"); // 기본 언어 python3로 랭킹 가져오기
+        setTopRanking(data.rankings.slice(0, 5)); // 백엔드 응답이 { language: string, rankings: RankingEntry[] } 형태
+      } catch (error) {
+        console.error(error);
+      }
+    };
 
-  // 예시 사용자 데이터 (API 데이터가 없을 경우 사용)
-  const dummyUser = {
-    id: 0, // 임의의 ID 추가
+    fetchRankings();
+  }, []);
+
+  // useUser 훅에서 가져온 user 객체를 직접 사용
+  const currentUser = user ? {
+    id: user.user_id,
+    name: user.nickname || user.username || 'CyberCoder',
+    totalScore: user.totalScore || 1580,
+    wins: user.win || 87, // 백엔드에서 제공되지 않음
+    losses: user.loss || 40, // 백엔드에서 제공되지 않음
+    totalBattles: user.totalBattles || 127, // 백엔드에서 제공되지 않음
+    rank: 15, // 백엔드에서 제공되지 않음
+  } : {
+    id: 0,
     name: 'CyberCoder',
     totalScore: 1580,
     wins: 87,
@@ -58,26 +55,15 @@ const Index = () => {
     rank: 15,
   };
 
-  const user = fetchedUser
-    ? {
-        ...dummyUser,
-        name:
-          fetchedUser.id ||
-          fetchedUser.nickname ||
-          fetchedUser.username ||
-          dummyUser.name,
-      }
-    : dummyUser;
-
-  const { tier, lp } = parseTotalScore(user.totalScore);
-  const winRate = ((user.wins / user.totalBattles) * 100).toFixed(1);
+  const { tier, lp } = parseTotalScore(currentUser.totalScore);
+    const winRate = user?.win_rate != null ? user.win_rate.toFixed(2) : "0.00";
 
   if (isLoading) {
     return <div>Loading user data...</div>;
   }
 
-  if (isError) {
-    return <div>Error loading user data. Displaying dummy data.</div>;
+  if (isError || !user) {
+    return <div>Error loading user data or user not logged in. Displaying dummy data.</div>;
   }
 
   // 대기방 목록 데이터 (더 많은 더미 데이터)
@@ -184,29 +170,7 @@ const Index = () => {
     },
   ];
 
-  // TOP 랭킹 데이터 (20개로 확장)
-  const topRanking = [
-    { rank: 1, nickname: "AlgorithmMaster", totalScore: 2450 },
-    { rank: 2, nickname: "CodeNinja", totalScore: 2380 },
-    { rank: 3, nickname: "ByteWarrior", totalScore: 2310 },
-    { rank: 4, nickname: "ScriptKiddie", totalScore: 2280 },
-    { rank: 5, nickname: "DebugMaster", totalScore: 2250 },
-    { rank: 6, nickname: "DevMaster", totalScore: 2200 },
-    { rank: 7, nickname: "CodeWizard", totalScore: 2150 },
-    { rank: 8, nickname: "BugHunter", totalScore: 2100 },
-    { rank: 9, nickname: "SyntaxHero", totalScore: 2050 },
-    { rank: 10, nickname: "RuntimeKing", totalScore: 2000 },
-    { rank: 11, nickname: "LogicMaster", totalScore: 1950 },
-    { rank: 12, nickname: "CompilerPro", totalScore: 1900 },
-    { rank: 13, nickname: "StackOverflow", totalScore: 1850 },
-    { rank: 14, nickname: "GitCommander", totalScore: 1800 },
-    { rank: 15, nickname: "CyberCoder", totalScore: 1580 },
-    { rank: 16, nickname: "WebDeveloper", totalScore: 1750 },
-    { rank: 17, nickname: "DataStructure", totalScore: 1700 },
-    { rank: 18, nickname: "AlgoSolver", totalScore: 1650 },
-    { rank: 19, nickname: "CodeBreaker", totalScore: 1600 },
-    { rank: 20, nickname: "ProgrammerX", totalScore: 1550 },
-  ];
+  
 
   return (
     <div className="min-h-screen cyber-grid">
@@ -229,7 +193,7 @@ const Index = () => {
                   size="lg"
                   className="w-full max-w-sm mx-auto"
                   onClick={() =>
-                    navigate("/matching", { state: { userId: user.id } })
+                    navigate("/matching", { state: { userId: user.user_id } })
                   }
                 >
                   <Play className="h-5 w-5 mr-2" />
@@ -313,8 +277,8 @@ const Index = () => {
                 <div className="w-20 h-20 bg-gradient-to-r from-cyber-blue to-cyber-purple rounded-full mx-auto mb-4 flex items-center justify-center">
                   <Users className="h-10 w-10 text-white" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">
-                  {user.name}
+                <h3 className="text-xl font-bold text-white mb-2 block opacity-100 visible">
+                  {currentUser.name}
                 </h3>
                 <div className="text-sm text-gray-400 mb-4">
                   <span className={tier.color}>{tier.name}</span> • {user.rank}
@@ -329,13 +293,13 @@ const Index = () => {
                 <div className="grid grid-cols-3 gap-4 text-center mb-4">
                   <div>
                     <div className="text-lg font-bold text-green-400">
-                      {user.wins}
+                      {user.win}
                     </div>
                     <div className="text-sm text-gray-400">승리</div>
                   </div>
                   <div>
                     <div className="text-lg font-bold text-red-400">
-                      {user.losses}
+                      {user.loss}
                     </div>
                     <div className="text-sm text-gray-400">패배</div>
                   </div>
@@ -373,7 +337,7 @@ const Index = () => {
                     <div className="space-y-2 pr-4">
                       {topRanking.map((player) => {
                         const { tier: playerTier, lp: playerLp } =
-                          parseTotalScore(player.totalScore);
+                          parseTotalScore(player.mmr); // player.mmr 사용
                         return (
                           <div
                             key={player.rank}

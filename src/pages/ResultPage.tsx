@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Header from "@/components/Header";
 import CyberCard from "@/components/CyberCard";
 import CyberButton from "@/components/CyberButton";
+import { useUser } from "@/context/UserContext";
+import { useToast } from "@/components/ui/use-toast"; // useToast import
 import {
   Trophy,
   Clock,
@@ -19,49 +21,115 @@ import {
   Star,
   Zap,
 } from "lucide-react";
-import {
-  getTierFromTotalScore,
-  parseTotalScore,
-  getTierChange,
-} from "@/utils/lpSystem";
+import { getTierFromTotalScore, parseTotalScore, getTierChange } from "@/utils/lpSystem";
+import { authFetch } from "@/utils/api";
+
+// 서버에서 받는 데이터 형식
+interface MatchResult {
+  winner: number | null; // winner_id -> winner
+  reason: 'finish' | 'timeout' | 'surrender' | 'walkover' | 'late' | 'draw'; // reason 타입 추가
+  myEarnedMmr: number; // mmr_earned -> myEarnedMmr
+  // 상세 결과용 데이터 (추후 확장 가능)
+  my_time?: string;
+  opponent_time?: string;
+  my_code?: string;
+}
 
 const ResultPage = () => {
   const navigate = useNavigate();
+  const location = useLocation(); // useLocation 훅 추가
+  const { user, setUser } = useUser(); // setUser 추가
+  const { toast } = useToast(); // toast 훅 사용
   const [currentStep, setCurrentStep] = useState(1);
+  // const [resultData, setResultData] = useState<MatchResult | null>(null); // resultData 상태 제거
+  const [isLoading, setIsLoading] = useState(true);
+
   const [animatingLp, setAnimatingLp] = useState(false);
-  const [displayLp, setDisplayLp] = useState(65);
+  const [displayLp, setDisplayLp] = useState(0);
   const [tierChangeAnimation, setTierChangeAnimation] = useState(false);
+  const [initialUserTotalScore, setInitialUserTotalScore] = useState<number | null>(null);
 
-  // 결과 데이터 (총 점수 기준)
-  const [result] = useState({
-    victory: true,
-    myTime: "3:24",
-    opponentTime: "4:17",
-    lpChange: "+18",
-    oldTotalScore: 1347, // 기존 총점
-    newTotalScore: 1365, // 새로운 총점
-    accuracy: 100,
-    opponentAccuracy: 85,
-    myCode: `function twoSum(nums, target) {
-    const map = new Map();
-    for (let i = 0; i < nums.length; i++) {
-        const complement = target - nums[i];
-        if (map.has(complement)) {
-            return [map.get(complement), i];
-        }
-        map.set(nums[i], i);
+  // matchResult를 location.state에서 직접 가져오기
+  const matchResult = location.state?.matchResult as MatchResult | null;
+
+  useEffect(() => {
+    console.log('ResultPage: Match result from state:', matchResult);
+
+    if (!matchResult) {
+        console.log('ResultPage: No match result found in state. Navigating to home.');
+        navigate("/home");
+        return; // Exit early if no matchResult
     }
-    return [];
-}`,
-    memoryUsage: "12.4MB",
-    executionTime: "84ms",
-    testsPassed: "15/15",
-  });
+    setIsLoading(false);
+    console.log('ResultPage: User context:', user);
 
-  // 티어 정보 계산
-  const oldTierInfo = parseTotalScore(result.oldTotalScore);
-  const newTierInfo = parseTotalScore(result.newTotalScore);
-  const tierChange = getTierChange(result.oldTotalScore, result.newTotalScore);
+    // user.totalScore가 로드되면 initialUserTotalScore 설정
+    if (user && user.totalScore !== undefined && initialUserTotalScore === null) {
+      setInitialUserTotalScore(user.totalScore);
+    }
+  }, [navigate, user, initialUserTotalScore, matchResult]); // matchResult를 의존성 배열에 추가
+
+  if (isLoading || !matchResult || !user || initialUserTotalScore === null) {
+    return (
+      <div className="min-h-screen cyber-grid flex items-center justify-center">
+        <p className="text-white text-2xl">결과를 불러오는 중...</p>
+      </div>
+    );
+  }
+
+  // matchResult에서 직접 값 가져오기
+  const { winner, reason, myEarnedMmr } = matchResult; // winner_id -> winner, mmr_earned -> myEarnedMmr
+  const victory = winner === user.user_id;
+  const isDraw = winner === null;
+
+  let resultTitle = "";
+  let resultMessage = "";
+
+  if (isDraw) {
+    resultTitle = "무승부";
+    resultMessage = "치열한 접전 끝에 무승부를 기록했습니다.";
+  } else if (victory) {
+    resultTitle = "승리!";
+    switch (reason) {
+      case 'surrender':
+        resultMessage = "상대방이 항복하여 승리했습니다!";
+        break;
+      case 'walkover':
+        resultMessage = "상대방의 연결 문제로 부전승을 거두었습니다.";
+        break;
+      case 'finish':
+      case 'timeout': // 백엔드에서 timeout으로 승리하는 경우 (상대방이 더 늦게 타임아웃되거나 기권)
+        resultMessage = "축하합니다! 문제를 성공적으로 해결하여 승리했습니다.";
+        break;
+      default:
+        resultMessage = "축하합니다! 코딩 대결에서 승리했습니다.";
+        break;
+    }
+  } else { // Loss
+    resultTitle = "패배";
+    switch (reason) {
+      case 'surrender':
+        resultMessage = "아쉽지만 항복하셨습니다. 다음 대결을 기약해주세요.";
+        break;
+      case 'late':
+      case 'timeout': // 백엔드에서 timeout으로 패배하는 경우 (내가 더 늦게 타임아웃되거나 상대가 먼저 완료)
+        resultMessage = "상대방이 먼저 문제를 해결했습니다. 다음 기회에 만회하세요!";
+        break;
+      case 'finish':
+        resultMessage = "상대방이 문제를 해결하여 패배했습니다. 분발하세요!";
+        break;
+      default:
+        resultMessage = "아쉽네요. 다음엔 더 잘할 수 있을 거예요!";
+        break;
+    }
+  }
+
+  const initialTotalScore = initialUserTotalScore; // 여기서 고정된 초기 점수 사용
+  const finalTotalScore = initialTotalScore + myEarnedMmr;
+
+  const initialTierInfo = parseTotalScore(initialTotalScore);
+  const finalTierInfo = parseTotalScore(finalTotalScore);
+  const tierChange = getTierChange(initialTotalScore, finalTotalScore);
   const hasTierChange = tierChange !== "none";
 
   const handleContinue = () => {
@@ -69,87 +137,116 @@ const ResultPage = () => {
       setCurrentStep(2);
       setAnimatingLp(true);
 
-      // LP 애니메이션 (십의 자리만)
-      const startLp = oldTierInfo.lp;
-      const endLp = newTierInfo.lp;
-      const duration = 2000;
-      const steps = 60;
-      const increment = (endLp - startLp) / steps;
+      const startLp = initialTierInfo.lp;
+      const endLp = finalTierInfo.lp;
+      setDisplayLp(startLp);
 
-      let currentLp = startLp;
+      if (startLp === endLp) {
+        setAnimatingLp(false);
+        setUser({ ...user, totalScore: finalTotalScore }); // 애니메이션이 없으면 바로 업데이트
+        return;
+      }
+
+      const duration = 2000; // 2 seconds
+      const steps = 60; // Number of animation frames
+      const scoreIncrementPerStep = (finalTotalScore - initialTotalScore) / steps;
+
+      let currentAnimatedScore = initialTotalScore;
+      let previousTierName = initialTierInfo.tier.name; // Track tier name for animation trigger
+
       const interval = setInterval(() => {
-        currentLp += increment;
-        setDisplayLp(Math.round(currentLp));
+        currentAnimatedScore += scoreIncrementPerStep;
 
-        // 티어 변화 감지 (LP가 100을 넘거나 0 아래로 떨어질 때)
-        if (
-          hasTierChange &&
-          Math.round(currentLp) >= (result.victory ? 100 : 0)
-        ) {
-          setTierChangeAnimation(true);
+        // Ensure we don't overshoot the final score
+        if ((finalTotalScore - initialTotalScore > 0 && currentAnimatedScore >= finalTotalScore) ||
+            (finalTotalScore - initialTotalScore < 0 && currentAnimatedScore <= finalTotalScore)) {
+          currentAnimatedScore = finalTotalScore;
         }
 
-        if (Math.abs(currentLp - endLp) < 0.5) {
-          setDisplayLp(endLp);
+        const currentTierInfo = parseTotalScore(Math.round(currentAnimatedScore)); // currentAnimatedScore를 반올림하여 전달
+        setDisplayLp(currentTierInfo.lp); // Display LP within the current tier
+
+        // Check for tier change during animation
+        if (currentTierInfo.tier.name !== previousTierName) {
+          setTierChangeAnimation(true); // Trigger tier change animation
+          previousTierName = currentTierInfo.tier.name; // Update previous tier
+        }
+
+        if (currentAnimatedScore === finalTotalScore) {
+          setDisplayLp(finalTierInfo.lp); // Ensure final LP is exactly correct
           setAnimatingLp(false);
           clearInterval(interval);
+          setUser({ ...user, totalScore: finalTotalScore }); // Update user context after animation
+
+          if (hasTierChange) {
+            setTimeout(() => {
+              setTierChangeAnimation(false); // Reset tier change animation state
+              toast({
+                title: tierChange === "promotion" ? "티어 승급!" : "티어 강등...",
+                description: `${initialTierInfo.tier.name}에서 ${finalTierInfo.tier.name}으로 ${tierChange === "promotion" ? "승급" : "강등"}되었습니다.`,
+                variant: tierChange === "promotion" ? "success" : "destructive",
+              });
+            }, 1000); // 1초 후 초기화 및 토스트 알림
+          }
         }
       }, duration / steps);
     }
   };
 
-  const handlePlayAgain = () => {
-    navigate("/matching");
+  const handlePlayAgain = async () => {
+    try {
+      const response = await authFetch("http://localhost:8000/api/v1/user/me");
+      if (response.ok) {
+        const userData = await response.json();
+        setUser({
+          ...userData,
+          totalScore: userData.user_mmr,
+          name: userData.nickname || userData.username,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    } finally {
+      navigate("/matching");
+    }
   };
-
-  const handleViewDetails = () => {
-    setCurrentStep(3);
-  };
-
-  const handleGoHome = () => {
-    navigate("/home");
-  };
+  const handleViewDetails = () => setCurrentStep(3);
+  const handleGoHome = () => navigate("/home");
 
   // 단계 1: 승패 결과
   if (currentStep === 1) {
     return (
       <div className="min-h-screen cyber-grid">
         <Header />
-
         <main className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[calc(100vh-250px)]">
           <div className="w-full max-w-2xl">
             <CyberCard glowing className="text-center p-12">
               <div className="space-y-8">
-                {result.victory ? (
+                {isDraw ? (
+                    <>
+                        <Shield className="h-24 w-24 text-gray-400 mx-auto animate-pulse" />
+                        <h1 className="text-6xl font-bold text-gray-300">{resultTitle}</h1>
+                        <p className="text-2xl text-gray-400">{resultMessage}</p>
+                    </>
+                ) : victory ? (
                   <>
                     <Trophy className="h-24 w-24 text-yellow-400 mx-auto animate-bounce" />
-                    <h1 className="text-6xl font-bold text-green-400 animate-pulse">
-                      승리!
-                    </h1>
-                    <p className="text-2xl text-gray-300">
-                      축하합니다! 코딩 대결에서 승리했습니다.
-                    </p>
+                    <h1 className="text-6xl font-bold text-green-400 animate-pulse">{resultTitle}</h1>
+                    <p className="text-2xl text-gray-300">{resultMessage}</p>
                   </>
                 ) : (
                   <>
                     <div className="h-24 w-24 bg-red-500/20 rounded-full mx-auto flex items-center justify-center">
                       <span className="text-5xl">😢</span>
                     </div>
-                    <h1 className="text-6xl font-bold text-red-400">패배</h1>
-                    <p className="text-2xl text-gray-300">
-                      아쉽네요. 다음엔 더 잘할 수 있을 거예요!
-                    </p>
+                    <h1 className="text-6xl font-bold text-red-400">{resultTitle}</h1>
+                    <p className="text-2xl text-gray-300">{resultMessage}</p>
                   </>
                 )}
-
                 <div className="flex justify-center">
-                  <CyberButton
-                    onClick={handleContinue}
-                    size="lg"
-                    className="animate-pulse-neon"
-                  >
+                  <CyberButton onClick={handleContinue} size="lg" className="animate-pulse-neon">
                     <ArrowRight className="h-6 w-6 mr-2" />
-                    계속
+                    결과 확인
                   </CyberButton>
                 </div>
               </div>
@@ -165,91 +262,62 @@ const ResultPage = () => {
     return (
       <div className="min-h-screen cyber-grid">
         <Header />
-
         <main className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[calc(100vh-250px)]">
           <div className="w-full max-w-2xl">
             <CyberCard glowing className="text-center p-12">
               <div className="space-y-8">
-                <h2 className="text-3xl font-bold text-white mb-8">LP 변화</h2>
-
-                {/* 현재 티어 표시 */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-center space-x-3 mb-2">
-                    <Crown className={`h-8 w-8 ${oldTierInfo.tier.color}`} />
-                    <span
-                      className={`text-2xl font-bold ${oldTierInfo.tier.color}`}
-                    >
-                      {oldTierInfo.tier.name}
-                    </span>
-                  </div>
-                </div>
-
+                <h2 className="text-3xl font-bold text-white mb-8">MMR 변동</h2>
+                
                 {/* 티어 변화 애니메이션 */}
+                <div className="mb-8 relative h-32 flex items-center justify-center">
+                    {hasTierChange ? (
+                        (animatingLp || tierChangeAnimation) ? (
+                            <>
+                                {/* Initial Tier */}
+                                <div className={`absolute inset-0 transition-opacity duration-1000 flex items-center justify-center ${tierChangeAnimation ? "opacity-0" : "opacity-100"}`}>
+                                    <Crown className={`h-16 w-16 ${initialTierInfo.tier.color}`} />
+                                    <span className={`text-4xl font-bold ${initialTierInfo.tier.color}`}>{initialTierInfo.tier.name}</span>
+                                </div>
+                                {/* Final Tier */}
+                                <div className={`absolute inset-0 transition-opacity duration-1000 delay-[1000ms] flex items-center justify-center ${tierChangeAnimation ? "opacity-100" : "opacity-0"}`}>
+                                    <Crown className={`h-20 w-20 ${finalTierInfo.tier.color} animate-pulse`} />
+                                    <span className={`text-5xl font-bold ${finalTierInfo.tier.color} neon-text`}>{finalTierInfo.tier.name}</span>
+                                </div>
+                            </>
+                        ) : (
+                            // Animation finished, show final tier
+                            <div className="flex items-center justify-center space-x-3 mb-4">
+                                <Crown className={`h-16 w-16 ${finalTierInfo.tier.color}`} />
+                                <span className={`text-4xl font-bold ${finalTierInfo.tier.color}`}>{finalTierInfo.tier.name}</span>
+                            </div>
+                        )
+                    ) : (
+                        // No tier change
+                        <div className="flex items-center justify-center space-x-3 mb-4">
+                            <Crown className={`h-16 w-16 ${initialTierInfo.tier.color}`} />
+                            <span className={`text-4xl font-bold ${initialTierInfo.tier.color}`}>{initialTierInfo.tier.name}</span>
+                        </div>
+                    )}
+                </div>
                 {hasTierChange && tierChangeAnimation && (
-                  <div className="mb-8 relative h-32">
-                    {/* 기존 티어 (사라지는 효과) */}
-                    <div
-                      className={`absolute inset-0 transition-all duration-1000 ${tierChangeAnimation ? "opacity-0 scale-75 rotate-12" : "opacity-100 scale-100"}`}
-                    >
-                      <div className="flex items-center justify-center space-x-3 mb-4">
-                        <Crown
-                          className={`h-12 w-12 ${oldTierInfo.tier.color}`}
-                        />
-                        <span
-                          className={`text-3xl font-bold ${oldTierInfo.tier.color}`}
-                        >
-                          {oldTierInfo.tier.name}
-                        </span>
-                      </div>
-                      <div className="w-32 h-1 bg-gray-600 mx-auto"></div>
-                    </div>
-
-                    {/* 새로운 티어 (나타나는 효과) */}
-                    <div
-                      className={`absolute inset-0 transition-all duration-1000 delay-500 ${tierChangeAnimation ? "opacity-100 scale-110" : "opacity-0 scale-75"}`}
-                    >
-                      <div className="flex items-center justify-center space-x-3 mb-4">
-                        <Crown
-                          className={`h-16 w-16 ${newTierInfo.tier.color} animate-pulse`}
-                        />
-                        <span
-                          className={`text-4xl font-bold ${newTierInfo.tier.color} neon-text`}
-                        >
-                          {newTierInfo.tier.name}
-                        </span>
-                      </div>
-                      {tierChange === "promotion" ? (
-                        <p className="text-green-400 font-bold animate-bounce text-xl">
-                          티어 승급!
-                        </p>
-                      ) : (
-                        <p className="text-red-400 font-bold text-xl">
-                          티어 강등...
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                    tierChange === "promotion" ? (
+                        <p className="text-green-400 font-bold animate-bounce text-2xl -mt-4">티어 승급!</p>
+                    ) : (
+                        <p className="text-red-400 font-bold text-2xl -mt-4">티어 강등...</p>
+                    )
                 )}
 
                 <div className="bg-black/30 p-8 rounded-lg border border-cyber-blue/30">
                   <div className="flex items-center justify-center space-x-6">
-                    <span className="text-3xl font-bold text-gray-300">
-                      {oldTierInfo.lp}
-                    </span>
+                    <span className="text-3xl font-bold text-gray-300">{initialTierInfo.lp}</span>
                     <div className="flex items-center space-x-3">
                       <div className="w-16 h-1 bg-cyber-blue animate-pulse"></div>
-                      <span
-                        className={`text-3xl font-bold ${
-                          result.victory ? "text-green-400" : "text-red-400"
-                        } ${animatingLp ? "animate-bounce" : ""}`}
-                      >
-                        {result.lpChange}
+                      <span className={`text-3xl font-bold ${myEarnedMmr > 0 ? "text-green-400" : myEarnedMmr < 0 ? "text-red-400" : "text-gray-400"} ${animatingLp ? "animate-bounce" : ""}`}>
+                        {`${myEarnedMmr >= 0 ? '+' : ''}${myEarnedMmr}`}
                       </span>
                       <div className="w-16 h-1 bg-cyber-blue animate-pulse"></div>
                     </div>
-                    <span
-                      className={`text-4xl font-bold neon-text ${animatingLp ? "animate-pulse" : ""}`}
-                    >
+                    <span className={`text-4xl font-bold neon-text ${myEarnedMmr > 0 ? "text-green-400" : myEarnedMmr < 0 ? "text-red-400" : "text-gray-400"} ${animatingLp ? "animate-pulse" : ""}`}>
                       {displayLp}
                     </span>
                   </div>
@@ -259,36 +327,18 @@ const ResultPage = () => {
                 </div>
 
                 {animatingLp ? (
-                  <p className="text-lg text-gray-400 animate-pulse">
-                    LP 계산 중...
-                  </p>
+                  <p className="text-lg text-gray-400 animate-pulse">LP 계산 중...</p>
                 ) : (
                   <div className="space-y-6">
-                    <h3 className="text-2xl font-bold text-white">
-                      최종 LP: {newTierInfo.lp}
-                    </h3>
-
+                    <h3 className={`text-2xl font-bold ${victory ? "text-green-400" : "text-red-400"}`}>최종 LP: {finalTierInfo.lp}</h3>
                     <div className="flex justify-center gap-6">
-                      <CyberButton
-                        onClick={handlePlayAgain}
-                        size="lg"
-                        className="w-44 h-16 animate-pulse-neon flex items-center justify-center"
-                      >
+                      <CyberButton onClick={handlePlayAgain} size="lg" className="w-44 h-16 animate-pulse-neon flex items-center justify-center">
                         <Play className="h-6 w-6 mr-2 flex-shrink-0" />
-                        <span className="text-base whitespace-nowrap">
-                          다시 도전
-                        </span>
+                        <span className="text-base whitespace-nowrap">다시 도전</span>
                       </CyberButton>
-                      <CyberButton
-                        onClick={handleViewDetails}
-                        variant="secondary"
-                        size="lg"
-                        className="w-44 h-16 flex items-center justify-center"
-                      >
+                      <CyberButton onClick={handleGoHome} variant="secondary" size="lg" className="w-44 h-16 flex items-center justify-center">
                         <Eye className="h-6 w-6 mr-2 flex-shrink-0" />
-                        <span className="text-base whitespace-nowrap">
-                          결과 보기
-                        </span>
+                        <span className="text-base whitespace-nowrap">홈으로</span>
                       </CyberButton>
                     </div>
                   </div>
@@ -300,113 +350,29 @@ const ResultPage = () => {
       </div>
     );
   }
-
-  // 단계 3: 상세 결과
-  return (
+  
+  // 상세 결과 페이지는 현재 비활성화 (추후 확장 가능)
+  // 지금은 홈으로 가는 버튼만 제공
+   return (
     <div className="min-h-screen cyber-grid">
       <Header />
-
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto space-y-6">
-          <CyberCard glowing className="p-6">
-            <h1 className="text-3xl font-bold text-center mb-8 neon-text">
-              상세 결과
-            </h1>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* 대결 정보 */}
-              <div className="space-y-6">
-                <div className="bg-black/30 p-6 rounded-lg border border-cyber-blue/30">
-                  <h3 className="text-xl font-bold text-cyber-blue mb-4 flex items-center">
-                    <BarChart3 className="mr-2 h-5 w-5" />
-                    성능 분석
-                  </h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between">
-                      <span className="text-gray-300">실행 시간:</span>
-                      <span className="text-green-400 font-bold">
-                        {result.executionTime}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-300">메모리 사용량:</span>
-                      <span className="text-blue-400 font-bold">
-                        {result.memoryUsage}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-300">테스트 통과:</span>
-                      <span className="text-yellow-400 font-bold">
-                        {result.testsPassed}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-300">완료 시간:</span>
-                      <span className="text-white font-bold">
-                        {result.myTime}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-black/30 p-6 rounded-lg border border-cyber-blue/30">
-                  <h3 className="text-xl font-bold text-cyber-blue mb-4">
-                    대결 결과
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-4 bg-green-500/10 rounded border border-green-500/30">
-                      <p className="text-sm text-gray-300">나</p>
-                      <p className="text-lg font-bold text-green-400">
-                        {result.myTime}
-                      </p>
-                    </div>
-                    <div className="text-center p-4 bg-red-500/10 rounded border border-red-500/30">
-                      <p className="text-sm text-gray-300">상대</p>
-                      <p className="text-lg font-bold text-red-400">
-                        {result.opponentTime}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 작성한 코드 */}
-              <div className="bg-black/30 p-6 rounded-lg border border-cyber-blue/30">
-                <h3 className="text-xl font-bold text-cyber-blue mb-4 flex items-center">
-                  <Code className="mr-2 h-5 w-5" />
-                  작성한 코드
-                </h3>
-                <div className="bg-black/50 p-4 rounded border border-gray-600 font-mono text-sm">
-                  <pre className="text-green-400 whitespace-pre-wrap overflow-auto max-h-96">
-                    <code>{result.myCode}</code>
-                  </pre>
-                </div>
-              </div>
-            </div>
-
+      <main className="container mx-auto px-4 py-8 flex items-center justify-center">
+        <CyberCard className="p-8 text-center">
+            <h1 className="text-3xl font-bold mb-4">경기 종료</h1>
+            <p className="text-gray-300 mb-8">고생하셨습니다!</p>
             <div className="flex justify-center gap-4 mt-8">
-              <CyberButton
-                onClick={handlePlayAgain}
-                size="lg"
-                className="animate-pulse-neon whitespace-nowrap"
-              >
+              <CyberButton onClick={handlePlayAgain} size="lg" className="animate-pulse-neon">
                 <Play className="h-5 w-5 mr-2" />
                 다시 도전
               </CyberButton>
-              <CyberButton
-                onClick={handleGoHome}
-                variant="secondary"
-                size="lg"
-                className="whitespace-nowrap"
-              >
+              <CyberButton onClick={handleGoHome} variant="secondary" size="lg">
                 홈으로
               </CyberButton>
             </div>
-          </CyberCard>
-        </div>
+        </CyberCard>
       </main>
     </div>
-  );
+   )
 };
 
 export default ResultPage;

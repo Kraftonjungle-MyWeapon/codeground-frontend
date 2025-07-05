@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import CyberCard from "@/components/CyberCard";
 import CyberButton from "@/components/CyberButton";
-import { Crown, ArrowRight, Zap } from "lucide-react";
+import { Crown, ArrowRight } from "lucide-react";
 
 const TierDemotionPage = () => {
   const navigate = useNavigate();
@@ -14,11 +14,9 @@ const TierDemotionPage = () => {
 
   useEffect(() => {
     const phases = [
-      { delay: 500, phase: 1 },
-      { delay: 1500, phase: 2 },
-      { delay: 2500, phase: 3 },
-      { delay: 3000, phase: 4 },
-      { delay: 4000, phase: 5 },
+      { delay: 1500, phase: 1 }, // 이전 티어 사라지기 시작
+      { delay: 2500, phase: 2 }, // 새 티어 나타나기 시작
+      { delay: 4000, phase: 3 }, // 최종 정보 표시
     ];
 
     phases.forEach(({ delay, phase }) => {
@@ -41,66 +39,28 @@ const TierDemotionPage = () => {
               </h1>
 
               <div className="relative h-60 flex items-center justify-center">
-                {/* 이전 티어 - 번개에 맞기 전까지 표시 */}
+                {/* 이전 티어 */}
                 <div
-                  className={`absolute transition-all duration-500 ${
-                    animationPhase >= 3
-                      ? "opacity-0 scale-0 rotate-12"
-                      : "opacity-100 scale-100"
-                  } ${animationPhase >= 2 ? "animate-bounce" : ""}`}
+                  className={`absolute transition-opacity duration-1000 ${
+                    animationPhase >= 1
+                      ? "opacity-0"
+                      : "opacity-100"
+                  }`}
                 >
                   <div className="flex flex-col items-center space-y-4 relative">
-                    <Crown
-                      className={`h-24 w-24 ${oldTier.color} ${
-                        animationPhase >= 2 ? "animate-pulse" : ""
-                      }`}
-                    />
+                    <Crown className={`h-24 w-24 ${oldTier.color}`} />
                     <span className={`text-3xl font-bold ${oldTier.color}`}>
                       {oldTier.name}
                     </span>
-
-                    {/* 왕관 주변 노란색 번개들 */}
-                    {animationPhase >= 2 && animationPhase < 4 && (
-                      <>
-                        <Zap
-                          className="h-8 w-8 text-yellow-400 absolute -top-2 -left-8 animate-ping"
-                          style={{ animationDelay: "0s" }}
-                        />
-                        <Zap
-                          className="h-6 w-6 text-yellow-400 absolute -top-4 right-6 animate-ping"
-                          style={{ animationDelay: "0.2s" }}
-                        />
-                        <Zap
-                          className="h-10 w-10 text-yellow-400 absolute bottom-8 -left-6 animate-ping"
-                          style={{ animationDelay: "0.4s" }}
-                        />
-                        <Zap
-                          className="h-7 w-7 text-yellow-400 absolute bottom-6 -right-8 animate-ping"
-                          style={{ animationDelay: "0.6s" }}
-                        />
-                        <Zap
-                          className="h-9 w-9 text-yellow-400 absolute top-2 right-10 animate-ping"
-                          style={{ animationDelay: "0.8s" }}
-                        />
-                      </>
-                    )}
                   </div>
                 </div>
 
-                {/* 중앙 강력한 번개 충격 효과 */}
-                {animationPhase === 3 && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="absolute bg-yellow-400/30 animate-ping rounded-full w-32 h-32"></div>
-                    <Zap className="h-20 w-20 text-yellow-400 animate-pulse scale-150" />
-                  </div>
-                )}
-
-                {/* 새 티어 - 번개 이후 나타남 */}
+                {/* 새 티어 */}
                 <div
-                  className={`absolute transition-all duration-1000 ${
-                    animationPhase >= 4
-                      ? "opacity-100 scale-100"
-                      : "opacity-0 scale-50"
+                  className={`absolute transition-opacity duration-1000 ${
+                    animationPhase >= 2
+                      ? "opacity-100"
+                      : "opacity-0"
                   }`}
                 >
                   <div className="flex flex-col items-center space-y-4">
@@ -114,7 +74,7 @@ const TierDemotionPage = () => {
                 </div>
               </div>
 
-              {animationPhase >= 5 && (
+              {animationPhase >= 3 && (
                 <div className="space-y-8 animate-fade-in">
                   <h2 className="text-2xl font-bold text-red-400">
                     티어가 강등되었습니다
