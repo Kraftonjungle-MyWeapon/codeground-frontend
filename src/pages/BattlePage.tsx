@@ -14,6 +14,8 @@ import usePreventNavigation from '@/hooks/usePreventNavigation';
 import GameExitModal from '@/components/GameExitModal';
 import useWebSocketStore from '@/stores/websocketStore';
 import { authFetch } from '@/utils/api';
+import useCheatDetection, { ReportPayload } from '@/hooks/useCheatDetection';
+import ReportModal from '@/components/ReportModal';
 import hljs from 'highlight.js/lib/core';
 import python from 'highlight.js/lib/languages/python';
 import 'highlight.js/styles/vs2015.css';
@@ -31,10 +33,11 @@ const BattlePage = () => {
   const { websocket, sendMessage, disconnect, connect } = useWebSocketStore();
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [timeLeft, setTimeLeft] = useState(930);
   const [code, setCode] = useState("");
   const [chatMessages, setChatMessages] = useState<
-    { user: string; message: string }[]
+    { user: string; message: string; type: 'chat' | 'system' }[]
   >([]);
   const [newMessage, setNewMessage] = useState("");
   const [executionResult, setExecutionResult] =
@@ -42,28 +45,33 @@ const BattlePage = () => {
   const [runStatus, setRunStatus] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [isLocalStreamActive, setIsLocalStreamActive] = useState(true);
-  const [showScreenSharePrompt, setShowScreenSharePrompt] = useState(false); // New state for screen share prompt
-  const [isRemoteStreamActive, setIsRemoteStreamActive] = useState(true); // New state for remote stream active
-  const [showRemoteScreenSharePrompt, setShowRemoteScreenSharePrompt] = useState(false); // New state for remote screen share prompt
-  const [isLeavingGame, setIsLeavingGame] = useState(false); // New state to control cleanup
-  const isConfirmedExitRef = useRef(false); // New ref to track explicit exit confirmation
+  const [showScreenSharePrompt, setShowScreenSharePrompt] = useState(false);
+  const [isRemoteStreamActive, setIsRemoteStreamActive] = useState(true);
+  const [showRemoteScreenSharePrompt, setShowRemoteScreenSharePrompt] = useState(false);
+  const [isLeavingGame, setIsLeavingGame] = useState(false);
+  const isConfirmedExitRef = useRef(false);
   const [problem, setProblem] = useState<any>(null);
-  const problemId = problem?.id ?? problem?.problem_id; // 게임 도중 문제 ID가 변경되지는 않으므로 굳이 useState는 안 씀.
-  const [currentLanguage] = useState<ProgrammingLanguage>('python'); // 현재는 python 고정, 추후 변경 가능
+  const problemId = problem?.id ?? problem?.problem_id;
+  const [currentLanguage] = useState<ProgrammingLanguage>('python');
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  const { reportCheating } = useCheatDetection({
+    gameId,
+    remoteVideoRef,
+    containerRef,
+  });
 
   const createPeerConnection = useCallback(() => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     });
-    setPeerConnection(pc); // 여기서 sharedPC를 업데이트
+    setPeerConnection(pc);
 
     pc.oniceconnectionstatechange = () => {
-      console.log('BattlePage: ICE connection state changed:', pc.iceConnectionState);
       if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
         setShowScreenSharePrompt(true);
-        setRemoteStream(null); // 상대방 스트림 제거
-      } else if (pc.iceConnectionState === 'connected') {
-        // Do not hide the screen share prompt here. It should only be hidden when the user explicitly starts sharing.
+        setRemoteStream(null);
       }
     };
 
@@ -75,7 +83,6 @@ const BattlePage = () => {
       }
     };
     pc.ontrack = ({ streams: [stream] }) => {
-      console.log('BattlePage: Received remote stream:', stream);
       setRemoteStream(stream);
       setIsRemoteStreamActive(true);
       setShowRemoteScreenSharePrompt(false);
@@ -86,7 +93,6 @@ const BattlePage = () => {
       const remoteVideoTrack = stream.getVideoTracks()[0];
       if (remoteVideoTrack) {
         remoteVideoTrack.onended = () => {
-          console.log('BattlePage: Remote screen share track ended.');
           setIsRemoteStreamActive(false);
           setShowRemoteScreenSharePrompt(true);
         };
@@ -96,39 +102,20 @@ const BattlePage = () => {
   }, [sendMessage]);
 
   const handleSignal = useCallback(async (signal: any) => {
-    let pc = sharedPC; // sharedPC를 직접 사용
+    let pc = sharedPC;
     if (!pc) {
       pc = createPeerConnection();
     }
 
     if (signal.type === 'offer') {
-      if (pc.signalingState !== 'stable') {
-        await Promise.all([
-          pc.localDescription ? pc.setLocalDescription(pc.localDescription) : Promise.resolve(),
-          pc.remoteDescription ? pc.setRemoteDescription(pc.remoteDescription) : Promise.resolve(),
-        ]);
-      }
       await pc.setRemoteDescription(new RTCSessionDescription(signal));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       sendMessage(JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription }));
     } else if (signal.type === 'answer') {
-      if (pc.signalingState === 'have-local-offer') {
-        await pc.setRemoteDescription(new RTCSessionDescription(signal));
-      } else {
-        console.warn('BattlePage: Received answer in unexpected signaling state:', pc.signalingState, 'Signal:', signal);
-      }
-    } else if (signal.type === 'candidate') {
-      if (signal.candidate) {
-        try {
-          await pc.addIceCandidate(signal.candidate);
-        } catch (err) {
-          console.error('BattlePage: Error adding ice candidate', err);
-        }
-      }
-    } else if (signal.type === 'join') {
-      // 상대방이 방에 들어왔음을 알리는 시그널. 여기서 offer를 생성하지 않음.
-      // offer 생성은 handleRestartScreenShare 함수에서 담당.
+      await pc.setRemoteDescription(new RTCSessionDescription(signal));
+    } else if (signal.type === 'candidate' && signal.candidate) {
+      await pc.addIceCandidate(signal.candidate);
     }
     setPeerConnection(pc);
   }, [createPeerConnection, sendMessage]);
@@ -145,10 +132,25 @@ const BattlePage = () => {
             {
               user: '상대',
               message: data.message,
+              type: 'chat',
             },
           ]);
         } else if (data.type === 'webrtc_signal' && data.sender !== user.user_id) {
           await handleSignal(data.signal);
+        } else if (data.type === 'system_warning') {
+          const isMe = data.user_id === user.user_id;
+          const subject = isMe ? '나' : '상대방';
+          const eventText = data.event === 'tab_hidden' ? '화면을 벗어났습니다' : '마우스가 화면 밖으로 나갔습니다';
+          const message = `경고: ${subject}${isMe ? '가' : '이'} ${eventText}. (경고 ${data.count}/5)`;
+
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              user: '시스템',
+              message: message,
+              type: 'system',
+            },
+          ]);
         }
       } catch (e) {
         console.error('BattlePage: ws message parse error', e);
@@ -156,21 +158,19 @@ const BattlePage = () => {
     };
   }, [websocket, user, handleSignal]);
 
-  // 화면 공유 스트림 정리 함수
   const cleanupScreenShare = useCallback(() => {
     if (sharedLocalStream) {
       sharedLocalStream.getTracks().forEach(track => track.stop());
       setLocalStream(null);
-      console.log('Local screen share stream stopped.');
     }
   }, []);
-  const chatEndRef = useRef<HTMLDivElement | null>(null);
+
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
   const [confirmExitCallback, setConfirmExitCallback] = useState<(() => void) | null>(null);
   const [cancelExitCallback, setCancelExitCallback] = useState<(() => void) | null>(null);
 
-  const { isNavigationBlocked } = usePreventNavigation({
-    shouldPrevent: true, // BattlePage에서는 항상 이탈 방지
+  usePreventNavigation({
+    shouldPrevent: true,
     onAttemptNavigation: (confirm, cancel) => {
       setIsExitModalOpen(true);
       setConfirmExitCallback(() => confirm);
@@ -182,11 +182,8 @@ const BattlePage = () => {
   const lineNumbersRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
   const editorHandlerRef = useRef<CodeEditorHandler>(new CodeEditorHandler('python'));
-
-  // 언어 설정
   const languageConfig = getLanguageConfig(currentLanguage);
 
-  // 코드 하이라이트 업데이트
   useEffect(() => {
     if (highlightRef.current) {
       highlightRef.current.innerHTML = hljs.highlight(code, { language: 'python' }).value + (code.endsWith('\n') ? '\n' : '');
@@ -196,62 +193,15 @@ const BattlePage = () => {
     }
   }, [code]);
 
-  
-
   useEffect(() => {
-    console.log('BattlePage: sharedLocalStream', sharedLocalStream);
-    console.log('BattlePage: sharedRemoteStream', sharedRemoteStream);
-    console.log('BattlePage: sharedPC', sharedPC);
-
-    if (sharedPC) {
-      console.log('BattlePage: sharedPC signalingState', sharedPC.signalingState);
-      console.log('BattlePage: sharedPC iceConnectionState', sharedPC.iceConnectionState);
-    }
-
     if (localVideoRef.current && sharedLocalStream) {
       localVideoRef.current.srcObject = sharedLocalStream;
     }
     if (remoteVideoRef.current && sharedRemoteStream) {
       remoteVideoRef.current.srcObject = sharedRemoteStream;
     }
+  }, [sharedLocalStream, sharedRemoteStream]);
 
-    if (sharedLocalStream) {
-      const videoTrack = sharedLocalStream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.onended = () => {
-          setIsLocalStreamActive(false);
-          setShowScreenSharePrompt(true); // Show prompt when local stream ends
-          sendMessage(JSON.stringify({ type: 'screen_share_ended' })); // Notify opponent
-
-          // 내 화면 공유가 중지되면 상대방 화면도 즉시 대기 상태로 변경
-          if (sharedRemoteStream) {
-            sharedRemoteStream.getTracks().forEach(track => track.stop());
-            setRemoteStream(null);
-          }
-          setIsRemoteStreamActive(false);
-          setShowRemoteScreenSharePrompt(true);
-        };
-      }
-    } else {
-      setIsLocalStreamActive(false);
-      setShowScreenSharePrompt(true); // Show prompt if no local stream initially
-    }
-
-    if (sharedRemoteStream) {
-      const remoteVideoTrack = sharedRemoteStream.getVideoTracks()[0];
-      if (remoteVideoTrack) {
-        remoteVideoTrack.onended = () => {
-          setIsRemoteStreamActive(false);
-          setShowRemoteScreenSharePrompt(true);
-        };
-      }
-    } else {
-      setIsRemoteStreamActive(false);
-      setShowRemoteScreenSharePrompt(true);
-    }
-  }, [sharedLocalStream, sharedRemoteStream, sharedPC]);
-
-   // 웹소켓 연결
   useEffect(() => {
     const storedWebsocketUrl = localStorage.getItem('websocketUrl');
     let wsUrl: string | null = null;
@@ -271,53 +221,22 @@ const BattlePage = () => {
       console.log('BattlePage: WebSocket not connected or closed. Attempting to connect.');
       connect(wsUrl);
     }
+  }, [websocket, user, gameId, connect]);
 
-    if (websocket) {
-      websocket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'chat' && data.sender !== user.user_id) {
-            setChatMessages((prev) => [
-              ...prev,
-              {
-                user: '상대',
-                message: data.message,
-              },
-            ]);
-          } else if (data.type === 'webrtc_signal' && data.sender !== user.user_id) {
-            handleSignal(data.signal);
-          } else if (data.type === 'match_accepted') {
-            setProblem(data.problem);
-          } else if (data.type === 'screen_share_ended' && data.sender !== user.user_id) {
-            console.log('BattlePage: Opponent screen share ended. Stopping local screen share.');
-            cleanupScreenShare();
-            setShowScreenSharePrompt(true);
-            setShowRemoteScreenSharePrompt(true);
-          } else if (data.type === 'screen_share_restarted' && data.sender !== user.user_id) {
-            console.log('BattlePage: Opponent screen share restarted.');
-            setIsRemoteStreamActive(true);
-            setShowRemoteScreenSharePrompt(false);
-          } else if (data.type === 'match_result') {
-            console.log('BattlePage: Match result received:', data);
-            try {
-              const matchResultData = {
-                winner: data.winner,
-                reason: data.reason,
-                myEarnedMmr: data.earned, // 내 MMR 획득량
-              };
-              localStorage.setItem('matchResult', JSON.stringify(matchResultData)); // 기존 로직 유지 (혹시 모를 대비)
-              console.log('BattlePage: Match result saved to localStorage.', matchResultData);
-              navigate('/result', { state: { matchResult: matchResultData } });
-            } catch (e) {
-              console.error('BattlePage: Failed to save match result to localStorage or navigate:', e);
-            }
-          }
-        } catch (e) {
-          console.error('BattlePage: ws message parse error', e);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          sendMessage(JSON.stringify({ type: "match_result", reason: "timeout" }));
+          return 0;
         }
-      };
-    }
-  }, [websocket, user, gameId, connect, handleSignal]);
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [sendMessage]);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -327,90 +246,36 @@ const BattlePage = () => {
     scrollToBottom();
   }, [chatMessages]);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          cleanupScreenShare(); // 타이머 종료 시 화면 공유 중단
-          if (sharedPC) {
-            sharedPC.close();
-            setPeerConnection(null);
-          }
-          // 타임아웃 메시지 발송
-          sendMessage(JSON.stringify({ type: "match_result", reason: "timeout" }));
-          // navigate('/result'); // 결과는 백엔드로부터 match_result를 받은 후 처리
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => {
-      clearInterval(timer);
-      cleanupScreenShare(); // 컴포넌트 언마운트 시 화면 공유 중단
-    };
-  }, [navigate]);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
   const handleSendMessage = () => {
     if (!newMessage.trim()) return;
-
     const msgObj = { type: "chat", message: newMessage };
-
-    if (websocket && websocket.readyState === WebSocket.OPEN) {
-      sendMessage(JSON.stringify(msgObj));
-      setChatMessages((prev) => [...prev, { user: '나', message: newMessage }]);
-    }
-
+    sendMessage(JSON.stringify(msgObj));
+    setChatMessages((prev) => [...prev, { user: '나', message: newMessage, type: 'chat' }]);
     setNewMessage("");
   };
 
-  const performSurrenderAction = useCallback(() => {
-    console.log('performSurrenderAction called.');
-    setIsLeavingGame(true); // 게임을 떠나는 중임을 표시
+  const handleReportClick = () => {
+    setIsReportModalOpen(true);
+  };
 
-    // 항복 웹소켓 메시지 전송
-    if (websocket && websocket.readyState === WebSocket.OPEN) {
-      const surrenderMessage = { type: "match_result", reason:"surrender" };
-      sendMessage(JSON.stringify(surrenderMessage));
-      console.log('Surrender message sent.');
-      
-    }
-
-    // WebRTC 관련 리소스 정리
-    if (sharedPC) {
-      sharedPC.close();
-      setPeerConnection(null);
-    }
-    cleanupScreenShare(); // 화면 공유 중단 함수 호출
-    if (sharedRemoteStream) {
-      sharedRemoteStream.getTracks().forEach(track => track.stop());
-      setRemoteStream(null);
-    }
-
-    
-  }, [websocket, sendMessage, sharedPC, cleanupScreenShare, sharedRemoteStream]);
+  const handleReportSubmit = (payload: ReportPayload) => {
+    reportCheating(payload);
+    setIsReportModalOpen(false);
+  };
 
   const handleSurrenderButtonClick = useCallback(() => {
     setIsExitModalOpen(true);
     setConfirmExitCallback(() => () => {
-      performSurrenderAction();
-      navigate('/result'); // 항복 처리 후 결과 페이지로 이동
+      // performSurrenderAction();
+      navigate('/result');
     });
     setCancelExitCallback(() => () => {
       setIsExitModalOpen(false);
     });
-  }, [performSurrenderAction, navigate]);
+  }, [navigate]);
 
   const handleConfirmExit = useCallback(() => {
-    console.log('handleConfirmExit called.');
-    isConfirmedExitRef.current = true; // 명시적 종료 확정
+    isConfirmedExitRef.current = true;
     setIsExitModalOpen(false);
     if (confirmExitCallback) {
       confirmExitCallback();
@@ -418,77 +283,11 @@ const BattlePage = () => {
   }, [confirmExitCallback]);
 
   const handleCancelExit = useCallback(() => {
-    console.log('handleCancelExit called.');
     setIsExitModalOpen(false);
     if (cancelExitCallback) {
       cancelExitCallback();
     }
   }, [cancelExitCallback]);
-
-  const handleReport = () => {
-    alert("신고가 접수되었습니다.");
-  };
-
-  const handleRestartScreenShare = async () => {
-    try {
-      // 기존 스트림이 있다면 중지
-      if (sharedLocalStream) {
-        sharedLocalStream.getTracks().forEach(track => track.stop());
-        setLocalStream(null);
-      }
-
-      const mediaStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: false,
-      });
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = mediaStream;
-      }
-
-      setLocalStream(mediaStream);
-
-      let pc = sharedPC;
-      if (!pc) {
-        pc = createPeerConnection();
-      }
-
-      // 기존 트랙 제거 및 새 트랙 추가
-      pc.getSenders().forEach(sender => {
-        if (sender.track && sender.track.kind === 'video') {
-          pc.removeTrack(sender);
-        }
-      });
-      mediaStream.getTracks().forEach((track) => pc.addTrack(track, mediaStream));
-
-      // Offer 생성 및 전송
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      sendMessage(
-        JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription })
-      );
-
-      const videoTrack = mediaStream.getVideoTracks()[0];
-      videoTrack.onended = () => {
-        setIsLocalStreamActive(false);
-        setShowScreenSharePrompt(true);
-      };
-
-      setIsLocalStreamActive(true);
-      setShowScreenSharePrompt(false); // 화면 공유 시작 시 프롬프트 숨김
-      sendMessage(JSON.stringify({ type: 'screen_share_restarted' })); // Notify opponent that screen share has restarted
-    } catch (error) {
-      console.error('Error restarting screen share:', error);
-      setShowScreenSharePrompt(true); // 에러 발생 시 프롬프트 다시 표시
-    }
-  };
-
-  const timeColor =
-    timeLeft <= 60
-      ? "text-red-400"
-      : timeLeft <= 180
-        ? "text-yellow-400"
-        : "text-cyber-blue";
 
   const handleRun = async () => {
     setExecutionResult("코드를 실행하고 있습니다...");
@@ -552,7 +351,7 @@ const BattlePage = () => {
   };
 
   const handleSubmit = () => {
-    cleanupScreenShare(); // 코드 제출 시 화면 공유 중단
+    cleanupScreenShare();
     navigate('/result');
   };
 
@@ -560,7 +359,6 @@ const BattlePage = () => {
     setShowHint(!showHint);
   };
 
-  // 스크롤 동기화 함수
   const handleScroll = () => {
     if (textareaRef.current && lineNumbersRef.current) {
       lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
@@ -570,10 +368,8 @@ const BattlePage = () => {
     }
   };
 
-  // 코드 에디터 키 핸들링 함수 - 언어별 핸들러 사용
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const textarea = e.currentTarget;
-    
     if (e.key === 'Tab') {
       e.preventDefault();
       editorHandlerRef.current.handleTabKey(textarea, e.shiftKey);
@@ -587,60 +383,42 @@ const BattlePage = () => {
 
   useEffect(() => {
     const gameId = searchParams.get('gameId');
-    console.log("BattlePage: Searching for problem with gameId:", gameId);
     if (gameId) {
       const storedProblem = localStorage.getItem(`problem_${gameId}`);
-      console.log("BattlePage: Fetched problem from localStorage:", storedProblem);
       if (storedProblem) {
         try {
           const parsedProblem = JSON.parse(storedProblem);
-          console.log("BattlePage: Parsed problem:", parsedProblem);
           setProblem(parsedProblem);
         } catch (error) {
-          console.error("BattlePage: Error parsing problem from localStorage:", error);
+          console.error("Error parsing problem from localStorage:", error);
         }
-      } else {
-        console.log("BattlePage: No problem found in localStorage for this gameId.");
       }
     }
   }, [searchParams]);
 
-  // 동적으로 줄 번호 생성
   const actualLineCount = code ? code.split("\n").length : 1;
   const displayLineCount = Math.max(actualLineCount, 20);
 
   return (
-    <div className="min-h-screen cyber-grid bg-cyber-darker">
-      {/* 배틀 전용 헤더 */}
+    <div ref={containerRef} className="min-h-screen cyber-grid bg-cyber-darker">
       <header className="sticky top-0 z-50 cyber-card border-b border-cyber-blue/20 backdrop-blur-md">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            {/* 좌측 - 로고 */}
             <div className="flex items-center space-x-3">
               <span className="text-xl font-bold neon-text">Codeground</span>
             </div>
-
-            {/* 중앙 - 타이머 */}
             <div className="flex items-center space-x-2">
-              <Clock className={`h-6 w-6 ${timeColor}`} />
-              <span
-                className={`text-2xl font-bold font-mono ${timeColor} ${timeLeft <= 60 ? "animate-pulse" : ""}`}
-              >
-                {formatTime(timeLeft)}
+              <Clock className={`h-6 w-6 text-cyber-blue`} />
+              <span className={`text-2xl font-bold font-mono text-cyber-blue`}>
+                {`${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}`}
               </span>
             </div>
-
-            {/* 우측 - 항복, 신고 */}
             <div className="flex items-center space-x-3">
-              <CyberButton
-                onClick={handleSurrenderButtonClick}
-                size="sm"
-                variant="secondary"
-              >
+              <CyberButton onClick={handleSurrenderButtonClick} size="sm" variant="secondary">
                 <Flag className="mr-1 h-4 w-4" />
                 항복
               </CyberButton>
-              <CyberButton onClick={handleReport} size="sm" variant="secondary">
+              <CyberButton onClick={handleReportClick} size="sm" variant="secondary">
                 <AlertTriangle className="mr-1 h-4 w-4" />
                 신고
               </CyberButton>
@@ -649,13 +427,10 @@ const BattlePage = () => {
         </div>
       </header>
 
-      {/* 메인 컨텐츠 영역 */}
       <main className="h-[calc(100vh-80px)] p-4">
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* 좌측 영역 */}
           <ResizablePanel defaultSize={40} minSize={30}>
             <div className="h-full flex flex-col">
-              {/* 좌측 상단 - 문제 */}
               <div className="flex-1 mb-2">
                 <CyberCard className="h-[calc(100vh-24em)] p-4 mr-2 max-h-[860px]">
                   <ScrollArea className="h-full">
@@ -673,7 +448,6 @@ const BattlePage = () => {
                             힌트
                           </CyberButton>
                         </div>
-
                         {showHint && problem.category && (
                           <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
                             <h3 className="text-yellow-400 font-semibold mb-2">알고리즘 분류</h3>
@@ -686,62 +460,38 @@ const BattlePage = () => {
                             </div>
                           </div>
                         )}
-                        
-                      <div>
-                        <p className="text-gray-300 leading-relaxed">{problem.description}</p>
-                      </div>
-
-                      {problem.description && (
                         <div>
-                          <h3 className="text-lg font-semibold text-cyber-blue mb-2">제한 사항</h3>
-                          <ul className="text-gray-300 space-y-1">
-                            <li>• {problem.description}</li>
-                          </ul>
+                          <p className="text-gray-300 leading-relaxed">{problem.description}</p>
                         </div>
-                      )}
-
-                      {problem.examples && (
-                        <div>
-                          <h3 className="text-lg font-semibold text-cyber-blue mb-2">입출력 예</h3>
-                          <div className="bg-black/30 p-3 rounded-lg border border-gray-700 space-y-2">
-                            {problem.examples.map((example, index) => (
-                              <div key={index} className="font-mono text-sm">
-                                <div className="text-gray-400">{example.input}</div>
-                                <div className="text-green-400">{example.output}</div>
-                              </div>
-                            ))}
+                        {problem.examples && (
+                          <div>
+                            <h3 className="text-lg font-semibold text-cyber-blue mb-2">입출력 예</h3>
+                            <div className="bg-black/30 p-3 rounded-lg border border-gray-700 space-y-2">
+                              {problem.examples.map((example, index) => (
+                                <div key={index} className="font-mono text-sm">
+                                  <div className="text-gray-400">{example.input}</div>
+                                  <div className="text-green-400">{example.output}</div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
-
-                      {problem.testCase && (
-                        <div>
-                          <h3 className="text-lg font-semibold text-cyber-blue mb-2">입출력 예 설명</h3>
-                          <h4 className="text-yellow-400 font-medium mb-1">입출력 예 #1</h4>
-                          <p className="text-gray-300 text-sm">{problem.testCase.description}</p>
-                        </div>
-                      )}
-                    </div>
+                        )}
+                      </div>
                     ) : (
                       <div className="text-center text-gray-400">문제 로딩 중...</div>
                     )}
                   </ScrollArea>
                 </CyberCard>
               </div>
-
-              {/* 좌측 하단 - 채팅 & 화면공유 (고정 높이) */}
               <div className="h-1/3 min-h-[16em] flex gap-2 mr-2">
-                {/* 채팅 */}
                 <div className="flex-1 min-w-0">
                   <CyberCard className="p-3 flex flex-col h-full">
-                    <h3 className="text-sm font-semibold text-cyber-blue mb-2">
-                      채팅
-                    </h3>
+                    <h3 className="text-sm font-semibold text-cyber-blue mb-2">채팅</h3>
                     <ScrollArea className="flex-1 mb-2">
                       <div className="space-y-2 pr-3">
                         {chatMessages.map((msg, index) => (
-                          <div key={index} className="text-xs">
-                            <div className="text-gray-400">
+                          <div key={index} className={`text-xs ${msg.type === 'system' ? 'text-red-400' : 'text-gray-400'}`}>
+                            <div>
                               {msg.user}: {msg.message}
                             </div>
                           </div>
@@ -754,26 +504,19 @@ const BattlePage = () => {
                         type="text"
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
-                        onKeyPress={(e) =>
-                          e.key === "Enter" && handleSendMessage()
-                        }
+                        onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
                         placeholder="메시지 입력..."
                         className="flex-1 text-xs bg-black/30 border border-gray-600 rounded-l px-2 py-1 text-white"
                       />
-                      <button
-                        onClick={handleSendMessage}
-                        className="bg-cyber-blue px-2 py-1 rounded-r"
-                      >
+                      <button onClick={handleSendMessage} className="bg-cyber-blue px-2 py-1 rounded-r">
                         <Send className="h-3 w-3" />
                       </button>
                     </div>
                   </CyberCard>
                 </div>
-
-                {/* 화면공유 */}
                 <div className="flex-1 min-w-0">
                   <CyberCard className="p-3 flex flex-col items-center justify-center h-full">
-                  {sharedRemoteStream && isRemoteStreamActive ? (
+                    {sharedRemoteStream && isRemoteStreamActive ? (
                       <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-contain" />
                     ) : (
                       <div className="text-xs text-gray-400 text-center">
@@ -786,59 +529,30 @@ const BattlePage = () => {
                         )}
                       </div>
                     )}
-                  {showScreenSharePrompt && (
-                    <div className="flex justify-center mt-4">
-                      <CyberButton onClick={handleRestartScreenShare} className="bg-blue-500 hover:bg-blue-600" size="sm">
-                        내 화면 공유 재시작
-                      </CyberButton>
-                    </div>
-                  )}
                   </CyberCard>
                 </div>
               </div>
             </div>
           </ResizablePanel>
-
           <ResizableHandle withHandle />
-
-          {/* 우측 영역 */}
           <ResizablePanel defaultSize={60} minSize={40}>
             <ResizablePanelGroup direction="vertical">
-              {/* 우측 상단 - 코드 에디터 */}
               <ResizablePanel defaultSize={75} minSize={50}>
                 <CyberCard className="h-full flex flex-col ml-2 mb-1">
-                  {/* 최소화된 헤더 */}
                   <div className="flex items-center px-3 py-1 border-b border-gray-700/50 bg-black/20">
-                  <div className="text-xs text-gray-400">{languageConfig.name} Code Editor</div>
+                    <div className="text-xs text-gray-400">{languageConfig.name} Code Editor</div>
                   </div>
-
-                  {/* 코드 에디터 영역 */}
                   <div className="flex-1 overflow-hidden">
                     <div className="h-full flex bg-black/30">
-                      {/* 줄 번호 */}
-                      <div
-                        ref={lineNumbersRef}
-                        className="flex-shrink-0 w-12 bg-black/20 border-r border-gray-700 overflow-hidden"
-                        style={{
-                          scrollbarWidth: "none",
-                          msOverflowStyle: "none",
-                        }}
-                      >
+                      <div ref={lineNumbersRef} className="flex-shrink-0 w-12 bg-black/20 border-r border-gray-700 overflow-hidden">
                         <div className="text-xs text-gray-500 leading-5 text-right py-3 px-2">
                           {Array.from({ length: displayLineCount }, (_, i) => (
-                            <div key={i} className="h-5">
-                              {i + 1}
-                            </div>
+                            <div key={i} className="h-5">{i + 1}</div>
                           ))}
                         </div>
                       </div>
-                      
                       <div className="flex-1 overflow-hidden relative">
-                        <pre
-                          ref={highlightRef}
-                          className="hljs pointer-events-none w-full h-full px-3 py-3 text-sm leading-5 font-mono whitespace-pre-wrap"
-                          style={{ fontFamily: languageConfig.fontFamily }}
-                        />
+                        <pre ref={highlightRef} className="hljs pointer-events-none w-full h-full px-3 py-3 text-sm leading-5 font-mono whitespace-pre-wrap" style={{ fontFamily: languageConfig.fontFamily }} />
                         <textarea
                           ref={textareaRef}
                           value={code}
@@ -848,60 +562,29 @@ const BattlePage = () => {
                           placeholder={languageConfig.placeholder}
                           spellCheck={false}
                           className="w-full h-full absolute top-0 left-0 bg-transparent px-3 py-3 font-mono resize-none focus:outline-none text-sm leading-5 border-none"
-                          style={{
-                            fontFamily: languageConfig.fontFamily,
-                            tabSize: languageConfig.indentSize,
-                            color: 'transparent',
-                            caretColor: '#ffffff',
-                            WebkitTextFillColor: 'transparent'
-                          }}
+                          style={{ fontFamily: languageConfig.fontFamily, tabSize: languageConfig.indentSize, color: 'transparent', caretColor: '#ffffff' }}
                         />
                       </div>
                     </div>
                   </div>
                 </CyberCard>
               </ResizablePanel>
-
               <ResizableHandle withHandle />
-
-              {/* 우측 하단 - 실행 결과 */}
               <ResizablePanel defaultSize={25} minSize={15}>
                 <CyberCard className="h-full flex flex-col ml-2 mt-1">
                   <div className="flex items-center justify-between px-3 py-1 border-b border-gray-700/50">
-                    <h3 className="text-sm font-semibold text-cyber-blue">
-                      실행 결과
-                      {runStatus && (
-                        <span
-                          className={`ml-2 text-xs ${runStatus === "성공" ? "text-green-400" : "text-red-400"}`}
-                        >
-                          {runStatus}
-                        </span>
-                      )}
-                    </h3>
+                    <h3 className="text-sm font-semibold text-cyber-blue">실행 결과</h3>
                     <div className="flex space-x-1">
-                      <CyberButton
-                        onClick={handleRun}
-                        size="sm"
-                        variant="secondary"
-                        className="px-6"
-                      >
+                      <CyberButton onClick={handleRun} size="sm" variant="secondary" className="px-6">
                         <Play className="mr-1 h-3 w-3" />
                         실행
                       </CyberButton>
-                      <CyberButton
-                        onClick={handleSubmit}
-                        size="sm"
-                        className="px-6"
-                      >
+                      <CyberButton onClick={handleSubmit} size="sm" className="px-6">
                         제출
                       </CyberButton>
                     </div>
                   </div>
-
-                  <div
-                    className="flex-1 p-2"
-                    style={{ height: "calc(100% - 40px)" }}
-                  >
+                  <div className="flex-1 p-2">
                     <div className="h-full bg-black/30 border border-gray-700 rounded p-3 overflow-auto">
                       <pre className="font-mono text-xs text-gray-300 whitespace-pre-wrap break-words">
                         {executionResult}
@@ -919,6 +602,11 @@ const BattlePage = () => {
         isOpen={isExitModalOpen}
         onConfirmExit={handleConfirmExit}
         onCancelExit={handleCancelExit}
+      />
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        onSubmit={handleReportSubmit}
       />
     </div>
   );
