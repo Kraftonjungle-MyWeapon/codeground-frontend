@@ -1,6 +1,8 @@
 import { getCookie, eraseCookie } from "@/lib/utils";
 import { AwardIcon } from "lucide-react";
 
+const apiUrl = import.meta.env.VITE_API_URL;
+
 export async function authFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
@@ -20,7 +22,7 @@ export async function authFetch(
 }
 
 export async function getRankings(language: string = "python3") {
-  const response = await authFetch(`http://localhost:8000/api/v1/ranking/?language=${language}`);
+  const response = await authFetch(`${apiUrl}/api/v1/ranking/?language=${language}`);
   if (!response.ok) {
     throw new Error("Failed to fetch rankings");
   }
@@ -29,7 +31,7 @@ export async function getRankings(language: string = "python3") {
 
 
 export async function getUserProfile() {
-  const response = await authFetch("http://localhost:8000/api/v1/users/me");
+  const response = await authFetch(`${apiUrl}/api/v1/users/me`);
   if (!response.ok) {
     throw new Error("Failed to fetch user profile");
   }
@@ -37,7 +39,7 @@ export async function getUserProfile() {
 }
 
 export async function updateUserProfile(nickname: string, use_lang: string) {
-  const response = await authFetch("http://localhost:8000/api/v1/users/me", {
+  const response = await authFetch(`${apiUrl}/api/v1/users/me`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -53,7 +55,7 @@ export async function updateUserProfile(nickname: string, use_lang: string) {
 
 export async function getUserWinRate(userId: number) {
   const response = await authFetch(
-    `http://localhost:8000/api/v1/analysis/users/${userId}/win-rate`,
+    `${apiUrl}/api/v1/analysis/users/${userId}/win-rate`,
   );
   if (!response.ok) {
     throw new Error("Failed to fetch user win rate");

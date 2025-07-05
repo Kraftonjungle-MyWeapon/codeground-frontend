@@ -12,6 +12,9 @@ import GameExitModal from '@/components/GameExitModal';
 import { useUser } from '@/context/UserContext';
 import { useSearchParams } from 'react-router-dom';
 
+const apiUrl = import.meta.env.VITE_API_URL;
+const wsUrl = apiUrl.replace(/^http/, 'ws');
+
 const WaitingRoomPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -52,7 +55,7 @@ const WaitingRoomPage = () => {
     if (!gameId || !user?.user_id) return;
 
     const ws = new WebSocket(
-      `ws://localhost:8000/api/v1/game/ws/waiting-room/${gameId}?user_id=${user.user_id}`
+      `${wsUrl}/api/v1/game/ws/waiting-room/${gameId}?user_id=${user.user_id}`
     );
     wsRef.current = ws;
 
