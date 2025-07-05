@@ -1,25 +1,18 @@
 import { getCookie, eraseCookie } from "@/lib/utils";
+import { AwardIcon } from "lucide-react";
 
 export async function authFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
-  const token = getCookie("access_token");
-  const headers = new Headers(init?.headers);
-
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-
   const authInit: RequestInit = {
     ...init,
-    headers,
+    credentials: "include",
   };
 
   const response = await fetch(input, authInit);
 
-  if (response.status === 401) {
-    eraseCookie("access_token");
+  if(response.status == 401) {
     window.location.href = "/login";
   }
 
