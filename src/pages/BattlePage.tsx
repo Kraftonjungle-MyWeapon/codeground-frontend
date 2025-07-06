@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '@/context/UserContext';
 import CyberCard from '@/components/CyberCard';
 import CyberButton from '@/components/CyberButton';
-import { Clock, Play, Send, Monitor, Flag, AlertTriangle, HelpCircle } from 'lucide-react';
+import { Clock, Play, Send, Monitor, Flag, AlertTriangle, HelpCircle, LogOut } from 'lucide-react';
 import { localStream as sharedLocalStream, remoteStream as sharedRemoteStream, setLocalStream, peerConnection as sharedPC, setPeerConnection, setRemoteStream } from '@/utils/webrtcStore';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -17,6 +17,7 @@ import { authFetch } from '@/utils/api';
 import useCheatDetection, { ReportPayload } from '@/hooks/useCheatDetection';
 import ReportModal from '@/components/ReportModal';
 import { OpponentLeftModal } from '@/components/OpponentLeftModal';
+import { OpponentSurrenderModal } from '@/components/OpponentSurrenderModal';
 import { ScreenShareRequiredModal } from '@/components/ScreenShareRequiredModal';
 import hljs from 'highlight.js/lib/core';
 import python from 'highlight.js/lib/languages/python';
@@ -53,12 +54,14 @@ const BattlePage = () => {
   const [showRemoteScreenSharePrompt, setShowRemoteScreenSharePrompt] = useState(false);
   const [isLeavingGame, setIsLeavingGame] = useState(false);
   const [showOpponentLeftModal, setShowOpponentLeftModal] = useState(false);
+  const [showSurrenderModal, setShowSurrenderModal] = useState(false);
   const [showScreenShareRequiredModal, setShowScreenShareRequiredModal] = useState(false);
   const [screenShareCountdown, setScreenShareCountdown] = useState(0);
   const screenShareCountdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [isGameFinished, setIsGameFinished] = useState(false);
   const [isGamePaused, setIsGamePaused] = useState(false); // 게임 일시 정지 상태 추가
   const [isCheatDetectionActive, setIsCheatDetectionActive] = useState(true);
+  const [isSolvingAlone, setIsSolvingAlone] = useState(false);
   const isConfirmedExitRef = useRef(false);
   const [problem, setProblem] = useState<any>(null);
   const problemId = problem?.id ?? problem?.problem_id;
@@ -169,7 +172,12 @@ const BattlePage = () => {
           console.log('BattlePage: Match result received:', data);
           try {
             localStorage.setItem('matchResult', JSON.stringify(data));
-            navigate('/result', { state: { matchResult: data } });
+            if (data.reason === 'surrender' && data.winner === user.user_id) {
+              setIsGameFinished(true);
+              setShowSurrenderModal(true);
+            } else {
+              navigate('/result', { state: { matchResult: data } });
+            }
           } catch (e) {
             console.error('BattlePage: Failed to save match result or navigate:', e);
           }
@@ -343,7 +351,7 @@ const BattlePage = () => {
   }, [websocket, user, gameId, connect]);
 
   useEffect(() => {
-    if (isGamePaused) return;
+    if (isGamePaused || isGameFinished) return;
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -356,7 +364,7 @@ const BattlePage = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [sendMessage, isGamePaused]);
+  }, [sendMessage, isGamePaused, isGameFinished]);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -386,12 +394,13 @@ const BattlePage = () => {
   const handleSurrenderButtonClick = useCallback(() => {
     setIsExitModalOpen(true);
     setConfirmExitCallback(() => () => {
+      cleanupScreenShare();
       sendMessage(JSON.stringify({ type: "match_result", reason: "surrender" }));
     });
     setCancelExitCallback(() => () => {
       setIsExitModalOpen(false);
     });
-  }, [sendMessage]);
+  }, [sendMessage, cleanupScreenShare]);
 
   const handleConfirmExit = useCallback(() => {
     isConfirmedExitRef.current = true;
@@ -523,10 +532,64 @@ const BattlePage = () => {
     navigate('/result');
   };
 
+  const handleContinueAlone = () => {
+    setIsCheatDetectionActive(false); // 부정행위 감지 끄기
+    setIsGamePaused(false); // 게임 일시정지 해제
+    setShowScreenShareRequiredModal(false); // 화면공유 요구 모달 끄기
+    if (screenShareCountdownIntervalRef.current) {
+      clearInterval(screenShareCountdownIntervalRef.current);
+    }
+
+    // 내 화면 공유 중지
+    if (sharedLocalStream) {
+      sharedLocalStream.getTracks().forEach(track => track.stop());
+      setLocalStream(null);
+    }
+    setIsLocalStreamActive(false);
+
+    // 상대 화면 공유 중지
+    if (sharedRemoteStream) {
+      sharedRemoteStream.getTracks().forEach(track => track.stop());
+      setRemoteStream(null);
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+    }
+    setIsRemoteStreamActive(false);
+
+    // 모든 화면 공유 관련 프롬프트 숨기기
+    setShowLocalScreenSharePrompt(false);
+    setShowRemoteScreenSharePrompt(false);
+    setShowScreenSharePrompt(false);
+
+    // WebRTC 연결 종료
+    if (sharedPC) {
+      sharedPC.close();
+      setPeerConnection(null);
+    }
+
+    setIsSolvingAlone(true); // 혼자 풀기 모드 활성화
+  }
+
   const handleStay = () => {
     setShowOpponentLeftModal(false);
-    setIsCheatDetectionActive(false);
+    handleContinueAlone();
   };
+
+  const handleSurrenderStay = () => {
+    setShowSurrenderModal(false);
+    handleContinueAlone();
+  };
+
+  const handleSurrenderLeave = () => {
+    const stored = localStorage.getItem('matchResult');
+    if (stored) {
+      navigate('/result', { state: { matchResult: JSON.parse(stored) } });
+    } else {
+      navigate('/result');
+    }
+  };
+
 
   const handleLeave = () => {
     cleanupScreenShare();
@@ -593,19 +656,28 @@ const BattlePage = () => {
               </span>
             </div>
             <div className="flex items-center space-x-3">
-              <CyberButton onClick={handleSurrenderButtonClick} size="sm" variant="secondary">
-                <Flag className="mr-1 h-4 w-4" />
-                항복
-              </CyberButton>
+              {!isSolvingAlone && (
+                <CyberButton onClick={handleSurrenderButtonClick} size="sm" variant="secondary">
+                  <Flag className="mr-1 h-4 w-4" />
+                  항복
+                </CyberButton>
+              )}
               <CyberButton onClick={handleReportClick} size="sm" variant="secondary">
                 <AlertTriangle className="mr-1 h-4 w-4" />
                 신고
               </CyberButton>
-              {(!isLocalStreamActive && !isRemoteStreamActive) && (
-                <CyberButton onClick={startLocalScreenShare} size="sm">
-                  <Monitor className="mr-1 h-4 w-4" />
-                  화면 공유 시작
+              {isSolvingAlone ? (
+                <CyberButton onClick={handleSurrenderLeave} size="sm">
+                  <LogOut className="mr-1 h-4 w-4" />
+                  나가기
                 </CyberButton>
+              ) : (
+                (!isLocalStreamActive && !isRemoteStreamActive) && (
+                  <CyberButton onClick={startLocalScreenShare} size="sm">
+                    <Monitor className="mr-1 h-4 w-4" />
+                    화면 공유 시작
+                  </CyberButton>
+                )
               )}
             </div>
           </div>
@@ -798,6 +870,11 @@ const BattlePage = () => {
         isOpen={showOpponentLeftModal}
         onStay={handleStay}
         onLeave={handleLeave}
+      />
+      <OpponentSurrenderModal
+        isOpen={showSurrenderModal}
+        onStay={handleSurrenderStay}
+        onLeave={handleSurrenderLeave}
       />
       <ScreenShareRequiredModal
         isOpen={showScreenShareRequiredModal}
