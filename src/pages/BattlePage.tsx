@@ -224,14 +224,18 @@ const BattlePage = () => {
           if (!isMe) {
             setIsRemoteStreamActive(true);
             setShowRemoteScreenSharePrompt(false);
-            setIsGamePaused(false); // 상대방 화면 공유 재개 시 게임 재개
+            if (isLocalStreamActive) {
+              setIsGamePaused(false); // 두 사용자가 모두 공유 중일 때만 게임 재개
+            }
           } else {
             // 자신이 화면 공유를 재개한 경우 (서버로부터의 확인 메시지)
             if (screenShareCountdownIntervalRef.current) {
               clearInterval(screenShareCountdownIntervalRef.current);
             }
             setShowScreenShareRequiredModal(false);
-            setIsGamePaused(false); // 자신의 화면 공유 재개 시 게임 재개
+            if (isRemoteStreamActive) {
+              setIsGamePaused(false); // 두 사용자가 모두 공유 중일 때만 게임 재개
+            }
           }
         }
       } catch (e) {
@@ -401,7 +405,9 @@ const BattlePage = () => {
       if (screenShareCountdownIntervalRef.current) {
         clearInterval(screenShareCountdownIntervalRef.current);
       }
-      setIsGamePaused(false); // 화면 공유 재시작 성공 시 게임 재개
+      if (isRemoteStreamActive) {
+        setIsGamePaused(false); // 두 사용자가 모두 공유 중일 때만 게임 재개
+      }
 
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
@@ -436,7 +442,7 @@ const BattlePage = () => {
       console.error("Error starting screen share:", error);
       setShowLocalScreenSharePrompt(true);
     }
-  }, [createPeerConnection, sendMessage, cleanupScreenShare]);
+  }, [createPeerConnection, sendMessage, cleanupScreenShare, isRemoteStreamActive]);
 
   const handleRun = async () => {
     setExecutionResult("코드를 실행하고 있습니다...");
