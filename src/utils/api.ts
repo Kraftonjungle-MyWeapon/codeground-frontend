@@ -1,64 +1,38 @@
-import { getCookie, eraseCookie } from "@/lib/utils";
-import { AwardIcon } from "lucide-react";
+import axios from "axios";
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
-export async function authFetch(
-  input: RequestInfo | URL,
-  init?: RequestInit,
-): Promise<Response> {
-  const authInit: RequestInit = {
-    ...init,
-    credentials: "include",
-  };
+const api = axios.create({
+  baseURL: apiUrl,
+  withCredentials: true,
+});
 
-  const response = await fetch(input, authInit);
-
-  if(response.status == 401) {
-    window.location.href = "/login";
-  }
-
-  return response;
-}
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  },
+);
 
 export async function getRankings(language: string = "python3") {
-  const response = await authFetch(`${apiUrl}/api/v1/ranking/?language=${language}`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch rankings");
-  }
-  return response.json();
+  const response = await api.get(`/api/v1/ranking/?language=${language}`);
+  return response.data;
 }
 
-
 export async function getUserProfile() {
-  const response = await authFetch(`${apiUrl}/api/v1/users/me`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch user profile");
-  }
-  return response.json();
+  const response = await api.get(`/api/v1/users/me`);
+  return response.data;
 }
 
 export async function updateUserProfile(nickname: string, use_lang: string) {
-  const response = await authFetch(`${apiUrl}/api/v1/users/me`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ nickname, use_lang }),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to update user profile");
-  }
-  return response.json();
+  const response = await api.put(`/api/v1/users/me`, { nickname, use_lang });
+  return response.data;
 }
 
 export async function getUserWinRate(userId: number) {
-  const response = await authFetch(
-    `${apiUrl}/api/v1/analysis/users/${userId}/win-rate`,
-  );
-  if (!response.ok) {
-    throw new Error("Failed to fetch user win rate");
-  }
-  return response.json();
+  const response = await api.get(`/api/v1/analysis/users/${userId}/win-rate`);
+  return response.data;
 }
