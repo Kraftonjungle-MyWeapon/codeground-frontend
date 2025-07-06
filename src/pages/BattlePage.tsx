@@ -17,6 +17,7 @@ import { authFetch } from '@/utils/api';
 import useCheatDetection, { ReportPayload } from '@/hooks/useCheatDetection';
 import ReportModal from '@/components/ReportModal';
 import { OpponentLeftModal } from '@/components/OpponentLeftModal';
+import { ScreenShareRequiredModal } from '@/components/ScreenShareRequiredModal';
 import hljs from 'highlight.js/lib/core';
 import python from 'highlight.js/lib/languages/python';
 import 'highlight.js/styles/vs2015.css';
@@ -46,11 +47,16 @@ const BattlePage = () => {
   const [runStatus, setRunStatus] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [isLocalStreamActive, setIsLocalStreamActive] = useState(true);
+  const [showLocalScreenSharePrompt, setShowLocalScreenSharePrompt] = useState(false);
   const [showScreenSharePrompt, setShowScreenSharePrompt] = useState(false);
   const [isRemoteStreamActive, setIsRemoteStreamActive] = useState(true);
   const [showRemoteScreenSharePrompt, setShowRemoteScreenSharePrompt] = useState(false);
   const [isLeavingGame, setIsLeavingGame] = useState(false);
   const [showOpponentLeftModal, setShowOpponentLeftModal] = useState(false);
+  const [showScreenShareRequiredModal, setShowScreenShareRequiredModal] = useState(false);
+  const [screenShareCountdown, setScreenShareCountdown] = useState(0);
+  const screenShareCountdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [isGamePaused, setIsGamePaused] = useState(false); // 게임 일시 정지 상태 추가
   const [isCheatDetectionActive, setIsCheatDetectionActive] = useState(true);
   const isConfirmedExitRef = useRef(false);
   const [problem, setProblem] = useState<any>(null);
@@ -99,6 +105,7 @@ const BattlePage = () => {
         remoteVideoTrack.onended = () => {
           setIsRemoteStreamActive(false);
           setShowRemoteScreenSharePrompt(true);
+          sendMessage(JSON.stringify({ type: 'screen_share_stopped' }));
         };
       }
     };
@@ -165,6 +172,67 @@ const BattlePage = () => {
               type: 'system',
             },
           ]);
+        } else if (data.type === 'screen_share_stopped') {
+          console.log("Received screen_share_stopped message:", data);
+          const isMe = data.user_id === user.user_id;
+          console.log("isMe:", isMe, "data.user_id:", data.user_id, "user.user_id:", user.user_id);
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              user: '시스템',
+              message: isMe ? '내 화면 공유가 중지되었습니다.' : '상대방 화면 공유가 중지되었습니다.',
+              type: 'system',
+            },
+          ]);
+          if (!isMe) {
+            setIsRemoteStreamActive(false);
+            setShowRemoteScreenSharePrompt(true);
+            setIsGamePaused(true); // 상대방 화면 공유 중단 시 게임 일시 정지
+          } else {
+            // 자신이 화면 공유를 중지한 경우
+            console.log("Setting showScreenShareRequiredModal to true.");
+            setShowScreenShareRequiredModal(true);
+            setScreenShareCountdown(60); // 1분 (60초) 카운트다운 시작
+            if (screenShareCountdownIntervalRef.current) {
+              clearInterval(screenShareCountdownIntervalRef.current);
+            }
+            screenShareCountdownIntervalRef.current = setInterval(() => {
+              setScreenShareCountdown((prev) => {
+                if (prev <= 1) {
+                  clearInterval(screenShareCountdownIntervalRef.current!); // 카운트다운 종료
+                  // 1분 안에 화면 공유를 다시 시작하지 않으면 항복 처리
+                  sendMessage(JSON.stringify({ type: "match_result", reason: "surrender" }));
+                  navigate('/result'); // 결과 페이지로 이동
+                  return 0;
+                }
+                return prev - 1;
+              });
+            }, 1000);
+            setIsGamePaused(true); // 자신의 화면 공유 중단 시 게임 일시 정지
+          }
+        } else if (data.type === 'screen_share_started') {
+          console.log("Received screen_share_started message:", data);
+          const isMe = data.user_id === user.user_id;
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              user: '시스템',
+              message: isMe ? '내 화면 공유가 재개되었습니다.' : '상대방 화면 공유가 재개되었습니다.',
+              type: 'system',
+            },
+          ]);
+          if (!isMe) {
+            setIsRemoteStreamActive(true);
+            setShowRemoteScreenSharePrompt(false);
+            setIsGamePaused(false); // 상대방 화면 공유 재개 시 게임 재개
+          } else {
+            // 자신이 화면 공유를 재개한 경우 (서버로부터의 확인 메시지)
+            if (screenShareCountdownIntervalRef.current) {
+              clearInterval(screenShareCountdownIntervalRef.current);
+            }
+            setShowScreenShareRequiredModal(false);
+            setIsGamePaused(false); // 자신의 화면 공유 재개 시 게임 재개
+          }
         }
       } catch (e) {
         console.error('BattlePage: ws message parse error', e);
@@ -173,11 +241,15 @@ const BattlePage = () => {
   }, [websocket, user, handleSignal]);
 
   const cleanupScreenShare = useCallback(() => {
+    const { websocket } = useWebSocketStore.getState(); // 최신 websocket 인스턴스를 직접 가져옴
     if (sharedLocalStream) {
       sharedLocalStream.getTracks().forEach(track => track.stop());
       setLocalStream(null);
+      setIsLocalStreamActive(false);
+      setShowLocalScreenSharePrompt(true);
+      sendMessage(JSON.stringify({ type: 'screen_share_stopped' }));
     }
-  }, []);
+  }, [sendMessage]);
 
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
   const [confirmExitCallback, setConfirmExitCallback] = useState<(() => void) | null>(null);
@@ -217,6 +289,21 @@ const BattlePage = () => {
   }, [sharedLocalStream, sharedRemoteStream]);
 
   useEffect(() => {
+    if (sharedLocalStream) {
+      const videoTrack = sharedLocalStream.getVideoTracks()[0];
+      if (videoTrack) {
+        const handleEnded = () => {
+          cleanupScreenShare();
+        };
+        videoTrack.onended = handleEnded;
+        return () => {
+          videoTrack.onended = null;
+        };
+      }
+    }
+  }, [sharedLocalStream, cleanupScreenShare]);
+
+  useEffect(() => {
     const storedWebsocketUrl = localStorage.getItem('websocketUrl');
     let wsUrl: string | null = null;
 
@@ -238,6 +325,7 @@ const BattlePage = () => {
   }, [websocket, user, gameId, connect]);
 
   useEffect(() => {
+    if (isGamePaused) return;
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -250,7 +338,7 @@ const BattlePage = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [sendMessage]);
+  }, [sendMessage, isGamePaused]);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -302,6 +390,53 @@ const BattlePage = () => {
       cancelExitCallback();
     }
   }, [cancelExitCallback]);
+
+  const startLocalScreenShare = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      setLocalStream(stream);
+      setIsLocalStreamActive(true);
+      setShowLocalScreenSharePrompt(false);
+      setShowScreenShareRequiredModal(false); // 화면 공유 재시작 성공 시 모달 닫기
+      if (screenShareCountdownIntervalRef.current) {
+        clearInterval(screenShareCountdownIntervalRef.current);
+      }
+      setIsGamePaused(false); // 화면 공유 재시작 성공 시 게임 재개
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      let pc = sharedPC;
+      if (!pc) {
+        pc = createPeerConnection();
+      }
+
+      // 기존 트랙 제거
+      pc.getSenders().forEach(sender => {
+        if (sender.track && sender.track.kind === 'video') {
+          pc.removeTrack(sender);
+        }
+      });
+
+      // 새 트랙 추가
+      stream.getTracks().forEach(track => {
+        pc.addTrack(track, stream);
+      });
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      sendMessage(JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription }));
+      sendMessage(JSON.stringify({ type: 'screen_share_started' })); // 화면 공유 재시작 메시지 전송
+
+      stream.getVideoTracks()[0].onended = () => {
+        cleanupScreenShare();
+      };
+    } catch (error) {
+      console.error("Error starting screen share:", error);
+      setShowLocalScreenSharePrompt(true);
+    }
+  }, [createPeerConnection, sendMessage, cleanupScreenShare]);
 
   const handleRun = async () => {
     setExecutionResult("코드를 실행하고 있습니다...");
@@ -448,6 +583,12 @@ const BattlePage = () => {
                 <AlertTriangle className="mr-1 h-4 w-4" />
                 신고
               </CyberButton>
+              {(!isLocalStreamActive && !isRemoteStreamActive) && (
+                <CyberButton onClick={startLocalScreenShare} size="sm">
+                  <Monitor className="mr-1 h-4 w-4" />
+                  화면 공유 시작
+                </CyberButton>
+              )}
             </div>
           </div>
         </div>
@@ -589,6 +730,7 @@ const BattlePage = () => {
                           spellCheck={false}
                           className="w-full h-full absolute top-0 left-0 bg-transparent px-3 py-3 font-mono resize-none focus:outline-none text-sm leading-5 border-none"
                           style={{ fontFamily: languageConfig.fontFamily, tabSize: languageConfig.indentSize, color: 'transparent', caretColor: '#ffffff' }}
+                          readOnly={isGamePaused}
                         />
                       </div>
                     </div>
@@ -601,11 +743,11 @@ const BattlePage = () => {
                   <div className="flex items-center justify-between px-3 py-1 border-b border-gray-700/50">
                     <h3 className="text-sm font-semibold text-cyber-blue">실행 결과</h3>
                     <div className="flex space-x-1">
-                      <CyberButton onClick={handleRun} size="sm" variant="secondary" className="px-6">
+                      <CyberButton onClick={handleRun} size="sm" variant="secondary" className="px-6" disabled={isGamePaused}>
                         <Play className="mr-1 h-3 w-3" />
                         실행
                       </CyberButton>
-                      <CyberButton onClick={handleSubmit} size="sm" className="px-6">
+                      <CyberButton onClick={handleSubmit} size="sm" className="px-6" disabled={isGamePaused}>
                         제출
                       </CyberButton>
                     </div>
@@ -638,6 +780,11 @@ const BattlePage = () => {
         isOpen={showOpponentLeftModal}
         onStay={handleStay}
         onLeave={handleLeave}
+      />
+      <ScreenShareRequiredModal
+        isOpen={showScreenShareRequiredModal}
+        countdown={screenShareCountdown}
+        onRestartScreenShare={startLocalScreenShare}
       />
     </div>
   );

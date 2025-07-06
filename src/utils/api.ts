@@ -1,4 +1,4 @@
-import { getCookie, eraseCookie } from "@/lib/utils";
+import { eraseCookie } from "@/lib/utils";
 import { AwardIcon } from "lucide-react";
 
 const apiUrl = import.meta.env.VITE_API_URL;
@@ -9,12 +9,13 @@ export async function authFetch(
 ): Promise<Response> {
   const authInit: RequestInit = {
     ...init,
-    credentials: "include",
+    credentials: "include", // Ensure cookies are sent with cross-origin requests
   };
 
   const response = await fetch(input, authInit);
 
-  if(response.status == 401) {
+  if (response.status === 401) {
+    eraseCookie("access_token"); // This might not be necessary if the cookie is httponly, but good for cleanup
     window.location.href = "/login";
   }
 
