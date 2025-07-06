@@ -56,6 +56,7 @@ const BattlePage = () => {
   const [showScreenShareRequiredModal, setShowScreenShareRequiredModal] = useState(false);
   const [screenShareCountdown, setScreenShareCountdown] = useState(0);
   const screenShareCountdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [isGameFinished, setIsGameFinished] = useState(false);
   const [isGamePaused, setIsGamePaused] = useState(false); // 게임 일시 정지 상태 추가
   const [isCheatDetectionActive, setIsCheatDetectionActive] = useState(true);
   const isConfirmedExitRef = useRef(false);
@@ -79,6 +80,7 @@ const BattlePage = () => {
     setPeerConnection(pc);
 
     pc.oniceconnectionstatechange = () => {
+      if (isGameFinished) return;
       if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
         setShowScreenSharePrompt(true);
         setRemoteStream(null);
@@ -103,6 +105,7 @@ const BattlePage = () => {
       const remoteVideoTrack = stream.getVideoTracks()[0];
       if (remoteVideoTrack) {
         remoteVideoTrack.onended = () => {
+          if (isGameFinished) return;
           setIsRemoteStreamActive(false);
           setShowRemoteScreenSharePrompt(true);
           sendMessage(JSON.stringify({ type: 'screen_share_stopped' }));
@@ -162,7 +165,18 @@ const BattlePage = () => {
               type: 'system',
             },
           ]);
+        } else if (data.type === 'match_result') {
+          console.log('BattlePage: Match result received:', data);
+          try {
+            localStorage.setItem('matchResult', JSON.stringify(data));
+            navigate('/result', { state: { matchResult: data } });
+          } catch (e) {
+            console.error('BattlePage: Failed to save match result or navigate:', e);
+          }
+        } else if (data.type === 'game_over') {
+          navigate('/result');
         } else if (data.type === 'opponent_left') {
+          setIsGameFinished(true);
           setShowOpponentLeftModal(true);
           setChatMessages((prev) => [
             ...prev,
@@ -372,13 +386,12 @@ const BattlePage = () => {
   const handleSurrenderButtonClick = useCallback(() => {
     setIsExitModalOpen(true);
     setConfirmExitCallback(() => () => {
-      // performSurrenderAction();
-      navigate('/result');
+      sendMessage(JSON.stringify({ type: "match_result", reason: "surrender" }));
     });
     setCancelExitCallback(() => () => {
       setIsExitModalOpen(false);
     });
-  }, [navigate]);
+  }, [sendMessage]);
 
   const handleConfirmExit = useCallback(() => {
     isConfirmedExitRef.current = true;
@@ -511,7 +524,6 @@ const BattlePage = () => {
   };
 
   const handleStay = () => {
-    cleanupScreenShare();
     setShowOpponentLeftModal(false);
     setIsCheatDetectionActive(false);
   };
