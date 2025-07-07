@@ -12,6 +12,7 @@ import { getLanguageConfig } from '@/utils/languageConfig';
 import { CodeEditorHandler } from '@/utils/codeEditorHandlers';
 import usePreventNavigation from '@/hooks/usePreventNavigation';
 import GameExitModal from '@/components/GameExitModal';
+import SubmitConfirmModal from '@/components/SubmitConfirmModal';
 import useWebSocketStore from '@/stores/websocketStore';
 import { authFetch } from '@/utils/api';
 import useCheatDetection, { ReportPayload } from '@/hooks/useCheatDetection';
@@ -314,6 +315,7 @@ const BattlePage = () => {
   }, [sendMessage]);
 
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [confirmExitCallback, setConfirmExitCallback] = useState<(() => void) | null>(null);
   const [cancelExitCallback, setCancelExitCallback] = useState<(() => void) | null>(null);
 
@@ -533,6 +535,7 @@ const BattlePage = () => {
     setRunStatus(null);
 
     try {
+      const matchId = localStorage.getItem('currentMatchId');
       const response = await authFetch(
         `${apiUrl}/api/v1/game/submit`,
         {
@@ -545,6 +548,7 @@ const BattlePage = () => {
             language: "python",
             code,
             problem_id: `${problemId}`,
+            match_id: matchId,
           }),
         },
       );
@@ -570,10 +574,10 @@ const BattlePage = () => {
           if (line.startsWith("data:")) {
             const data = JSON.parse(line.slice(5));
             if (data.type === "progress") {
-              setExecutionResult(
+                setExecutionResult(
                 (prev) =>
-                  `${prev}\n[${data.index + 1}/${data.total}] stdout: ${data.result.stdout}`,
-              );
+                  `${prev}\n[${data.index + 1}/${data.total}] duration: ${Number(data.result.duration).toFixed(2)} ms, memoryUsed: ${data.result.memoryUsed} KB, status: ${data.result.status}`,
+                );
             } else if (data.type === "final") {
               setExecutionResult(
                 (prev) =>
@@ -590,10 +594,24 @@ const BattlePage = () => {
   };
 
   const handleSubmit = () => {
+    if (runStatus === '성공') {
+      cleanupScreenShare(); // 코드 제출 시 화면 공유 중단
+      navigate('/result');
+    } else {
+      setIsSubmitModalOpen(true);
+    }
+  };
+
+  const handleConfirmSubmit = () => {
+    setIsSubmitModalOpen(false);
     cleanupScreenShare();
     navigate('/result');
   };
 
+      
+  const handleCancelSubmit = () => {
+    setIsSubmitModalOpen(false);
+          
   const handleContinueAlone = () => {
     setIsCheatDetectionActive(false); // 부정행위 감지 끄기
     setIsGamePaused(false); // 게임 일시정지 해제
@@ -930,6 +948,11 @@ const BattlePage = () => {
         isOpen={isExitModalOpen}
         onConfirmExit={handleConfirmExit}
         onCancelExit={handleCancelExit}
+      />
+      <SubmitConfirmModal
+        isOpen={isSubmitModalOpen}
+        onConfirm={handleConfirmSubmit}
+        onCancel={handleCancelSubmit}
       />
       <ReportModal
         isOpen={isReportModalOpen}
