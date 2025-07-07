@@ -7,11 +7,11 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import CyberLoadingSpinner from "@/components/CyberLoadingSpinner";
 import NavigationHandler from './components/NavigationHandler';
-const Index = lazy(() => import("./pages/Index"));
+const HomePage = lazy(() => import("./pages/home/HomePage"));
 const LandingPage = lazy(() => import("./pages/landing/LandingPage"));
 const LoginPage = lazy(() => import("./pages/login/LoginPage"));
-const SignupPage = lazy(() => import("./pages/SignupPage"));
-const ProfileSetupPage = lazy(() => import("./pages/ProfileSetupPage"));
+const SignupPage = lazy(() => import("./pages/signup/SignupPage"));
+const ProfileSetupPage = lazy(() => import("./pages/setup-profile/ProfileSetupPage"));
 const MatchingPage = lazy(() => import("./pages/matching/MatchingPage"));
 const WaitingRoomPage = lazy(() => import("./pages/WaitingRoomPage"));
 const ScreenShareSetupPage = lazy(() => import("./pages/ScreenShareSetupPage"));
@@ -21,7 +21,7 @@ const TierPromotionPage = lazy(() => import("./pages/TierPromotionPage"));
 const TierDemotionPage = lazy(() => import("./pages/TierDemotionPage"));
 const RankingPage = lazy(() => import("./pages/RankingPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
-const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 import { useEffect } from "react";
@@ -80,7 +80,7 @@ const App = () => {
                   <Route path="/signup" element={<SignupPage />} />
                   {/* Protected Routes */}
                   <Route element={<ProtectedRoute />}>
-                    <Route path="/home" element={<Index />} />
+                    <Route path="/home" element={<HomePage />} />
                     <Route path="/setup-profile" element={<ProfileSetupPage />} />
                     <Route path="/matching" element={<MatchingPage />} />
                     <Route path="/waiting-room" element={<WaitingRoomPage />} />

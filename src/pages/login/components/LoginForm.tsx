@@ -3,6 +3,8 @@ import { useNavigate, Link } from "react-router-dom";
 import CyberCard from "@/components/CyberCard";
 import CyberButton from "@/components/CyberButton";
 import { LogIn, Mail, Lock } from "lucide-react";
+import AuthHeader from "@/components/auth/AuthHeader";
+import IconInput from "@/components/auth/IconInput";
 import { useUser } from "../../../context/UserContext";
 import { authFetch } from "../../../utils/api";
 import { setCookie } from "@/lib/utils";
@@ -108,69 +110,32 @@ const LoginForm = () => {
 
   return (
     <CyberCard glowing className="p-8">
-      <div className="text-center mb-8">
-        <Link to="/" className="inline-block mb-6">
-          <div className="flex flex-col items-center space-y-2">
-            <img
-              src="/lovable-uploads/af0ff57a-93d9-40b0-a0ff-1f22a23418ce.png"
-              alt="Codeground Logo"
-              className="h-16 w-auto select-none pointer-events-none"
-              draggable="false"
-            />
-            <span className="text-2xl font-bold text-cyber-blue">
-              CODEGROUND
-            </span>
-          </div>
-        </Link>
-        <h1 className="text-2xl font-bold text-white mb-2">로그인</h1>
-        <p className="text-gray-400">계정에 로그인하세요</p>
-      </div>
+      <AuthHeader title="로그인" description="계정에 로그인하세요" />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-300 mb-2"
-            >
-              이메일
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full pl-10 pr-4 py-3 bg-black/20 border border-gray-600 rounded-lg focus:border-cyber-blue focus:outline-none focus:ring-2 focus:ring-cyber-blue/20 text-white placeholder-gray-400"
-                placeholder="이메일을 입력하세요"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-300 mb-2"
-            >
-              비밀번호
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className="w-full pl-10 pr-4 py-3 bg-black/20 border border-gray-600 rounded-lg focus:border-cyber-blue focus:outline-none focus:ring-2 focus:ring-cyber-blue/20 text-white placeholder-gray-400"
-                placeholder="비밀번호를 입력하세요"
-                required
-              />
-            </div>
-          </div>
+          <IconInput
+              id="email"
+              name="email"
+              type="email"
+              label="이메일"
+              placeholder="이메일을 입력하세요"
+              value={formData.email}
+              onChange={handleChange}
+              icon={<Mail />}
+              required
+          />
+          <IconInput
+            id="password"
+            name="password"
+            type="password"
+            label="비밀번호"
+            placeholder="비밀번호를 입력하세요"
+            value={formData.password}
+            onChange={handleChange}
+            icon={<Lock />}
+            required
+          />
         </div>
 
         <CyberButton
@@ -183,22 +148,22 @@ const LoginForm = () => {
         </CyberButton>
       </form>
 
-        {/* GitHub 로그인 버튼 추가  */}
-        <div className="mt-4 text-center">
-            <CyberButton
-                type="button"
-                className="w-full text-lg py-3 flex items-center justify-center gap-2"
-                onClick={handleGithubLogin}
-                disabled={isLoggingIn}
-            >
-                <img
-                src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
-                alt="GitHub"
-                className="h-5 w-5"
-                />
-              {isLoggingIn ? "연결 중..." : "GitHub 계정으로 로그인"}
-            </CyberButton>
-        </div>
+      {/* GitHub 로그인 버튼 추가  */}
+      <div className="mt-4 text-center">
+        <CyberButton
+          type="button"
+          className="w-full text-lg py-3 flex items-center justify-center gap-2"
+          onClick={handleGithubLogin}
+          disabled={isLoggingIn}
+        >
+          <img
+            src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+            alt="GitHub"
+            className="h-5 w-5"
+          />
+          {isLoggingIn ? "연결 중..." : "GitHub 계정으로 로그인"}
+        </CyberButton>
+      </div>
       <div className="mt-6 text-center">
         <p className="text-gray-400">
           계정이 없으신가요?{" "}
