@@ -143,7 +143,7 @@ export const useBattleModals = ({
     }
 
     setIsSolvingAlone(true); // 혼자 풀기 모드 활성화
-  }, [setIsCheatDetectionActive, setIsGamePaused, setShowScreenShareRequiredModal, screenShareCountdownIntervalRef, sharedLocalStream, setLocalStream, setIsLocalStreamActive, sharedRemoteStream, setRemoteStream, remoteVideoRef, setIsRemoteStreamActive, setShowLocalScreenSharePrompt, setShowRemoteScreenSharePrompt, setShowScreenSharePrompt, sharedPC, setPeerConnection, setIsSolvingAlone]);
+  }, [setIsCheatDetectionActive, setIsGamePaused, setShowScreenShareRequiredModal, screenShareCountdownIntervalRef, sharedLocalStream, setLocalStream, setIsLocalStreamActive, sharedRemoteStream, setRemoteStream, remoteVideoRef, setIsRemoteStreamActive, setShowLocalScreenSharePrompt, setShowRemoteScreenSharePrompt, setShowScreenSharePrompt, sharedPC, setPeerConnection]);
 
   const handleStay = useCallback(() => {
     setShowOpponentLeftModal(false);

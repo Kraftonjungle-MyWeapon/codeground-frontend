@@ -210,7 +210,12 @@ export const useBattleWebSocket = ({
             // }
           }
         } else if (data.type === 'match_accepted') {
-          setProblem(data.problem);
+          if (data.problem) {
+            setProblem(data.problem);
+            console.log("Problem received via WebSocket:", data.problem);
+          } else {
+            console.error("WebSocket: 'match_accepted' message received but data.problem is missing or null.", data);
+          }
         }
       } catch (e) {
         console.error('BattlePage: ws message parse error', e);
