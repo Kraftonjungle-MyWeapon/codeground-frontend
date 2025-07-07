@@ -611,6 +611,7 @@ const BattlePage = () => {
       
   const handleCancelSubmit = () => {
     setIsSubmitModalOpen(false);
+  };
           
   const handleContinueAlone = () => {
     setIsCheatDetectionActive(false); // 부정행위 감지 끄기
