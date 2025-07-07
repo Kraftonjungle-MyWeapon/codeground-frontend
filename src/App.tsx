@@ -12,7 +12,7 @@ const LandingPage = lazy(() => import("./pages/LandingPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const SignupPage = lazy(() => import("./pages/SignupPage"));
 const ProfileSetupPage = lazy(() => import("./pages/ProfileSetupPage"));
-const MatchingPage = lazy(() => import("./pages/MatchingPage"));
+const MatchingPage = lazy(() => import("./pages/matching/MatchingPage"));
 const WaitingRoomPage = lazy(() => import("./pages/WaitingRoomPage"));
 const ScreenShareSetupPage = lazy(() => import("./pages/ScreenShareSetupPage"));
 const BattlePage = lazy(() => import("./pages/BattlePage"));
