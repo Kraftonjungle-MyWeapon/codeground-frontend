@@ -93,9 +93,43 @@ export async function fetchProblemForGame(
     );
     console.log(`Problem for game ${game_id} saved to localStorage.`);
   } catch (error) {
-    console.error("Error fetching or saving problem data:", error);
-    throw error;
+    console.error("Error fetching problem from S3, attempting to fetch from DB:", error);
+    try {
+      // S3에서 실패했으므로, 로컬 DB에서 문제 ID 3번을 가져오도록 시도합니다.
+      // 이 로직은 로컬 테스트 환경에서만 작동합니다.
+      const problemFromDB: ProblemWithImages = await getProblemById(3);
+
+      const problemStatementImages = problemData.image_urls.map((url) => ({
+        url: url,
+        name: url.substring(url.lastIndexOf("/") + 1),
+      }));
+
+      const problemWithImages: ProblemWithImages = {
+        ...problemFromDB,
+        problemStatementImages,
+      };
+
+      localStorage.setItem(
+        `problem_${game_id}`,
+        JSON.stringify(problemWithImages),
+      );
+      console.log(`Problem for game ${game_id} saved to localStorage from DB.`);
+    } catch (dbError) {
+      console.error("Error fetching problem from DB as fallback:", dbError);
+      throw dbError; // DB에서도 실패하면 최종적으로 오류를 던집니다.
+    }
   }
+}
+
+
+export async function getProblemById(problemId: number): Promise<ProblemWithImages> {
+  console.log("getProblemById called with problemId:", problemId);
+  const url = import.meta.env.VITE_API_URL.includes('localhost')
+  const response = await authFetch(`${apiUrl}/api/v1/game/for_local`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch problem from DB");
+  }
+  return response.json();
 }
 
 
