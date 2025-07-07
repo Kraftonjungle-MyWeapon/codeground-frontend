@@ -30,7 +30,7 @@ const apiUrl = import.meta.env.VITE_API_URL;
 interface MatchResult {
   winner: number | null; // winner_id -> winner
   reason: 'finish' | 'timeout' | 'surrender' | 'walkover' | 'late' | 'draw'; // reason 타입 추가
-  myEarnedMmr: number; // mmr_earned -> myEarnedMmr
+  earned: number; // mmr_earned -> earned
   // 상세 결과용 데이터 (추후 확장 가능)
   my_time?: string;
   opponent_time?: string;
@@ -80,7 +80,7 @@ const ResultPage = () => {
   }
 
   // matchResult에서 직접 값 가져오기
-  const { winner, reason, myEarnedMmr } = matchResult; // winner_id -> winner, mmr_earned -> myEarnedMmr
+  const { winner, reason, earned } = matchResult; // winner_id -> winner, mmr_earned -> earned
   const victory = winner === user.user_id;
   const isDraw = winner === null;
 
@@ -127,7 +127,7 @@ const ResultPage = () => {
   }
 
   const initialTotalScore = initialUserTotalScore; // 여기서 고정된 초기 점수 사용
-  const finalTotalScore = initialTotalScore + myEarnedMmr;
+  const finalTotalScore = initialTotalScore + earned;
 
   const initialTierInfo = parseTotalScore(initialTotalScore);
   const finalTierInfo = parseTotalScore(finalTotalScore);
@@ -314,12 +314,12 @@ const ResultPage = () => {
                     <span className="text-3xl font-bold text-gray-300">{initialTierInfo.lp}</span>
                     <div className="flex items-center space-x-3">
                       <div className="w-16 h-1 bg-cyber-blue animate-pulse"></div>
-                      <span className={`text-3xl font-bold ${myEarnedMmr > 0 ? "text-green-400" : myEarnedMmr < 0 ? "text-red-400" : "text-gray-400"} ${animatingLp ? "animate-bounce" : ""}`}>
-                        {`${myEarnedMmr >= 0 ? '+' : ''}${myEarnedMmr}`}
+                      <span className={`text-3xl font-bold ${earned > 0 ? "text-green-400" : earned < 0 ? "text-red-400" : "text-gray-400"} ${animatingLp ? "animate-bounce" : ""}`}>
+                        {`${earned >= 0 ? '+' : ''}${earned}`}
                       </span>
                       <div className="w-16 h-1 bg-cyber-blue animate-pulse"></div>
                     </div>
-                    <span className={`text-4xl font-bold neon-text ${myEarnedMmr > 0 ? "text-green-400" : myEarnedMmr < 0 ? "text-red-400" : "text-gray-400"} ${animatingLp ? "animate-pulse" : ""}`}>
+                    <span className={`text-4xl font-bold neon-text ${earned > 0 ? "text-green-400" : earned < 0 ? "text-red-400" : "text-gray-400"} ${animatingLp ? "animate-pulse" : ""}`}>
                       {displayLp}
                     </span>
                   </div>
