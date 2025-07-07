@@ -5,6 +5,7 @@ import CyberCard from "@/components/CyberCard";
 import CyberButton from "@/components/CyberButton";
 import { User, Clock, Check, X } from "lucide-react";
 import { useUser } from "../context/UserContext";
+import { fetchProblemForGame } from "../utils/api";
 
 const apiUrl = import.meta.env.VITE_API_URL;
 const wsUrl = apiUrl.replace(/^http/, 'ws');
@@ -58,14 +59,19 @@ const MatchingPage = () => {
         // message.opponent_ids를 기반으로 상대방 정보를 여기서 업데이트할 수 있습니다.
       } else if (message.type === "match_accepted") {
         if (message.problem && message.game_id) {
-          localStorage.setItem(
-            `problem_${message.game_id}`,
-            JSON.stringify(message.problem),
-          );
+          try {
+            fetchProblemForGame(message.problem, message.game_id);
+            setOpponentAccepted(true);
+            localStorage.setItem('gameId', message.game_id); // Save game_id to localStorage
+            navigate(`/screen-share-setup?gameId=${message.game_id}`);
+          } catch (error) {
+            console.error("Failed to fetch and save problem:", error);
+            // Handle error appropriately, maybe navigate back home or show an error message
+            navigate("/home");
+          }
+        } else {
+          console.error("match_accepted: problem data or game_id is missing", message);
         }
-        setOpponentAccepted(true);
-        localStorage.setItem('currentGameId', message.game_id); // Save game_id to localStorage
-        navigate(`/screen-share-setup?gameId=${message.game_id}`);
       } else if (message.type === "opponent_accepted") {
         setOpponentAccepted(true);
       } else if (message.type === "match_cancelled") {

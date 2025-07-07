@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '@/context/UserContext';
 import CyberCard from '@/components/CyberCard';
@@ -7,7 +7,7 @@ import { Clock, Play, Send, Monitor, Flag, AlertTriangle, HelpCircle, LogOut } f
 import { localStream as sharedLocalStream, remoteStream as sharedRemoteStream, setLocalStream, peerConnection as sharedPC, setPeerConnection, setRemoteStream } from '@/utils/webrtcStore';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ProgrammingLanguage } from '@/types/codeEditor';
+import { ProblemWithImages, ProgrammingLanguage } from '@/types/codeEditor';
 import { getLanguageConfig } from '@/utils/languageConfig';
 import { CodeEditorHandler } from '@/utils/codeEditorHandlers';
 import usePreventNavigation from '@/hooks/usePreventNavigation';
@@ -368,6 +368,21 @@ const BattlePage = () => {
   }, [sharedLocalStream, cleanupScreenShare]);
 
   useEffect(() => {
+    if (sharedRemoteStream) {
+      const remoteVideoTrack = sharedRemoteStream.getVideoTracks()[0];
+      if (remoteVideoTrack) {
+        remoteVideoTrack.onended = () => {
+          setIsRemoteStreamActive(false);
+          setShowRemoteScreenSharePrompt(true);
+        };
+      }
+    } else {
+      setIsRemoteStreamActive(false);
+      setShowRemoteScreenSharePrompt(true);
+    }
+  }, [sharedLocalStream, sharedRemoteStream, sharedPC]);
+
+  useEffect(() => {
     const storedWebsocketUrl = localStorage.getItem('websocketUrl');
     let wsUrl: string | null = null;
 
@@ -401,7 +416,7 @@ const BattlePage = () => {
       screenShareCountdownIntervalRef.current = setInterval(() => {
         setScreenShareCountdown(prev => {
           if (prev <= 1) {
-            clearInterval(screenShareCountdownIntervalRef.current!);
+            clearInterval(screenShareCountdownIntervalRef.current!); // 카운트다운 종료
             sendMessage(JSON.stringify({ type: 'match_result', reason: 'surrender' }));
             navigate('/result');
             return 0;
@@ -710,7 +725,8 @@ const BattlePage = () => {
       const storedProblem = localStorage.getItem(`problem_${gameId}`);
       if (storedProblem) {
         try {
-          const parsedProblem = JSON.parse(storedProblem);
+          const parsedProblem: ProblemWithImages = JSON.parse(storedProblem);
+          console.log("BattlePage: Parsed problem:", parsedProblem);
           setProblem(parsedProblem);
         } catch (error) {
           console.error("Error parsing problem from localStorage:", error);
@@ -729,6 +745,50 @@ const BattlePage = () => {
 
   const actualLineCount = code ? code.split("\n").length : 1;
   const displayLineCount = Math.max(actualLineCount, 20);
+
+  const imageUrlMap = useMemo(() => {
+    if (!problem?.problemStatementImages) return new Map();
+    return new Map(
+      problem.problemStatementImages.map((image) => [image.name, image.url])
+    );
+  }, [problem]);
+
+  const renderDescription = () => {
+    if (!problem?.description) return null;
+
+    const parts = problem.description.split(/(\n[IMAGE:.*?\n])/g);
+
+    return parts.map((part, index) => {
+      const imageMatch = part.match(/\n[IMAGE:(.*?)\n]/);
+      if (imageMatch) {
+        const imageName = imageMatch[1];
+        const imageUrl = imageUrlMap.get(imageName);
+
+        if (imageUrl) {
+          return (
+            <img
+              key={index}
+              src={imageUrl}
+              alt={imageName}
+              style={{ display: 'block', margin: '1rem auto', maxWidth: '80%' }}
+            />
+          );
+        }
+        return <span key={index} style={{ color: 'red' }}>[이미지 로드 실패: {imageName}]</span>;
+      }
+      
+      return (
+        <span key={index}>
+          {part.split('\n').map((line, i) => (
+            <span key={i}>
+              {line}
+              <br />
+            </span>
+          ))}
+        </span>
+      );
+    });
+  };
 
   return (
     <div ref={containerRef} className="min-h-screen cyber-grid bg-cyber-darker">
@@ -807,19 +867,55 @@ const BattlePage = () => {
                           </div>
                         )}
                         <div>
-                          <p className="text-gray-300 leading-relaxed">{problem.description}</p>
+                          <p className="text-gray-300 leading-relaxed">{renderDescription()}</p>
                         </div>
-                        {problem.examples && (
+                        {/* 1000배로 출력해서 변환 */}
+                        {(problem.time_limit_milliseconds || problem.memory_limit_kilobytes) && (
+                          <div>
+                            <h3 className="text-lg font-semibold text-cyber-blue mb-2">제한 사항</h3>
+                            <ul className="text-gray-300 space-y-1">
+                              {problem.time_limit_milliseconds && (
+                                <li>• 시간 제한: {parseInt(problem.time_limit_milliseconds) / 1000} 초</li>
+                              )}
+                              {problem.memory_limit_kilobytes && (
+                                <li>• 메모리 제한: {parseInt(problem.memory_limit_kilobytes) / 1024} MB</li>
+                              )}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* problem.sample_input과 problem.sample_output이 모두 존재할 때*/}
+                        {problem.sample_input && problem.sample_output && (
                           <div>
                             <h3 className="text-lg font-semibold text-cyber-blue mb-2">입출력 예</h3>
-                            <div className="bg-black/30 p-3 rounded-lg border border-gray-700 space-y-2">
-                              {problem.examples.map((example, index) => (
-                                <div key={index} className="font-mono text-sm">
-                                  <div className="text-gray-400">{example.input}</div>
-                                  <div className="text-green-400">{example.output}</div>
-                                </div>
-                              ))}
+                            <div className="flex space-x-4">
+                              <div className="w-1/2 flex-shrink-0 bg-black/30 p-3 rounded-lg border border-gray-700">
+                                <pre className="font-mono text-sm text-gray-400 whitespace-pre-wrap break-words">{problem.sample_input}</pre>
+                              </div>
+                              <div className="w-1/2 flex-shrink-0 bg-black/30 p-3 rounded-lg border border-gray-700">
+                                <pre className="font-mono text-sm text-green-400 whitespace-pre-wrap break-words">{problem.sample_output}</pre>
+                              </div>
                             </div>
+                          </div>
+                        )}
+
+                        {/* problem.test_cases가 존재하고 public 테스트 케이스가 하나 이상일 때 */}
+                        {problem.test_cases && problem.test_cases.filter(tc => tc.visibility === 'public').length > 0 && (
+                          <div>
+                            <h3 className="text-lg font-semibold text-cyber-blue mb-2">입출력 예 설명</h3>
+                            {problem.test_cases.filter(tc => tc.visibility === 'public').map((testCase, index) => (
+                              <div key={index} className="mb-4">
+                                <h4 className="text-yellow-400 font-medium mb-2">입출력 예 #{index + 1}</h4>
+                                <div className="flex space-x-4">
+                                  <div className="w-1/2 flex-shrink-0 bg-black/30 p-3 rounded-lg border border-gray-700">
+                                    <pre className="font-mono text-sm text-gray-400 whitespace-pre-wrap break-words">{testCase.input}</pre>
+                                  </div>
+                                  <div className="w-1/2 flex-shrink-0 bg-black/30 p-3 rounded-lg border border-gray-700">
+                                    <pre className="font-mono text-sm text-green-400 whitespace-pre-wrap break-words">{testCase.output}</pre>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
