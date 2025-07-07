@@ -12,6 +12,7 @@ import { getLanguageConfig } from '@/utils/languageConfig';
 import { CodeEditorHandler } from '@/utils/codeEditorHandlers';
 import usePreventNavigation from '@/hooks/usePreventNavigation';
 import GameExitModal from '@/components/GameExitModal';
+import SubmitConfirmModal from '@/components/SubmitConfirmModal';
 import useWebSocketStore from '@/stores/websocketStore';
 import { authFetch } from '@/utils/api';
 import hljs from 'highlight.js/lib/core';
@@ -166,6 +167,7 @@ const BattlePage = () => {
   }, []);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [confirmExitCallback, setConfirmExitCallback] = useState<(() => void) | null>(null);
   const [cancelExitCallback, setCancelExitCallback] = useState<(() => void) | null>(null);
 
@@ -554,8 +556,22 @@ const BattlePage = () => {
   };
 
   const handleSubmit = () => {
-    cleanupScreenShare(); // 코드 제출 시 화면 공유 중단
+    if (runStatus === '성공') {
+      cleanupScreenShare(); // 코드 제출 시 화면 공유 중단
+      navigate('/result');
+    } else {
+      setIsSubmitModalOpen(true);
+    }
+  };
+
+  const handleConfirmSubmit = () => {
+    setIsSubmitModalOpen(false);
+    cleanupScreenShare();
     navigate('/result');
+  };
+
+  const handleCancelSubmit = () => {
+    setIsSubmitModalOpen(false);
   };
 
   const toggleHint = () => {
@@ -921,6 +937,11 @@ const BattlePage = () => {
         isOpen={isExitModalOpen}
         onConfirmExit={handleConfirmExit}
         onCancelExit={handleCancelExit}
+      />
+      <SubmitConfirmModal
+        isOpen={isSubmitModalOpen}
+        onConfirm={handleConfirmSubmit}
+        onCancel={handleCancelSubmit}
       />
     </div>
   );
