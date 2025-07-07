@@ -495,6 +495,7 @@ const BattlePage = () => {
     setRunStatus(null);
 
     try {
+      const matchId = localStorage.getItem('currentMatchId');
       const response = await authFetch(
         `${apiUrl}/api/v1/game/submit`,
         {
@@ -507,6 +508,7 @@ const BattlePage = () => {
             language: "python",
             code,
             problem_id: `${problemId}`,
+            match_id: matchId,
           }),
         },
       );
@@ -532,10 +534,10 @@ const BattlePage = () => {
           if (line.startsWith("data:")) {
             const data = JSON.parse(line.slice(5));
             if (data.type === "progress") {
-              setExecutionResult(
+                setExecutionResult(
                 (prev) =>
-                  `${prev}\n[${data.index + 1}/${data.total}] stdout: ${data.result.stdout}`,
-              );
+                  `${prev}\n[${data.index + 1}/${data.total}] duration: ${Number(data.result.duration).toFixed(2)} ms, memoryUsed: ${data.result.memoryUsed} KB, status: ${data.result.status}`,
+                );
             } else if (data.type === "final") {
               setExecutionResult(
                 (prev) =>
