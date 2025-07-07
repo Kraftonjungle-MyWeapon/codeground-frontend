@@ -55,7 +55,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             ...userData,
             ...winRateData,
             totalScore: userData.user_mmr,
-            name: userData.nickname || userData.username,
+            name: userData.nickname,
           });
         } else {
           console.error("Failed to fetch user data:", response.statusText);

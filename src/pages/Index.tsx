@@ -39,7 +39,7 @@ const Index = () => {
   // useUser 훅에서 가져온 user 객체를 직접 사용
   const currentUser = user ? {
     id: user.user_id,
-    name: user.nickname || user.username || 'CyberCoder',
+    name: user.nickname || 'CyberCoder',
     totalScore: user.totalScore || 1580,
     wins: user.win || 87, // 백엔드에서 제공되지 않음
     losses: user.loss || 40, // 백엔드에서 제공되지 않음
