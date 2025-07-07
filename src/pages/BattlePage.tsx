@@ -133,12 +133,35 @@ const BattlePage = () => {
       await pc.setRemoteDescription(new RTCSessionDescription(signal));
     } else if (signal.type === 'candidate' && signal.candidate) {
       await pc.addIceCandidate(signal.candidate);
+    } else if (signal.type === 'join') {
+      if (sharedLocalStream) {
+        pc.getSenders().forEach((sender) => {
+          if (sender.track && sender.track.kind === 'video') {
+            pc.removeTrack(sender);
+          }
+        });
+        sharedLocalStream.getTracks().forEach((track) => {
+          pc.addTrack(track, sharedLocalStream);
+        });
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        sendMessage(
+          JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription })
+        );
+      }
     }
     setPeerConnection(pc);
   }, [createPeerConnection, sendMessage]);
 
   useEffect(() => {
     if (!websocket) return;
+
+    websocket.onopen = () => {
+      console.log('BattlePage WebSocket connected');
+      sendMessage(
+        JSON.stringify({ type: 'webrtc_signal', signal: { type: 'join' } })
+      );
+    };
 
     websocket.onmessage = async (event) => {
       try {
@@ -191,6 +214,19 @@ const BattlePage = () => {
             {
               user: '시스템',
               message: '상대방이 게임을 떠났습니다.',
+              type: 'system',
+            },
+          ]);
+        } else if (data.type === 'opponent_rejoined') {
+          setShowOpponentLeftModal(false);
+          setIsRemoteStreamActive(false);
+          setShowRemoteScreenSharePrompt(true);
+          setIsGamePaused(true);
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              user: '시스템',
+              message: '상대방이 다시 연결되었습니다.',
               type: 'system',
             },
           ]);
@@ -349,6 +385,32 @@ const BattlePage = () => {
       connect(wsUrl);
     }
   }, [websocket, user, gameId, connect]);
+
+  // If the page was refreshed and the local stream is lost, prompt the user to
+  // restart screen sharing.
+  useEffect(() => {
+    if (!websocket || websocket.readyState !== WebSocket.OPEN) return;
+    if (!sharedLocalStream && !showScreenShareRequiredModal && !isGameFinished) {
+      setShowScreenShareRequiredModal(true);
+      setScreenShareCountdown(60);
+      if (screenShareCountdownIntervalRef.current) {
+        clearInterval(screenShareCountdownIntervalRef.current);
+      }
+      screenShareCountdownIntervalRef.current = setInterval(() => {
+        setScreenShareCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(screenShareCountdownIntervalRef.current!);
+            sendMessage(JSON.stringify({ type: 'match_result', reason: 'surrender' }));
+            navigate('/result');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      setIsGamePaused(true);
+    }
+  }, [websocket, showScreenShareRequiredModal, isGameFinished, sendMessage, navigate]);
+
 
   useEffect(() => {
     if (isGamePaused || isGameFinished) return;
@@ -637,6 +699,14 @@ const BattlePage = () => {
       }
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    return () => {
+      if (screenShareCountdownIntervalRef.current) {
+        clearInterval(screenShareCountdownIntervalRef.current);
+      }
+    };
+  }, []);
 
   const actualLineCount = code ? code.split("\n").length : 1;
   const displayLineCount = Math.max(actualLineCount, 20);
