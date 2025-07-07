@@ -14,7 +14,7 @@ const SignupPage = lazy(() => import("./pages/signup/SignupPage"));
 const ProfileSetupPage = lazy(() => import("./pages/setup-profile/ProfileSetupPage"));
 const MatchingPage = lazy(() => import("./pages/matching/MatchingPage"));
 const WaitingRoomPage = lazy(() => import("./pages/waiting-room/WaitingRoomPage"));
-const ScreenShareSetupPage = lazy(() => import("./pages/ScreenShareSetupPage"));
+const ScreenShareSetupPage = lazy(() => import("./pages/ScreenShareSetup/ScreenShareSetupPage"));
 const BattlePage = lazy(() => import("./pages/BattlePage"));
 const ResultPage = lazy(() => import("./pages/ResultPage"));
 const TierPromotionPage = lazy(() => import("./pages/TierPromotionPage"));
