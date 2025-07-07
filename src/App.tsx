@@ -20,9 +20,9 @@ const ResultPage = lazy(() => import("./pages/ResultPage"));
 const TierPromotionPage = lazy(() => import("./pages/TierPromotionPage"));
 const TierDemotionPage = lazy(() => import("./pages/TierDemotionPage"));
 const RankingPage = lazy(() => import("./pages/RankingPage"));
-const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const ProfilePage = lazy(() => import("./pages/profile/ProfilePage"));
 const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+const NotFound = lazy(() => import("./pages/not-found/NotFound"));
 
 import { useEffect } from "react";
 import { useUser } from "./context/UserContext";
