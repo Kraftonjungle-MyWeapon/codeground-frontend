@@ -54,6 +54,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           setUser({
             ...userData,
             ...winRateData,
+            rank : userData.user_rank,
             totalScore: userData.user_mmr,
             name: userData.nickname,
           });
