@@ -29,7 +29,7 @@ const ProfilePage = () => {
 
   const currentUser = {
     user_id: user?.user_id || 0,
-    username: user?.nickname || user?.username || 'CyberCoder',
+    username: user?.nickname || 'CyberCoder',
     email: user?.email || 'cybercoder@example.com',
     joinDate: '2024-01-15', // Not available from backend, keeping dummy
     totalScore: user?.totalScore || 1580,

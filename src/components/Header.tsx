@@ -75,7 +75,7 @@ const Header = () => {
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 hover:bg-cyber-blue/10 text-gray-300 hover:text-cyber-blue">
                     <User className="h-5 w-5" />
-                    <span className="font-medium">{user ? user.username : '프로필'}</span>
+                    <span className="font-medium">{user?.nickname || '프로필'}</span>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-48 bg-card/95 backdrop-blur-sm border border-cyber-blue/20">
