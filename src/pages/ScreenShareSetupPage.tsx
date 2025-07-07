@@ -125,6 +125,7 @@ const ScreenShareSetupPage = () => {
           setMyReady(false);
           setIsCountingDown(false);
           setCountdown(0);
+          sendMessage(JSON.stringify({ type: 'screen_share_stopped' }));
         });
       } else {
         setMyShareStatus("invalid");
@@ -453,6 +454,7 @@ const ScreenShareSetupPage = () => {
             setMyReady(false);
             setIsCountingDown(false);
             setCountdown(0);
+            sendMessage(JSON.stringify({ type: 'screen_share_stopped' }));
         });
       } else {
         setMyShareStatus('invalid');
