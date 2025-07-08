@@ -38,10 +38,8 @@ const LoginForm = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        const accessToken = data.access_token;
-        setCookie("access_token", accessToken, 7);
-
+        await response.json();
+        
         const userResponse = await authFetch(`${apiUrl}/api/v1/user/me`, {
           method: "GET",
           headers: {

@@ -1,6 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
 import { authFetch, getUserWinRate } from "@/utils/api";
-import { getCookie } from "@/lib/utils";
 
 interface User {
   email: string;
@@ -71,14 +70,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    const accessToken = getCookie("access_token");
-    if (accessToken) {
-      fetchUser();
-    } else {
-      setIsLoading(false);
-      setUser(null);
-    }
-  }, [getCookie("access_token")]); // accessToken 변경 시 fetchUser 재실행
+    fetchUser(); // ✅ 무조건 호출. 성공 여부로 인증 상태 판단
+  }, []); // ✅ 불필요한 의존성 제거
 
   return (
     <UserContext.Provider value={{ user, setUser, isLoading, setIsLoading, isError }}>
