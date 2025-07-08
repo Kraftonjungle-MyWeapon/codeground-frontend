@@ -54,7 +54,9 @@ export const useBattleWebSocket = ({
   const opponentScreenShareCountdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const apiUrl = import.meta.env.VITE_API_URL;
-  const wsUrl = apiUrl.replace(/^http/, 'ws');
+  const wsUrl = apiUrl.startsWith('https')
+    ? apiUrl.replace(/^https/, 'wss')
+    : apiUrl.replace(/^http/, 'ws');
 
   useEffect(() => {
     const storedWebsocketUrl = localStorage.getItem('websocketUrl');
