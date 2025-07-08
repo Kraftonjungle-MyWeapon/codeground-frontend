@@ -56,7 +56,9 @@ import BattleCodeEditorPanel from "@/components/BattleCodeEditorPanel";
 import { useBattleModals } from "@/hooks/useBattleModals";
 
 const apiUrl = import.meta.env.VITE_API_URL;
-const wsUrl = apiUrl.replace(/^http/, "ws");
+const wsUrl = apiUrl.startsWith('https')
+    ? apiUrl.replace(/^https/, 'wss')
+    : apiUrl.replace(/^http/, 'ws');
 
 hljs.registerLanguage("python", python);
 

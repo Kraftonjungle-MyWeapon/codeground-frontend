@@ -10,7 +10,9 @@ import {
 import useWebSocketStore from "@/stores/websocketStore";
 
 const apiUrl = import.meta.env.VITE_API_URL;
-const wsUrl = apiUrl.replace(/^http/, "ws");
+const wsUrl = apiUrl.startsWith('https')
+    ? apiUrl.replace(/^https/, 'wss')
+    : apiUrl.replace(/^http/, 'ws');
 
 export function useScreenShareSetup() {
   const navigate = useNavigate();

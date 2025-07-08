@@ -10,7 +10,9 @@ import PlayerCard from "./components/PlayerCard";
 import ChatPanel, { ChatMessage } from "./components/ChatPanel";
 
 const apiUrl = import.meta.env.VITE_API_URL;
-const wsUrl = apiUrl.replace(/^http/, "ws");
+const wsUrl = apiUrl.startsWith('https')
+    ? apiUrl.replace(/^https/, 'wss')
+    : apiUrl.replace(/^http/, 'ws');
 
 const WaitingRoomPage = () => {
   const navigate = useNavigate();
