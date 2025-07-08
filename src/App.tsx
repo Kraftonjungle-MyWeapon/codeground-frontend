@@ -23,6 +23,7 @@ const RankingPage = lazy(() => import("./pages/ranking/RankingPage"));
 const ProfilePage = lazy(() => import("./pages/profile/ProfilePage"));
 const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 const NotFound = lazy(() => import("./pages/not-found/NotFound"));
+const OAuthCallback = lazy(() => import("./pages/login/components/OAuthCallback"));
 
 import { useEffect } from "react";
 import { useUser } from "./context/UserContext";
@@ -78,6 +79,7 @@ const App = () => {
                   <Route path="/" element={<LandingPage />} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/signup" element={<SignupPage />} />
+                  <Route path="/oauth/callback" element={<OAuthCallback />} />
                   {/* Protected Routes */}
                   <Route element={<ProtectedRoute />}>
                     <Route path="/home" element={<HomePage />} />

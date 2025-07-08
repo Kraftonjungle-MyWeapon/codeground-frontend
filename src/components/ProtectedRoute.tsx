@@ -1,7 +1,6 @@
 import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { useUser } from "../context/UserContext";
-import { getCookie } from "@/lib/utils";
 
 interface ProtectedRouteProps {
   children?: React.ReactNode;
@@ -9,14 +8,12 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, isLoading } = useUser();
-  const token = getCookie("access_token");
 
   if (isLoading) {
-    return <div>Loading...</div>; // Or a proper loading spinner component
+    return <div>Loading...</div>; // 또는 CyberLoadingSpinner 같은 컴포넌트 써도 됨
   }
 
-  if (!token || !user) {
-    // User is not authenticated, redirect to the login page
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 

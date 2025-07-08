@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import CyberCard from "@/components/CyberCard";
 import CyberButton from "@/components/CyberButton";
 import { LogIn, Mail, Lock } from "lucide-react";
@@ -13,12 +13,20 @@ const apiUrl = import.meta.env.VITE_API_URL;
 
 const LoginForm = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { setUser } = useUser();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
+  const [formData, setFormData] = useState({ email: "", password: "" });
+
+  // ✅ OAuth 실패 시 메시지 표시 (alert 사용)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const errorMessage = params.get("message");
+    if (errorMessage) {
+      alert(decodeURIComponent(errorMessage));
+      navigate("/login", { replace: true }); // 쿼리 제거
+    }
+  }, [location, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,9 +52,7 @@ const LoginForm = () => {
 
         const userResponse = await authFetch(`${apiUrl}/api/v1/user/me`, {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         });
 
         if (userResponse.ok) {
@@ -59,13 +65,17 @@ const LoginForm = () => {
           alert("로그인이 완료되었습니다!");
           navigate("/home");
         } else {
-          console.error("Failed to fetch user data");
           alert("사용자 정보를 가져오는데 실패했습니다.");
         }
       } else {
         const errorData = await response.json();
-        console.error("Login failed:", errorData);
-        alert("로그인 실패: " + (errorData.detail || "알 수 없는 오류"));
+        if (errorData.detail?.includes("GitHub")) {
+          alert(
+            "이 이메일은 GitHub 계정으로 가입되었습니다. GitHub 로그인을 이용해주세요."
+          );
+        } else {
+          alert("로그인 실패: " + (errorData.detail || "알 수 없는 오류"));
+        }
       }
     } catch (error) {
       console.error("Network error:", error);
@@ -75,55 +85,29 @@ const LoginForm = () => {
     }
   };
 
-  const handleGithubLogin = async () => {
-    setIsLoggingIn(true);
-    try {
-      const response = await authFetch(`${apiUrl}/api/v1/auth/github/login`);
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.redirect_url) {
-          window.location.href = data.redirect_url;
-        } else {
-          console.error("GitHub login redirect URL not found in response");
-          alert("GitHub 로그인에 실패했습니다.");
-        }
-      } else {
-        const errorData = await response.json();
-        console.error("GitHub login failed:", errorData);
-        alert("GitHub 로그인 실패: " + (errorData.detail || "알 수 없는 오류"));
-      }
-    } catch (error) {
-      console.error("Network error during GitHub login:", error);
-      alert("네트워크 오류가 발생했습니다.");
-    } finally {
-      setIsLoggingIn(false);
-    }
+  const handleGithubLogin = () => {
+    window.location.href = `${apiUrl}/api/v1/auth/github/login`;
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   return (
     <CyberCard glowing className="p-8">
       <AuthHeader title="로그인" description="계정에 로그인하세요" />
-
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
           <IconInput
-              id="email"
-              name="email"
-              type="email"
-              label="이메일"
-              placeholder="이메일을 입력하세요"
-              value={formData.email}
-              onChange={handleChange}
-              icon={<Mail />}
-              required
+            id="email"
+            name="email"
+            type="email"
+            label="이메일"
+            placeholder="이메일을 입력하세요"
+            value={formData.email}
+            onChange={handleChange}
+            icon={<Mail />}
+            required
           />
           <IconInput
             id="password"
@@ -148,7 +132,6 @@ const LoginForm = () => {
         </CyberButton>
       </form>
 
-      {/* GitHub 로그인 버튼 추가  */}
       <div className="mt-4 text-center">
         <CyberButton
           type="button"
@@ -164,6 +147,7 @@ const LoginForm = () => {
           {isLoggingIn ? "연결 중..." : "GitHub 계정으로 로그인"}
         </CyberButton>
       </div>
+
       <div className="mt-6 text-center">
         <p className="text-gray-400">
           계정이 없으신가요?{" "}
