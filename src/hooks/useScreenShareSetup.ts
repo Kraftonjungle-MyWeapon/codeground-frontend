@@ -42,15 +42,19 @@ export function useScreenShareSetup() {
 
   // --- WebRTC 초기화 및 정리 ---
   useEffect(() => {
+    console.log("[ScreenShare] Initializing and cleaning up previous connections.");
     if (sharedPC) {
+      console.log("[ScreenShare] Closing existing PeerConnection.");
       sharedPC.close();
       setPeerConnection(null);
     }
     if (sharedLocalStream) {
+      console.log("[ScreenShare] Stopping existing local stream tracks.");
       sharedLocalStream.getTracks().forEach(track => track.stop());
       setLocalStream(null);
     }
     if (sharedRemoteStream) {
+      console.log("[ScreenShare] Stopping existing remote stream tracks.");
       sharedRemoteStream.getTracks().forEach(track => track.stop());
       setRemoteStream(null);
     }
@@ -68,28 +72,35 @@ export function useScreenShareSetup() {
 
   // --- 화면 공유 시작 ---
   const startScreenShare = useCallback(async () => {
+    console.log("[ScreenShare] Attempting to start screen share.");
     try {
       setMyShareStatus("sharing");
       const mediaStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: false,
       });
+      console.log("[ScreenShare] getDisplayMedia success.", mediaStream);
       const videoTrack = mediaStream.getVideoTracks()[0];
       const settings = videoTrack.getSettings() as any;
+      console.log("[ScreenShare] Video track settings:", settings);
 
       if (settings.displaySurface === "monitor") {
+        console.log("[ScreenShare] Screen share type is 'monitor'. Proceeding.");
         setMyShareStatus("connected");
         setMyStream(mediaStream);
         setLocalStream(mediaStream);
         if (sharedPC) {
+          console.log("[ScreenShare] Adding tracks to PeerConnection and creating offer.");
           mediaStream.getTracks().forEach(track => sharedPC.addTrack(track, mediaStream));
           const offer = await sharedPC.createOffer();
           await sharedPC.setLocalDescription(offer);
+          console.log("[ScreenShare] Sending WebRTC offer.");
           sendMessage(
             JSON.stringify({ type: "webrtc_signal", signal: sharedPC.localDescription })
           );
         }
         videoTrack.addEventListener("ended", () => {
+          console.log("[ScreenShare] Screen share track ended by user.");
           setMyShareStatus("disconnected");
           setMyStream(null);
           setLocalStream(null);
@@ -99,6 +110,7 @@ export function useScreenShareSetup() {
           sendMessage(JSON.stringify({ type: "screen_share_stopped" }));
         });
       } else {
+        console.warn("[ScreenShare] Invalid share type. Must share the entire screen.");
         setMyShareStatus("invalid");
         setMyReady(false);
         setIsCountingDown(false);
@@ -106,26 +118,33 @@ export function useScreenShareSetup() {
         mediaStream.getTracks().forEach(track => track.stop());
       }
     } catch (error) {
+      console.error("[ScreenShare] Error starting screen share:", error);
       setMyShareStatus("waiting");
     }
   }, [sendMessage]);
 
   // --- 기타 핸들러 ---
   const handleRetryShare = useCallback(() => {
+    console.log("[ScreenShare] Retrying screen share.");
     setMyShareStatus("waiting");
     startScreenShare();
   }, [startScreenShare]);
 
   const handleReady = useCallback(() => {
     if (myShareStatus === "connected") {
+      console.log("[ScreenShare] User is ready.");
       setMyReady(true);
       sendMessage(JSON.stringify({ type: "ready" }));
+    } else {
+      console.warn("[ScreenShare] Ready button clicked but screen share not connected.");
     }
   }, [myShareStatus, sendMessage]);
 
   // --- 카운트다운 로직 ---
   useEffect(() => {
+    console.log(`[ScreenShare] Countdown check: myReady=${myReady}, opponentReady=${opponentReady}, isWebRTCConnected=${isWebRTCConnected}, isCountingDown=${isCountingDown}`);
     if (myReady && opponentReady && isWebRTCConnected && !isCountingDown) {
+      console.log("[ScreenShare] All conditions met. Starting countdown.");
       setIsCountingDown(true);
       setCountdown(3);
     }
@@ -138,9 +157,11 @@ export function useScreenShareSetup() {
       }, 1000);
       return () => clearTimeout(timer);
     } else if (isCountingDown && countdown === 0) {
+      console.log("[ScreenShare] Countdown finished. Navigating to battle page.");
       if (gameId) {
         navigate(`/battle?gameId=${gameId}`);
       } else {
+        console.error("[ScreenShare] Cannot navigate, gameId is missing.");
         navigate("/battle");
       }
     }
@@ -149,12 +170,14 @@ export function useScreenShareSetup() {
   // --- 비디오 스트림 바인딩 ---
   useEffect(() => {
     if (myStream && localVideoRef.current) {
+      console.log("[ScreenShare] Binding local stream to video element.");
       localVideoRef.current.srcObject = myStream;
     }
   }, [myStream]);
 
   useEffect(() => {
     if (remoteStreamState && remoteVideoRef.current) {
+      console.log("[ScreenShare] Binding remote stream to video element.");
       remoteVideoRef.current.srcObject = remoteStreamState;
     }
   }, [remoteStreamState]);
@@ -162,18 +185,23 @@ export function useScreenShareSetup() {
   // --- WebSocket, Peer 연결 ---
   useEffect(() => {
     let effectiveGameId = currentUrlGameId || storedGameId;
+    console.log(`[ScreenShare] WS Connection Effect: effectiveGameId=${effectiveGameId}, userId=${userId}`);
     if (!effectiveGameId || !userId) return;
 
     const webSocketUrl = `${wsUrl}/api/v1/game/ws/game/${effectiveGameId}?user_id=${userId}`;
+    console.log(`[ScreenShare] WebSocket URL: ${webSocketUrl}`);
 
     if (websocket && websocket.readyState === WebSocket.OPEN && websocket.url === webSocketUrl) {
+      console.log("[ScreenShare] WebSocket already connected to the correct URL.");
       return;
     }
 
     if (!sharedPC) {
+      console.log("[ScreenShare] No PeerConnection found, creating a new one.");
       createPeerConnection();
     }
 
+    console.log("[ScreenShare] Connecting WebSocket...");
     connect(webSocketUrl);
 
     // cleanup 생략 (필요시 추가)
@@ -182,25 +210,39 @@ export function useScreenShareSetup() {
   // --- WebSocket 이벤트 핸들러 ---
   useEffect(() => {
     if (!websocket) return;
+    console.log("[ScreenShare] Attaching WebSocket event handlers.");
 
     websocket.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log("[ScreenShare] WS Message Received:", data);
         if (data.type === "webrtc_signal" && data.sender !== user.user_id) {
+          console.log("[ScreenShare] Handling WebRTC signal from peer.");
           await handleSignal(data.signal);
         } else if (data.type === "player_ready" && data.user_id !== user.user_id) {
+          console.log("[ScreenShare] Opponent is ready.");
           setOpponentReady(true);
         } else if (data.type === "all_ready") {
+          console.log("[ScreenShare] All players are ready.");
           setOpponentReady(true);
           setMyReady(true);
         }
       } catch (e) {
-        // handle error
+        console.error("[ScreenShare] Error parsing WS message:", e);
       }
     };
 
     websocket.onopen = () => {
+      console.log("[ScreenShare] WebSocket connection opened.");
       sendMessage(JSON.stringify({ type: "webrtc_signal", signal: { type: "join" } }));
+    };
+
+    websocket.onerror = (error) => {
+      console.error("[ScreenShare] WebSocket error:", error);
+    };
+
+    websocket.onclose = (event) => {
+      console.log(`[ScreenShare] WebSocket closed: code=${event.code}, reason=${event.reason}`);
     };
   }, [websocket, user, sendMessage]);
 
@@ -208,45 +250,54 @@ export function useScreenShareSetup() {
   useEffect(() => {
     if (!sharedPC) return;
     const handleConnectionStateChange = () => {
+      console.log(`[ScreenShare] PeerConnection state changed: ${sharedPC.connectionState}`);
       if (
         sharedPC.connectionState === "disconnected" ||
         sharedPC.connectionState === "failed" ||
         sharedPC.connectionState === "closed"
       ) {
+        console.warn("[ScreenShare] PeerConnection disconnected or failed.");
         setOpponentScreenShareStatus("disconnected");
         setShowMyScreenShareRestartButton(true);
         setIsWebRTCConnected(false);
       } else if (sharedPC.connectionState === "connected") {
+        console.log("[ScreenShare] PeerConnection connected successfully.");
         setOpponentScreenShareStatus("connected");
         setShowMyScreenShareRestartButton(false);
         setIsWebRTCConnected(true);
       }
     };
+    console.log("[ScreenShare] Attaching PeerConnection state change listener.");
     sharedPC.addEventListener("connectionstatechange", handleConnectionStateChange);
     return () => {
+      console.log("[ScreenShare] Removing PeerConnection state change listener.");
       sharedPC.removeEventListener("connectionstatechange", handleConnectionStateChange);
     };
   }, [sharedPC]);
 
   // --- PeerConnection 생성 함수 ---
   const createPeerConnection = useCallback(() => {
+    console.log("[ScreenShare] Creating new PeerConnection.");
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
     setPeerConnection(pc);
 
     pc.oniceconnectionstatechange = () => {
+      console.log(`[ScreenShare] ICE connection state change: ${pc.iceConnectionState}`);
       if (
         pc.iceConnectionState === "disconnected" ||
         pc.iceConnectionState === "failed" ||
         pc.iceConnectionState === "closed"
       ) {
+        console.warn("[ScreenShare] ICE Connection disconnected or failed.");
         setOpponentScreenShareStatus("disconnected");
         setShowMyScreenShareRestartButton(true);
         setRemoteStream(null);
         setRemoteStreamState(null);
         setIsWebRTCConnected(false);
       } else if (pc.iceConnectionState === "connected") {
+        console.log("[ScreenShare] ICE Connection connected.");
         setOpponentScreenShareStatus("connected");
         setShowMyScreenShareRestartButton(false);
         setIsWebRTCConnected(true);
@@ -255,16 +306,19 @@ export function useScreenShareSetup() {
 
     const stream = myStream || sharedLocalStream;
     if (stream) {
+      console.log("[ScreenShare] Adding tracks from existing stream to new PeerConnection.");
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
     }
     pc.onicecandidate = ({ candidate }) => {
       if (candidate) {
+        console.log("[ScreenShare] Sending ICE candidate.");
         sendMessage(
           JSON.stringify({ type: "webrtc_signal", signal: { type: "candidate", candidate } })
         );
       }
     };
     pc.ontrack = ({ streams: [stream] }) => {
+      console.log("[ScreenShare] Received remote stream.", stream);
       setRemoteStream(stream);
       setRemoteStreamState(stream);
       setOpponentScreenShareStatus("connected");
@@ -274,6 +328,7 @@ export function useScreenShareSetup() {
       const remoteVideoTrack = stream.getVideoTracks()[0];
       if (remoteVideoTrack) {
         remoteVideoTrack.onended = () => {
+          console.log("[ScreenShare] Remote track ended.");
           setOpponentScreenShareStatus("disconnected");
           setShowMyScreenShareRestartButton(true);
           setRemoteStream(null);
@@ -286,37 +341,50 @@ export function useScreenShareSetup() {
 
   // --- Signal 핸들러 ---
   const handleSignal = useCallback(async (signal: any) => {
+    console.log("[ScreenShare] Handling signal:", signal);
     let pc = sharedPC;
     if (!pc) {
+      console.log("[ScreenShare] No PeerConnection, creating one for signal handling.");
       pc = createPeerConnection();
     }
-    if (signal.type === "offer") {
-      if (pc.signalingState !== "stable") {
-        await Promise.all([
-          pc.localDescription ? pc.setLocalDescription(pc.localDescription) : Promise.resolve(),
-          pc.remoteDescription ? pc.setRemoteDescription(pc.remoteDescription) : Promise.resolve(),
-        ]);
-      }
-      await pc.setRemoteDescription(new RTCSessionDescription(signal));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      sendMessage(JSON.stringify({ type: "webrtc_signal", signal: pc.localDescription }));
-    } else if (signal.type === "answer") {
-      if (pc.signalingState === "have-local-offer") {
-        await pc.setRemoteDescription(new RTCSessionDescription(signal));
-      }
-    } else if (signal.type === "candidate") {
-      if (signal.candidate) {
-        try {
+    try {
+      if (signal.type === "offer") {
+        console.log("[ScreenShare] Received offer.");
+        if (pc.signalingState !== "stable") {
+          console.warn(`[ScreenShare] Signaling state is not stable (${pc.signalingState}), rolling back.`);
+          await Promise.all([
+            pc.setLocalDescription({ type: "rollback" }),
+            pc.setRemoteDescription(new RTCSessionDescription(signal))
+          ]);
+        } else {
+          await pc.setRemoteDescription(new RTCSessionDescription(signal));
+        }
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        console.log("[ScreenShare] Sending answer.");
+        sendMessage(JSON.stringify({ type: "webrtc_signal", signal: pc.localDescription }));
+      } else if (signal.type === "answer") {
+        console.log("[ScreenShare] Received answer.");
+        if (pc.signalingState === "have-local-offer") {
+          await pc.setRemoteDescription(new RTCSessionDescription(signal));
+        } else {
+          console.warn(`[ScreenShare] Received answer but signaling state is ${pc.signalingState}.`);
+        }
+      } else if (signal.type === "candidate") {
+        if (signal.candidate) {
+          console.log("[ScreenShare] Adding ICE candidate.");
           await pc.addIceCandidate(signal.candidate);
-        } catch {}
+        }
       }
+    } catch (error) {
+      console.error("[ScreenShare] Error handling signal:", error);
     }
     setPeerConnection(pc);
   }, [createPeerConnection, sendMessage]);
 
   // --- 화면 공유 재시작 ---
   const handleRestartScreenShare = useCallback(async () => {
+    console.log("[ScreenShare] Restarting screen share process.");
     try {
       setMyShareStatus("sharing");
       const mediaStream = await navigator.mediaDevices.getDisplayMedia({
@@ -326,18 +394,29 @@ export function useScreenShareSetup() {
       const videoTrack = mediaStream.getVideoTracks()[0];
       const settings = videoTrack.getSettings() as any;
       if (settings.displaySurface === "monitor") {
+        console.log("[ScreenShare] Restart successful, got 'monitor' stream.");
         setMyShareStatus("connected");
         setMyStream(mediaStream);
         setLocalStream(mediaStream);
         if (sharedPC) {
-          mediaStream.getTracks().forEach((track) => sharedPC.addTrack(track, mediaStream));
-          const offer = await sharedPC.createOffer();
+          const sender = sharedPC.getSenders().find(s => s.track?.kind === 'video');
+          if (sender) {
+            console.log("[ScreenShare] Replacing track on existing sender.");
+            await sender.replaceTrack(videoTrack);
+          } else {
+            console.log("[ScreenShare] No existing sender, adding new track.");
+            sharedPC.addTrack(videoTrack, mediaStream);
+          }
+          console.log("[ScreenShare] Creating offer with ICE restart.");
+          const offer = await sharedPC.createOffer({ iceRestart: true });
           await sharedPC.setLocalDescription(offer);
+          console.log("[ScreenShare] Sending restart offer.");
           sendMessage(
             JSON.stringify({ type: "webrtc_signal", signal: sharedPC.localDescription })
           );
         }
         videoTrack.addEventListener("ended", () => {
+          console.log("[ScreenShare] Restarted screen share track ended.");
           setMyShareStatus("disconnected");
           setMyStream(null);
           setLocalStream(null);
@@ -347,13 +426,15 @@ export function useScreenShareSetup() {
           sendMessage(JSON.stringify({ type: "screen_share_stopped" }));
         });
       } else {
+        console.warn("[ScreenShare] Invalid share type on restart.");
         setMyShareStatus("invalid");
         setMyReady(false);
         setIsCountingDown(false);
         setCountdown(0);
         mediaStream.getTracks().forEach(track => track.stop());
       }
-    } catch {
+    } catch (error) {
+      console.error("[ScreenShare] Error restarting screen share:", error);
       setMyShareStatus("waiting");
     }
   }, [sendMessage]);
