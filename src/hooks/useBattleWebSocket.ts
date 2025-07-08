@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import useWebSocketStore from '@/stores/websocketStore';
 import { useUser } from '@/context/UserContext';
 import { useNavigate } from 'react-router-dom';
@@ -20,6 +20,10 @@ interface UseBattleWebSocketProps {
   setProblem: React.Dispatch<React.SetStateAction<ProblemWithImages | null>>;
   sendMessage: (message: string) => void;
   cleanupScreenShare: () => void;
+  isLocalStreamActive: boolean;
+  isRemoteStreamActive: boolean;
+  setShowOpponentScreenShareRequiredModal: React.Dispatch<React.SetStateAction<boolean>>;
+  setOpponentScreenShareCountdown: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export const useBattleWebSocket = ({
@@ -38,10 +42,16 @@ export const useBattleWebSocket = ({
   setProblem,
   sendMessage,
   cleanupScreenShare,
+  isLocalStreamActive,
+  isRemoteStreamActive,
+  setShowOpponentScreenShareRequiredModal,
+  setOpponentScreenShareCountdown,
 }: UseBattleWebSocketProps) => {
   const { websocket, connect } = useWebSocketStore();
   const { user } = useUser();
   const navigate = useNavigate();
+
+  const opponentScreenShareCountdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const apiUrl = import.meta.env.VITE_API_URL;
   const wsUrl = apiUrl.replace(/^http/, 'ws');
@@ -61,8 +71,15 @@ export const useBattleWebSocket = ({
       return;
     }
 
+    // 이미 연결되어 있고, 연결된 URL이 현재 필요한 URL과 동일하다면 다시 연결하지 않음
+    if (websocket && websocket.readyState === WebSocket.OPEN && websocket.url === currentWsUrl) {
+      console.log('BattlePage: WebSocket already connected to the correct URL. Skipping connection attempt.');
+      return;
+    }
+
+    // WebSocket이 없거나 닫힌 상태일 때만 연결 시도
     if (!websocket || websocket.readyState === WebSocket.CLOSED) {
-      console.log('BattlePage: WebSocket not connected or closed. Attempting to connect.');
+      console.log('BattlePage: WebSocket not connected or closed. Attempting to connect.', currentWsUrl);
       connect(currentWsUrl);
     }
   }, [websocket, user, gameId, connect, wsUrl]);
@@ -132,10 +149,12 @@ export const useBattleWebSocket = ({
             },
           ]);
         } else if (data.type === 'opponent_rejoined') {
+          console.log('Received opponent_rejoined message:', data);
           setShowOpponentLeftModal(false);
           setIsRemoteStreamActive(false);
           setShowRemoteScreenSharePrompt(true);
           setIsGamePaused(true);
+          setShowOpponentScreenShareRequiredModal(true);
           setChatMessages((prev) => [
             ...prev,
             {
@@ -160,6 +179,22 @@ export const useBattleWebSocket = ({
             setIsRemoteStreamActive(false);
             setShowRemoteScreenSharePrompt(true);
             setIsGamePaused(true); // 상대방 화면 공유 중단 시 게임 일시 정지
+            setShowOpponentScreenShareRequiredModal(true);
+            setOpponentScreenShareCountdown(60); // 1분 (60초) 카운트다운 시작
+            if (opponentScreenShareCountdownIntervalRef.current) {
+              clearInterval(opponentScreenShareCountdownIntervalRef.current);
+            }
+            opponentScreenShareCountdownIntervalRef.current = setInterval(() => {
+              setOpponentScreenShareCountdown((prev) => {
+                if (prev <= 1) {
+                  clearInterval(opponentScreenShareCountdownIntervalRef.current!); // 카운트다운 종료
+                  sendMessage(JSON.stringify({ type: "match_result", reason: "surrender" }));
+                  navigate('/result');
+                  return 0;
+                }
+                return prev - 1;
+              });
+            }, 1000);
           } else {
             // 자신이 화면 공유를 중지한 경우
             console.log("Setting showScreenShareRequiredModal to true.");
@@ -194,20 +229,24 @@ export const useBattleWebSocket = ({
             },
           ]);
           if (!isMe) {
+            if (opponentScreenShareCountdownIntervalRef.current) {
+              clearInterval(opponentScreenShareCountdownIntervalRef.current);
+            }
+            setShowOpponentScreenShareRequiredModal(false);
             setIsRemoteStreamActive(true);
             setShowRemoteScreenSharePrompt(false);
-            // if (isLocalStreamActive) { // isLocalStreamActive는 이 훅의 범위 밖에 있음
-            //   setIsGamePaused(false); // 두 사용자가 모두 공유 중일 때만 게임 재개
-            // }
+            if (isLocalStreamActive) {
+              setIsGamePaused(false); // 두 사용자가 모두 공유 중일 때만 게임 재개
+            }
           } else {
             // 자신이 화면 공유를 재개한 경우 (서버로부터의 확인 메시지)
             if (screenShareCountdownIntervalRef.current) {
               clearInterval(screenShareCountdownIntervalRef.current);
             }
             setShowScreenShareRequiredModal(false);
-            // if (isRemoteStreamActive) { // isRemoteStreamActive는 이 훅의 범위 밖에 있음
-            //   setIsGamePaused(false); // 두 사용자가 모두 공유 중일 때만 게임 재개
-            // }
+            if (isRemoteStreamActive) { // isRemoteStreamActive는 이 훅의 범위 밖에 있음
+              setIsGamePaused(false); // 두 사용자가 모두 공유 중일 때만 게임 재개
+            }
           }
         } else if (data.type === 'match_accepted') {
           if (data.problem) {
@@ -221,7 +260,16 @@ export const useBattleWebSocket = ({
         console.error('BattlePage: ws message parse error', e);
       }
     };
-  }, [websocket, user, handleSignal, navigate, setChatMessages, setIsGameFinished, setShowOpponentLeftModal, setIsRemoteStreamActive, setShowRemoteScreenSharePrompt, setIsGamePaused, setShowScreenShareRequiredModal, setScreenShareCountdown, screenShareCountdownIntervalRef, setProblem, sendMessage, cleanupScreenShare]);
+
+  }, [websocket, user, handleSignal, navigate, setChatMessages, setIsGameFinished, setShowOpponentLeftModal, setIsRemoteStreamActive, setShowRemoteScreenSharePrompt, setIsGamePaused, setShowScreenShareRequiredModal, setScreenShareCountdown, screenShareCountdownIntervalRef, setProblem, sendMessage, cleanupScreenShare, isLocalStreamActive, isRemoteStreamActive, setShowOpponentScreenShareRequiredModal, setOpponentScreenShareCountdown]);
+
+  useEffect(() => {
+    return () => {
+      if (opponentScreenShareCountdownIntervalRef.current) {
+        clearInterval(opponentScreenShareCountdownIntervalRef.current);
+      }
+    };
+  }, []);
 
   return {}; // 이 훅은 주로 사이드 이펙트를 처리하므로 반환할 것이 없음
 };

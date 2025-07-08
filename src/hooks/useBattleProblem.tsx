@@ -12,7 +12,7 @@ export const useBattleProblem = (props?: UseBattleProblemProps) => {
   const problemId = problem?.problem_id ?? problem?.problem_id;
 
   useEffect(() => {
-    const gameId = searchParams.get('gameId');
+    const gameId = searchParams.get('gameId') || localStorage.getItem('gameId');
     if (gameId) {
       const storedProblem = localStorage.getItem(`problem_${gameId}`);
       if (storedProblem) {
@@ -26,6 +26,14 @@ export const useBattleProblem = (props?: UseBattleProblemProps) => {
       }
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const gameId =
+      searchParams.get('gameId') || localStorage.getItem('gameId');
+    if (problem && gameId) {
+      localStorage.setItem(`problem_${gameId}`, JSON.stringify(problem));
+    }
+  }, [problem, searchParams]);
 
   const imageUrlMap = useMemo(() => {
     if (!problem?.problemStatementImages) return new Map();

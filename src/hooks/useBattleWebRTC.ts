@@ -91,9 +91,20 @@ export const useBattleWebRTC = ({
           JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription })
         );
       }
+    } else if (signal.type === 'renegotiate_screen_share') {
+      // 기존 peerConnection 정리 및 새로 생성
+      if (pc) {
+        pc.close();
+      }
+      pc = createPeerConnection();
+      if (sharedLocalStream) {
+        sharedLocalStream.getTracks().forEach((track) => {
+          pc.addTrack(track, sharedLocalStream);
+        });
+      }
     }
     setPeerConnection(pc);
-  }, [createPeerConnection, sendMessage, sharedLocalStream]);
+  }, [createPeerConnection, sendMessage, sharedLocalStream, setIsRemoteStreamActive, setShowRemoteScreenSharePrompt]);
 
   useEffect(() => {
     if (sharedPC) {

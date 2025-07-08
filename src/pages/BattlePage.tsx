@@ -78,6 +78,8 @@ const BattlePage = () => {
   const [isCheatDetectionActive, setIsCheatDetectionActive] = useState(true);
   const [currentLanguage] = useState<ProgrammingLanguage>("python");
   const [showScreenSharePrompt, setShowScreenSharePrompt] = useState(false);
+  const [showOpponentScreenShareRequiredModal, setShowOpponentScreenShareRequiredModal] = useState(false);
+  const [opponentScreenShareCountdown, setOpponentScreenShareCountdown] = useState(0);
 
   // Custom Hook Calls
   const { reportCheating } = useCheatDetection({
@@ -235,6 +237,10 @@ const BattlePage = () => {
     setProblem,
     sendMessage,
     cleanupScreenShare,
+    isLocalStreamActive,
+    isRemoteStreamActive,
+    setShowOpponentScreenShareRequiredModal,
+    setOpponentScreenShareCountdown,
   });
 
   // usePreventNavigation hook
@@ -390,6 +396,11 @@ const BattlePage = () => {
         isOpen={showScreenShareRequiredModal}
         countdown={screenShareCountdown}
         onRestartScreenShare={startLocalScreenShare}
+      />
+      <ScreenShareRequiredModal
+        isOpen={showOpponentScreenShareRequiredModal}
+        countdown={opponentScreenShareCountdown}
+        isOpponent={true}
       />
     </div>
   );
