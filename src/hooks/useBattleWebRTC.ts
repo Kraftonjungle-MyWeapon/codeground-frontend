@@ -104,7 +104,7 @@ export const useBattleWebRTC = ({
       }
     }
     setPeerConnection(pc);
-  }, [createPeerConnection, sendMessage, sharedLocalStream]);
+  }, [createPeerConnection, sendMessage, sharedLocalStream, setIsRemoteStreamActive, setShowRemoteScreenSharePrompt]);
 
   useEffect(() => {
     if (sharedPC) {

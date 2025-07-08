@@ -71,8 +71,15 @@ export const useBattleWebSocket = ({
       return;
     }
 
+    // 이미 연결되어 있고, 연결된 URL이 현재 필요한 URL과 동일하다면 다시 연결하지 않음
+    if (websocket && websocket.readyState === WebSocket.OPEN && websocket.url === currentWsUrl) {
+      console.log('BattlePage: WebSocket already connected to the correct URL. Skipping connection attempt.');
+      return;
+    }
+
+    // WebSocket이 없거나 닫힌 상태일 때만 연결 시도
     if (!websocket || websocket.readyState === WebSocket.CLOSED) {
-      console.log('BattlePage: WebSocket not connected or closed. Attempting to connect.');
+      console.log('BattlePage: WebSocket not connected or closed. Attempting to connect.', currentWsUrl);
       connect(currentWsUrl);
     }
   }, [websocket, user, gameId, connect, wsUrl]);
@@ -142,10 +149,12 @@ export const useBattleWebSocket = ({
             },
           ]);
         } else if (data.type === 'opponent_rejoined') {
+          console.log('Received opponent_rejoined message:', data);
           setShowOpponentLeftModal(false);
           setIsRemoteStreamActive(false);
           setShowRemoteScreenSharePrompt(true);
           setIsGamePaused(true);
+          setShowOpponentScreenShareRequiredModal(true);
           setChatMessages((prev) => [
             ...prev,
             {
