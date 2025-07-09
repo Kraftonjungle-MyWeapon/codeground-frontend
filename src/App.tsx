@@ -6,14 +6,18 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import CyberLoadingSpinner from "@/components/CyberLoadingSpinner";
-import NavigationHandler from './components/NavigationHandler';
+import NavigationHandler from "./components/NavigationHandler";
 const HomePage = lazy(() => import("./pages/home/HomePage"));
 const LandingPage = lazy(() => import("./pages/landing/LandingPage"));
 const LoginPage = lazy(() => import("./pages/login/LoginPage"));
 const SignupPage = lazy(() => import("./pages/signup/SignupPage"));
-const ProfileSetupPage = lazy(() => import("./pages/setup-profile/ProfileSetupPage"));
+const ProfileSetupPage = lazy(
+  () => import("./pages/setup-profile/ProfileSetupPage")
+);
 const MatchingPage = lazy(() => import("./pages/matching/MatchingPage"));
-const WaitingRoomPage = lazy(() => import("./pages/waiting-room/WaitingRoomPage"));
+const WaitingRoomPage = lazy(
+  () => import("./pages/waiting-room/WaitingRoomPage")
+);
 const ScreenShareSetupPage = lazy(() => import("./pages/ScreenShareSetupPage"));
 const BattlePage = lazy(() => import("./pages/BattlePage"));
 const ResultPage = lazy(() => import("./pages/ResultPage"));
@@ -23,6 +27,9 @@ const RankingPage = lazy(() => import("./pages/ranking/RankingPage"));
 const ProfilePage = lazy(() => import("./pages/profile/ProfilePage"));
 const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 const NotFound = lazy(() => import("./pages/not-found/NotFound"));
+const OAuthCallback = lazy(
+  () => import("./pages/login/components/OAuthCallback")
+);
 
 import { useEffect } from "react";
 import { useUser } from "./context/UserContext";
@@ -37,31 +44,35 @@ const App = () => {
   const { setUser, setIsLoading, isLoading } = useUser();
 
   useEffect(() => {
+    const token = getCookie("access_token");
+
+    if (!token) {
+      setIsLoading(false);
+      setUser(null);
+      return;
+    }
+
     const fetchUser = async () => {
       setIsLoading(true);
-      const token = getCookie("access_token");
-      if (token) {
-        try {
-          const userResponse = await authFetch(
-            `${apiUrl}/api/v1/user/me`,
-          );
-          if (userResponse.ok) {
-            const userData = await userResponse.json();
-            setUser(userData);
-          } else {
-            eraseCookie("access_token"); // Clear invalid token
-          }
-        } catch (error) {
-          eraseCookie("access_token"); // Clear token on network error
-        } finally {
-          setIsLoading(false);
+      try {
+        const userResponse = await authFetch(`${apiUrl}/api/v1/user/me`);
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          setUser(userData);
+        } else {
+          eraseCookie("access_token");
+          setUser(null);
         }
-      } else {
+      } catch (error) {
+        eraseCookie("access_token");
+        setUser(null);
+      } finally {
         setIsLoading(false);
       }
     };
+
     fetchUser();
-  }, [setUser, setIsLoading]);
+  }, []); //
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -78,21 +89,30 @@ const App = () => {
                   <Route path="/" element={<LandingPage />} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/signup" element={<SignupPage />} />
-                  {/* Protected Routes */}
-                  <Route element={<ProtectedRoute />}>
-                    <Route path="/home" element={<HomePage />} />
-                    <Route path="/setup-profile" element={<ProfileSetupPage />} />
-                    <Route path="/matching" element={<MatchingPage />} />
-                    <Route path="/waiting-room" element={<WaitingRoomPage />} />
-                    <Route path="/screen-share-setup" element={<ScreenShareSetupPage />} />
-                    <Route path="/battle" element={<BattlePage />} />
-                    <Route path="/result" element={<ResultPage />} />
-                    <Route path="/tier-promotion" element={<TierPromotionPage />} />
-                    <Route path="/tier-demotion" element={<TierDemotionPage />} />
-                    <Route path="/ranking" element={<RankingPage />} />
-                    <Route path="/profile" element={<ProfilePage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
-                  </Route>
+                  <Route path="/oauth/callback" element={<OAuthCallback />} />
+                  {[
+                    { path: "/home", element: <HomePage /> },
+                    { path: "/setup-profile", element: <ProfileSetupPage /> },
+                    { path: "/matching", element: <MatchingPage /> },
+                    { path: "/waiting-room", element: <WaitingRoomPage /> },
+                    {
+                      path: "/screen-share-setup",
+                      element: <ScreenShareSetupPage />,
+                    },
+                    { path: "/battle", element: <BattlePage /> },
+                    { path: "/result", element: <ResultPage /> },
+                    { path: "/tier-promotion", element: <TierPromotionPage /> },
+                    { path: "/tier-demotion", element: <TierDemotionPage /> },
+                    { path: "/ranking", element: <RankingPage /> },
+                    { path: "/profile", element: <ProfilePage /> },
+                    { path: "/settings", element: <SettingsPage /> },
+                  ].map(({ path, element }) => (
+                    <Route
+                      key={path}
+                      path={path}
+                      element={<ProtectedRoute>{element}</ProtectedRoute>}
+                    />
+                  ))}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </NavigationHandler>
