@@ -73,7 +73,7 @@ export const useBattleCodeEditor = ({
     try {
       const matchId = localStorage.getItem('currentMatchId');
       const response = await authFetch(
-        `${apiUrl}/api/v1/game/submit`,
+        `${apiUrl}/api/v1/game/submit_public`,
         {
           method: "POST",
           headers: {
@@ -129,20 +129,90 @@ export const useBattleCodeEditor = ({
     }
   }, [code, problemId]);
 
+  const submitFinal = useCallback(async () => {
+    setExecutionResult('코드를 제출하고 있습니다...');
+    try {
+      const matchId = localStorage.getItem('currentMatchId');
+      const response = await authFetch(
+        `${apiUrl}/api/v1/game/submit`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'text/event-stream',
+          },
+          body: JSON.stringify({
+            language: 'python',
+            code,
+            problem_id: `${problemId}`,
+            match_id: matchId,
+          }),
+        },
+      );
+
+      if (!response.ok || !response.body) {
+        const text = await response.text();
+        setExecutionResult(`제출 실패: ${text}`);
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\r\n\r\n');
+        buffer = parts.pop() || '';
+        for (const chunk of parts) {
+          const line = chunk.trim();
+          if (line.startsWith('data:')) {
+            const data = JSON.parse(line.slice(5));
+            if (data.type === 'progress') {
+              setExecutionResult(
+                (prev) =>
+                  `${prev}\n[${data.index + 1}/${data.total}] duration: ${Number(
+                    data.result.duration,
+                  ).toFixed(2)} ms, memoryUsed: ${data.result.memoryUsed} KB, status: ${data.result.status}`,
+              );
+            } else if (data.type === 'final') {
+              setExecutionResult(
+                (prev) =>
+                  `${prev}\n채점 완료. All Passed: ${data.allPassed ? 'Yes' : 'No'}`,
+              );
+              cleanupScreenShare();
+              navigate('/result');
+            }
+          }
+        }
+      }
+    } catch (error) {
+      setExecutionResult('제출 중 오류가 발생했습니다.');
+    }
+  }, [code, problemId, cleanupScreenShare, navigate]);
+
+
   const handleSubmit = useCallback(() => {
     if (runStatus === '성공') {
-      cleanupScreenShare(); // 코드 제출 시 화면 공유 중단
-      navigate('/result');
+      // cleanupScreenShare(); // 코드 제출 시 화면 공유 중단
+      // navigate('/result');
+      submitFinal();
     } else {
       setIsSubmitModalOpen(true);
     }
-  }, [runStatus, cleanupScreenShare, navigate]);
+  // }, [runStatus, cleanupScreenShare, navigate]);
+  }, [runStatus, submitFinal]);
+
 
   const handleConfirmSubmit = useCallback(() => {
     setIsSubmitModalOpen(false);
-    cleanupScreenShare();
-    navigate('/result');
-  }, [cleanupScreenShare, navigate]);
+  //   // cleanupScreenShare();
+  //   // navigate('/result');
+    submitFinal();
+  // }, [cleanupScreenShare, navigate]);
+  }, [submitFinal]);
 
   const handleCancelSubmit = useCallback(() => {
     setIsSubmitModalOpen(false);
