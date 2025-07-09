@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
+import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from "react";
 import { authFetch, getUserWinRate } from "@/utils/api";
 
 interface User {
@@ -29,6 +29,7 @@ interface UserContextType {
   isLoading: boolean;
   setIsLoading: (isLoading: boolean) => void;
   isError: boolean;
+  refetchUser: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -40,42 +41,42 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      setIsLoading(true);
-      setIsError(false);
-      try {
-        const response = await authFetch(`${apiUrl}/api/v1/user/me`);
-        if (response.ok) {
-          const userData = await response.json();
-          const winRateData = await getUserWinRate(userData.user_id);
+  const fetchUser = useCallback(async () => {
+    setIsLoading(true);
+    setIsError(false);
+    try {
+      const response = await authFetch(`${apiUrl}/api/v1/user/me`);
+      if (response.ok) {
+        const userData = await response.json();
+        const winRateData = await getUserWinRate(userData.user_id);
 
-          setUser({
-            ...userData,
-            ...winRateData,
-            rank : userData.user_rank,
-            totalScore: userData.user_mmr,
-            name: userData.nickname,
-          });
-        } else {
-          console.error("Failed to fetch user data:", response.statusText);
-          setUser(null);
-          setIsError(true);
-        }
-      } catch (error) {
-        console.error("Error fetching user data:", error);
+        setUser({
+          ...userData,
+          ...winRateData,
+          rank: userData.user_rank,
+          totalScore: userData.user_mmr,
+          name: userData.nickname,
+        });
+      } else {
+        console.error("Failed to fetch user data:", response.statusText);
         setUser(null);
         setIsError(true);
-      } finally {
-        setIsLoading(false);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      setUser(null);
+      setIsError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-    fetchUser(); // ✅ 무조건 호출. 성공 여부로 인증 상태 판단
-  }, []); // ✅ 불필요한 의존성 제거
+  useEffect(() => {
+    fetchUser();
+  }, [fetchUser]);
 
   return (
-    <UserContext.Provider value={{ user, setUser, isLoading, setIsLoading, isError }}>
+    <UserContext.Provider value={{ user, setUser, isLoading, setIsLoading, isError, refetchUser: fetchUser }}>
       {children}
     </UserContext.Provider>
   );

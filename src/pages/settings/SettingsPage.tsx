@@ -4,6 +4,7 @@ import CyberButton from "@/components/CyberButton";
 import { Settings } from "lucide-react";
 import AccountSettingsCard from "./components/AccountSettingsCard";
 import ThemeSettingsCard from "./components/ThemeSettingsCard";
+import CreateProblemCard from "./components/CreateProblemCard"; // 추가
 import PasswordChangeModal from "./components/PasswordChangeModal";
 import DeleteAccountModal from "./components/DeleteAccountModal";
 
@@ -40,6 +41,7 @@ const SettingsPage = () => {
               selectedTheme={selectedTheme}
               onThemeChange={handleThemeChange}
             />
+            <CreateProblemCard />
           </div>
 
           <div className="mt-8 flex justify-center">

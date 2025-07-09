@@ -13,7 +13,7 @@ const apiUrl = import.meta.env.VITE_API_URL;
 
 const LoginForm = () => {
   const navigate = useNavigate();
-  const { setUser } = useUser();
+  const { refetchUser } = useUser();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
@@ -39,27 +39,10 @@ const LoginForm = () => {
 
       if (response.ok) {
         await response.json();
-        
-        const userResponse = await authFetch(`${apiUrl}/api/v1/user/me`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          setUser({
-            ...userData,
-            totalScore: userData.user_mmr,
-            name: userData.nickname || userData.username,
-          });
-          alert("로그인이 완료되었습니다!");
-          navigate("/home");
-        } else {
-          console.error("Failed to fetch user data");
-          alert("사용자 정보를 가져오는데 실패했습니다.");
-        }
+        // refetchUser를 호출하여 UserContext가 사용자 정보를 갱신하도록 합니다.
+        await refetchUser();
+        alert("로그인이 완료되었습니다!");
+        navigate("/home");
       } else {
         const errorData = await response.json();
         console.error("Login failed:", errorData);
