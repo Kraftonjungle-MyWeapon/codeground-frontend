@@ -281,7 +281,24 @@ export function useScreenShareSetup() {
   const createPeerConnection = useCallback(() => {
     console.log("[ScreenShare] Creating new PeerConnection.");
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        {
+          urls: [
+            'turns:turn.code-ground.com:5349?transport=tcp'  // TLS over TCP
+          ],
+          username: 'codegrounduser',
+          credential: 'codegroundpass'
+        },
+        {
+          urls: [
+            'turn:turn.code-ground.com:3478?transport=udp',
+            'turn:turn.code-ground.com:3478?transport=tcp'
+          ],
+          username: 'codegrounduser',
+          credential: 'codegroundpass'
+        }
+      ],
     });
     setPeerConnection(pc);
 
