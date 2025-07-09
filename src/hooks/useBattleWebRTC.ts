@@ -19,7 +19,23 @@ export const useBattleWebRTC = ({
 
   const createPeerConnection = useCallback(() => {
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' },
+        {
+          urls: [
+            'turns:turn.code-ground.com:5349?transport=tcp'  // TLS over TCP
+          ],
+          username: 'codegrounduser',
+          credential: 'codegroundpass'
+        },
+        {
+          urls: [
+            'turn:turn.code-ground.com:3478?transport=udp',
+            'turn:turn.code-ground.com:3478?transport=tcp'
+          ],
+          username: 'codegrounduser',
+          credential: 'codegroundpass'
+        }
+      ]
     });
     setPeerConnection(pc);
 
@@ -91,9 +107,20 @@ export const useBattleWebRTC = ({
           JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription })
         );
       }
+    } else if (signal.type === 'renegotiate_screen_share') {
+      // 기존 peerConnection 정리 및 새로 생성
+      if (pc) {
+        pc.close();
+      }
+      pc = createPeerConnection();
+      if (sharedLocalStream) {
+        sharedLocalStream.getTracks().forEach((track) => {
+          pc.addTrack(track, sharedLocalStream);
+        });
+      }
     }
     setPeerConnection(pc);
-  }, [createPeerConnection, sendMessage, sharedLocalStream]);
+  }, [createPeerConnection, sendMessage, sharedLocalStream, setIsRemoteStreamActive, setShowRemoteScreenSharePrompt]);
 
   useEffect(() => {
     if (sharedPC) {

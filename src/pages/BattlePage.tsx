@@ -56,7 +56,9 @@ import BattleCodeEditorPanel from "@/components/BattleCodeEditorPanel";
 import { useBattleModals } from "@/hooks/useBattleModals";
 
 const apiUrl = import.meta.env.VITE_API_URL;
-const wsUrl = apiUrl.replace(/^http/, "ws");
+const wsUrl = apiUrl.startsWith('https')
+    ? apiUrl.replace(/^https/, 'wss')
+    : apiUrl.replace(/^http/, 'ws');
 
 hljs.registerLanguage("python", python);
 
@@ -78,6 +80,8 @@ const BattlePage = () => {
   const [isCheatDetectionActive, setIsCheatDetectionActive] = useState(true);
   const [currentLanguage] = useState<ProgrammingLanguage>("python");
   const [showScreenSharePrompt, setShowScreenSharePrompt] = useState(false);
+  const [showOpponentScreenShareRequiredModal, setShowOpponentScreenShareRequiredModal] = useState(false);
+  const [opponentScreenShareCountdown, setOpponentScreenShareCountdown] = useState(0);
 
   // Custom Hook Calls
   const { reportCheating } = useCheatDetection({
@@ -235,6 +239,10 @@ const BattlePage = () => {
     setProblem,
     sendMessage,
     cleanupScreenShare,
+    isLocalStreamActive,
+    isRemoteStreamActive,
+    setShowOpponentScreenShareRequiredModal,
+    setOpponentScreenShareCountdown,
   });
 
   // usePreventNavigation hook
@@ -390,6 +398,11 @@ const BattlePage = () => {
         isOpen={showScreenShareRequiredModal}
         countdown={screenShareCountdown}
         onRestartScreenShare={startLocalScreenShare}
+      />
+      <ScreenShareRequiredModal
+        isOpen={showOpponentScreenShareRequiredModal}
+        countdown={opponentScreenShareCountdown}
+        isOpponent={true}
       />
     </div>
   );

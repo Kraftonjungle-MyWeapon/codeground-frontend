@@ -82,6 +82,7 @@ export const useBattleScreenShare = ({
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+      sendMessage(JSON.stringify({ type: 'renegotiate_screen_share' })); // 화면 공유 재시작 시 재협상 메시지 전송
       sendMessage(JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription }));
       sendMessage(JSON.stringify({ type: 'screen_share_started' })); // 화면 공유 재시작 메시지 전송
 

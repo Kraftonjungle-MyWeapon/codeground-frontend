@@ -5,7 +5,9 @@ import { fetchProblemForGame } from "@/utils/api";
 
 // 실제 환경에 맞게 경로 수정!
 const apiUrl = import.meta.env.VITE_API_URL;
-const wsUrl = apiUrl.replace(/^http/, "ws");
+const wsUrl = apiUrl.startsWith('https')
+    ? apiUrl.replace(/^https/, 'wss')
+    : apiUrl.replace(/^http/, 'ws');
 
 export function useMatching() {
     const navigate = useNavigate();
