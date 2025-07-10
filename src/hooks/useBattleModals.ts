@@ -24,6 +24,7 @@ interface UseBattleModalsProps {
   setRemoteStream: (stream: MediaStream | null) => void;
   sharedPC: RTCPeerConnection | null;
   setPeerConnection: (pc: RTCPeerConnection | null) => void;
+  confirmNavigation?: () => void; // New prop
 }
 
 export const useBattleModals = ({
@@ -47,6 +48,7 @@ export const useBattleModals = ({
   setRemoteStream,
   sharedPC,
   setPeerConnection,
+  confirmNavigation, // confirmNavigation 추가
 }: UseBattleModalsProps) => {
   const navigate = useNavigate();
   const { sendMessage } = useWebSocketStore();
@@ -99,8 +101,12 @@ export const useBattleModals = ({
   const handleConfirmSubmit = useCallback(() => {
     setIsSubmitModalOpen(false);
     cleanupScreenShare();
-    navigate('/result');
-  }, [cleanupScreenShare, navigate]);
+    if (confirmNavigation) {
+      confirmNavigation();
+    } else {
+      navigate('/result');
+    }
+  }, [cleanupScreenShare, navigate, confirmNavigation]);
 
   const handleCancelSubmit = useCallback(() => {
     setIsSubmitModalOpen(false);
@@ -156,19 +162,27 @@ export const useBattleModals = ({
   }, [handleContinueAlone]);
 
   const handleSurrenderLeave = useCallback(() => {
-    const stored = localStorage.getItem('matchResult');
-    if (stored) {
-      navigate('/result', { state: { matchResult: JSON.parse(stored) } });
+    if (confirmNavigation) {
+      confirmNavigation();
     } else {
-      navigate('/result');
+      const stored = sessionStorage.getItem('matchResult');
+      if (stored) {
+        navigate('/result', { state: { matchResult: JSON.parse(stored) } });
+      } else {
+        navigate('/result');
+      }
     }
-  }, [navigate]);
+  }, [navigate, confirmNavigation]);
 
   const handleLeave = useCallback(() => {
     cleanupScreenShare();
     setShowOpponentLeftModal(false);
-    navigate('/waiting-room');
-  }, [cleanupScreenShare, navigate]);
+    if (confirmNavigation) {
+      confirmNavigation();
+    } else {
+      navigate('/waiting-room');
+    }
+  }, [cleanupScreenShare, navigate, confirmNavigation]);
 
   return {
     isExitModalOpen,

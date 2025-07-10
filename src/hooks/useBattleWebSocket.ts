@@ -59,7 +59,7 @@ export const useBattleWebSocket = ({
     : apiUrl.replace(/^http/, 'ws');
 
   useEffect(() => {
-    const storedWebsocketUrl = localStorage.getItem('websocketUrl');
+    const storedWebsocketUrl = sessionStorage.getItem('websocketUrl');
     let currentWsUrl: string | null = null;
 
     if (storedWebsocketUrl) {
@@ -127,7 +127,7 @@ export const useBattleWebSocket = ({
         } else if (data.type === 'match_result') {
           console.log('BattlePage: Match result received:', data);
           try {
-            localStorage.setItem('matchResult', JSON.stringify(data));
+            sessionStorage.setItem('matchResult', JSON.stringify(data));
             if (data.reason === 'surrender' && data.winner === user.user_id) {
               setIsGameFinished(true);
               setShowSurrenderModal(true);

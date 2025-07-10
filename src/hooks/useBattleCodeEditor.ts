@@ -95,7 +95,7 @@ export const useBattleCodeEditor = ({
     setRunStatus(null);
 
     try {
-      const matchId = localStorage.getItem('currentMatchId');
+      const matchId = sessionStorage.getItem('currentMatchId');
       const response = await authFetch(
         `${apiUrl}/api/v1/game/submit_public`,
         {
@@ -154,7 +154,7 @@ export const useBattleCodeEditor = ({
   const submitFinal = useCallback(async () => {
     setExecutionResult('코드를 제출하고 있습니다...');
     try {
-      const matchId = localStorage.getItem('currentMatchId');
+      const matchId = sessionStorage.getItem('currentMatchId');
       const response = await authFetch(
         `${apiUrl}/api/v1/game/submit`,
         {

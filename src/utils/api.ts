@@ -75,66 +75,63 @@ export async function fetchProblemForGame(
   problemData: { problem_url: string; image_urls: string[] },
   game_id: number
 ): Promise<void> {
-  try {
-    // S3 presigned URL은 인증 헤더가 필요 없으므로 일반 fetch를 사용합니다.
-    const problemResponse = await fetch(problemData.problem_url);
-    console.log(problemResponse);
-    if (!problemResponse.ok) {
-      throw new Error(
-        `Failed to fetch problem from ${problemData.problem_url}`
-      );
-    }
-    const problem: Problem = await problemResponse.json();
-
-    const problemStatementImages = (problemData.image_urls || [])
-      .filter((url): url is string => typeof url === "string" && url.trim() !== "")
-      .map((url) => ({
-        url,
-        name: url.substring(url.lastIndexOf("/") + 1),
-      }));
-
-    const problemWithImages: ProblemWithImages = {
-      ...problem,
-      problemStatementImages,
-    };
-
-    localStorage.setItem(
-      `problem_${game_id}`,
-      JSON.stringify(problemWithImages)
-    );
-    console.log(`Problem for game ${game_id} saved to localStorage.`);
-  } catch (error) {
-    console.error(
-      "Error fetching problem from S3, attempting DB fallback:",
-      error
-    );
-    // 개발 환경('development')에서만 DB fallback을 시도합니다.
-    if (import.meta.env.MODE === "development") {
-      try {
-        const problemFromDB: ProblemWithImages = await getProblemById(3);
-        const problemStatementImages = problemData.image_urls.map((url) => ({
-          url: url,
+  if (import.meta.env.MODE === "development") {
+    try {
+      const problemFromDB: ProblemWithImages = await getProblemById(3);
+      const problemStatementImages = (problemData.image_urls || [])
+        .filter((url): url is string => typeof url === "string" && url.trim() !== "")
+        .map((url) => ({
+          url,
           name: url.substring(url.lastIndexOf("/") + 1),
         }));
 
-        const problemWithImages: ProblemWithImages = {
-          ...problemFromDB,
-          problemStatementImages,
-        };
+      const problemWithImages: ProblemWithImages = {
+        ...problemFromDB,
+        problemStatementImages,
+      };
 
-        localStorage.setItem(
-          `problem_${game_id}`,
-          JSON.stringify(problemWithImages)
+      sessionStorage.setItem(
+        `problem_${game_id}`,
+        JSON.stringify(problemWithImages)
+      );
+      console.log(
+        `Problem for game ${game_id} saved to localStorage from DB (development mode).`
+      );
+    } catch (dbError) {
+      console.error("DB fallback failed in development mode:", dbError);
+      throw dbError;
+    }
+  } else {
+    // S3 presigned URL은 인증 헤더가 필요 없으므로 일반 fetch를 사용합니다.
+    try {
+      const problemResponse = await fetch(problemData.problem_url);
+      console.log(problemResponse);
+      if (!problemResponse.ok) {
+        throw new Error(
+          `Failed to fetch problem from ${problemData.problem_url}`
         );
-        console.log(
-          `Problem for game ${game_id} saved to localStorage from DB.`
-        );
-      } catch (dbError) {
-        console.error("DB fallback failed:", dbError);
-        throw dbError;
       }
-    } else {
-      // 운영 환경에서는 에러를 다시 던져서 상위에서 처리하도록 합니다.
+      const problem: Problem = await problemResponse.json();
+
+      const problemStatementImages = (problemData.image_urls || [])
+        .filter((url): url is string => typeof url === "string" && url.trim() !== "")
+        .map((url) => ({
+          url,
+          name: url.substring(url.lastIndexOf("/") + 1),
+        }));
+
+      const problemWithImages: ProblemWithImages = {
+        ...problem,
+        problemStatementImages,
+      };
+
+      sessionStorage.setItem(
+        `problem_${game_id}`,
+        JSON.stringify(problemWithImages)
+      );
+      console.log(`Problem for game ${game_id} saved to localStorage.`);
+    } catch (error) {
+      console.error("Error fetching problem from S3:", error);
       throw error;
     }
   }
