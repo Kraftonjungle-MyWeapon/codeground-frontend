@@ -185,13 +185,12 @@ const BattlePage = () => {
     problemId,
     isGamePaused,
     cleanupScreenShare,
+    gameId, // gameId prop 전달
   });
 
   const {
     isExitModalOpen,
     setIsExitModalOpen,
-    isSubmitModalOpen: isSubmitModalOpenFromModals,
-    setIsSubmitModalOpen: setIsSubmitModalOpenFromModals,
     confirmExitCallback,
     setConfirmExitCallback,
     cancelExitCallback,
@@ -209,8 +208,6 @@ const BattlePage = () => {
     handleSurrenderButtonClick,
     handleConfirmExit,
     handleCancelExit,
-    handleConfirmSubmit: handleConfirmSubmitModal,
-    handleCancelSubmit: handleCancelSubmitModal,
     handleContinueAlone,
     handleStay,
     handleSurrenderStay,
@@ -404,9 +401,9 @@ const BattlePage = () => {
         onCancelExit={handleCancelExit}
       />
       <SubmitConfirmModal
-        isOpen={isSubmitModalOpen}
-        onConfirm={handleConfirmSubmitModal}
-        onCancel={handleCancelSubmitModal}
+        isOpen={isSubmitModalOpen} // useBattleCodeEditor에서 가져옴
+        onConfirm={handleConfirmSubmit} // useBattleCodeEditor에서 가져옴
+        onCancel={handleCancelSubmit} // useBattleCodeEditor에서 가져옴
       />
       <ReportModal
         isOpen={isReportModalOpen}

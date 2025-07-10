@@ -14,12 +14,14 @@ interface UseBattleCodeEditorProps {
   problemId: string | number | undefined;
   isGamePaused: boolean;
   cleanupScreenShare: () => void;
+  gameId: string | null; // gameId prop 추가
 }
 
 export const useBattleCodeEditor = ({
   problemId,
   isGamePaused,
   cleanupScreenShare,
+  gameId, // gameId prop 받기
 }: UseBattleCodeEditorProps) => {
   const navigate = useNavigate();
   const [code, setCode] = useState("");
@@ -95,7 +97,6 @@ export const useBattleCodeEditor = ({
     setRunStatus(null);
 
     try {
-      const matchId = sessionStorage.getItem('currentMatchId');
       const response = await authFetch(
         `${apiUrl}/api/v1/game/submit_public`,
         {
@@ -108,7 +109,7 @@ export const useBattleCodeEditor = ({
             language: "python",
             code,
             problem_id: `${problemId}`,
-            match_id: matchId,
+            match_id: gameId, // sessionStorage 대신 gameId prop 사용
           }),
         },
       );
@@ -154,7 +155,6 @@ export const useBattleCodeEditor = ({
   const submitFinal = useCallback(async () => {
     setExecutionResult('코드를 제출하고 있습니다...');
     try {
-      const matchId = sessionStorage.getItem('currentMatchId');
       const response = await authFetch(
         `${apiUrl}/api/v1/game/submit`,
         {
@@ -167,7 +167,7 @@ export const useBattleCodeEditor = ({
             language: 'python',
             code,
             problem_id: `${problemId}`,
-            match_id: matchId,
+            match_id: gameId, // sessionStorage 대신 gameId prop 사용
           }),
         },
       );
@@ -202,10 +202,7 @@ export const useBattleCodeEditor = ({
             } else if (data.type === 'final') {
               const message = getResultMessage(data.result?.status, data.allPassed);
               setExecutionResult((prev) => `${prev}\n채점 완료: ${message}`);
-              if (data.allPassed) {
-                cleanupScreenShare();
-                navigate('/result');
-              }
+              // 성공 시 페이지 이동 로직은 웹소켓 match_result 핸들러가 담당하므로 여기서는 제거합니다.
             }
           }
         }
@@ -217,23 +214,15 @@ export const useBattleCodeEditor = ({
 
 
   const handleSubmit = useCallback(() => {
-    if (runStatus === '성공') {
-      // cleanupScreenShare(); // 코드 제출 시 화면 공유 중단
-      // navigate('/result');
-      submitFinal();
-    } else {
-      setIsSubmitModalOpen(true);
-    }
-  // }, [runStatus, cleanupScreenShare, navigate]);
-  }, [runStatus, submitFinal]);
+    // 제출 버튼을 누르면 항상 확인 모달을 띄웁니다.
+    setIsSubmitModalOpen(true);
+  }, []);
 
 
   const handleConfirmSubmit = useCallback(() => {
+    // 모달에서 확인을 누르면 제출 로직을 실행합니다.
     setIsSubmitModalOpen(false);
-  //   // cleanupScreenShare();
-  //   // navigate('/result');
     submitFinal();
-  // }, [cleanupScreenShare, navigate]);
   }, [submitFinal]);
 
   const handleCancelSubmit = useCallback(() => {
