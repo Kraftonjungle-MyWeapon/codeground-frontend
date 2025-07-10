@@ -354,6 +354,7 @@ const BattlePage = () => {
               code={code}
               setCode={setCode}
               executionResult={executionResult}
+              runStatus={runStatus}
               textareaRef={textareaRef}
               lineNumbersRef={lineNumbersRef}
               highlightRef={highlightRef}

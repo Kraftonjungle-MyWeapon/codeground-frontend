@@ -13,6 +13,7 @@ interface BattleCodeEditorPanelProps {
   code: string;
   setCode: (value: string) => void;
   executionResult: string;
+  runStatus: string | null;
   textareaRef: React.RefObject<HTMLTextAreaElement>;
   lineNumbersRef: React.RefObject<HTMLDivElement>;
   highlightRef: React.RefObject<HTMLPreElement>;
@@ -29,6 +30,7 @@ const BattleCodeEditorPanel = ({
   code,
   setCode,
   executionResult,
+  runStatus,
   textareaRef,
   lineNumbersRef,
   highlightRef,
@@ -95,7 +97,20 @@ const BattleCodeEditorPanel = ({
       <ResizablePanel defaultSize={25} minSize={15}>
         <CyberCard className="h-full flex flex-col ml-2 mt-1">
           <div className="flex items-center justify-between px-3 py-1 border-b border-gray-700/50">
-            <h3 className="text-sm font-semibold text-cyber-blue">실행 결과</h3>
+            <h3 className="text-sm font-semibold text-cyber-blue">
+              실행 결과
+              {runStatus && (
+              <span
+                className={
+                runStatus === "성공"
+                  ? "ml-2 text-green-400"
+                  : "ml-2 text-red-400"
+                }
+              >
+                {runStatus}
+              </span>
+              )}
+            </h3>
             <div className="flex space-x-1">
               <CyberButton
                 onClick={handleRun}
