@@ -52,14 +52,14 @@ export function useMatching() {
             setOpponentAccepted(false);
             setAcceptTimeLeft(message.time_limit);
             matchIdRef.current = message.match_id;
-            localStorage.setItem("currentMatchId", String(message.match_id));
+            sessionStorage.setItem("currentMatchId", String(message.match_id));
             // 상대 정보 동적으로 들어올 경우 여기에 setOpponent(message.opponent)
         } else if (message.type === "match_accepted") {
             if (message.problem && message.game_id) {
             try {
                 fetchProblemForGame(message.problem, message.game_id);
                 setOpponentAccepted(true);
-                localStorage.setItem("gameId", message.game_id);
+                sessionStorage.setItem("gameId", message.game_id);
                 navigate(`/screen-share-setup?gameId=${message.game_id}`);
             } catch (error) {
                 navigate("/home");
@@ -135,7 +135,7 @@ export function useMatching() {
         ws.send(
             JSON.stringify({ type: "match_accept", match_id: matchIdRef.current })
         );
-        localStorage.setItem("currentMatchId", String(matchIdRef.current));
+        sessionStorage.setItem("currentMatchId", String(matchIdRef.current));
     }
     };
 

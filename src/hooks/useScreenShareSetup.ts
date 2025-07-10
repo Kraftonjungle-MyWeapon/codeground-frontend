@@ -38,7 +38,7 @@ export function useScreenShareSetup() {
   // --- Game ID/유저 ID 관리 ---
   const gameId = searchParams.get("gameId");
   const currentUrlGameId = searchParams.get("gameId");
-  const storedGameId = localStorage.getItem("currentGameId");
+  const storedGameId = sessionStorage.getItem("currentGameId");
   const effectiveGameId = currentUrlGameId || storedGameId;
   const userId = user?.user_id;
 

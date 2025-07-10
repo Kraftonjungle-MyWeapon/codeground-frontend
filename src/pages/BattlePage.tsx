@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useUser } from "@/context/UserContext";
 import CyberCard from "@/components/CyberCard";
@@ -40,6 +40,7 @@ import { ScreenShareRequiredModal } from "@/components/ScreenShareRequiredModal"
 import hljs from "highlight.js/lib/core";
 import python from "highlight.js/lib/languages/python";
 import "highlight.js/styles/vs2015.css";
+import { useToast } from "@/components/ui/use-toast"; // useToast 임포트
 
 // Custom Hooks
 import { useBattleWebRTC } from "@/hooks/useBattleWebRTC";
@@ -68,6 +69,7 @@ const BattlePage = () => {
   const [searchParams] = useSearchParams();
   const gameId = searchParams.get("gameId");
   const { websocket, sendMessage, disconnect, connect } = useWebSocketStore();
+  const { toast } = useToast(); // useToast 훅 사용
 
   // Refs that remain in BattlePage
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -82,6 +84,19 @@ const BattlePage = () => {
   const [showScreenSharePrompt, setShowScreenSharePrompt] = useState(false);
   const [showOpponentScreenShareRequiredModal, setShowOpponentScreenShareRequiredModal] = useState(false);
   const [opponentScreenShareCountdown, setOpponentScreenShareCountdown] = useState(0);
+
+  // gameId 유효성 검사 및 리다이렉트
+  useEffect(() => {
+    const storedGameId = sessionStorage.getItem("gameId");
+    if (!storedGameId) {
+      toast({
+        title: "잘못된 접근",
+        description: "유효한 게임 정보가 없습니다. 홈으로 이동합니다.",
+        variant: "destructive",
+      });
+      navigate("/home");
+    }
+  }, [navigate, toast]);
 
   // Custom Hook Calls
   const { reportCheating } = useCheatDetection({
@@ -218,6 +233,7 @@ const BattlePage = () => {
     setShowLocalScreenSharePrompt,
     setShowRemoteScreenSharePrompt,
     setShowScreenSharePrompt,
+    setShowOpponentScreenShareRequiredModal,
     sharedPC,
     setPeerConnection,
     reportCheating,
@@ -243,16 +259,28 @@ const BattlePage = () => {
     isRemoteStreamActive,
     setShowOpponentScreenShareRequiredModal,
     setOpponentScreenShareCountdown,
+    isSolvingAlone,
   });
 
   // usePreventNavigation hook
-  usePreventNavigation({
+  const { confirmNavigation } = usePreventNavigation({
     shouldPrevent: true,
     onAttemptNavigation: (confirm, cancel) => {
       setIsExitModalOpen(true);
       setConfirmExitCallback(() => confirm);
       setCancelExitCallback(() => cancel);
     },
+    onNavigationConfirmed: useCallback(() => {
+      // 배틀 페이지 관련 로컬 스토리지 데이터 제거
+      localStorage.removeItem("currentMatchId");
+      localStorage.removeItem("gameId");
+      localStorage.removeItem("matchResult");
+      localStorage.removeItem("websocketUrl");
+      localStorage.removeItem("currentGameId");
+      if (gameId) {
+        localStorage.removeItem(`problem_${gameId}`);
+      }
+    }, [gameId]), // gameId를 종속성 배열에 추가
   });
 
   // Effect for localVideoRef and remoteVideoRef srcObject

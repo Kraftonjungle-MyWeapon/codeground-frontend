@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 interface UsePreventNavigationOptions {
   shouldPrevent: boolean;
   onAttemptNavigation: (confirm: () => void, cancel: () => void) => void;
+  onNavigationConfirmed?: () => void; // New optional callback
 }
 
 const usePreventNavigation = ({ shouldPrevent, onAttemptNavigation }: UsePreventNavigationOptions) => {

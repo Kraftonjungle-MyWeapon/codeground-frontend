@@ -55,6 +55,20 @@ const ResultPage = () => {
   const matchResult = location.state?.matchResult as MatchResult | null;
 
   useEffect(() => {
+    // problem_{gameId} 제거 (동적 키)를 위해 gameId를 먼저 가져옴
+    const gameId = sessionStorage.getItem("gameId");
+
+    // 배틀 페이지 관련 세션 스토리지 데이터 제거
+    sessionStorage.removeItem("currentMatchId");
+    sessionStorage.removeItem("gameId");
+    sessionStorage.removeItem("matchResult");
+    sessionStorage.removeItem("websocketUrl");
+    sessionStorage.removeItem("currentGameId");
+
+    if (gameId) {
+      sessionStorage.removeItem(`problem_${gameId}`);
+    }
+
     console.log('ResultPage: Match result from state:', matchResult);
 
     if (!matchResult) {

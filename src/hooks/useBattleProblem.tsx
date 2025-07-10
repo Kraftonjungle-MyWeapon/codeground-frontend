@@ -12,9 +12,9 @@ export const useBattleProblem = (props?: UseBattleProblemProps) => {
   const problemId = problem?.problem_id ?? problem?.problem_id;
 
   useEffect(() => {
-    const gameId = searchParams.get('gameId') || localStorage.getItem('gameId');
+    const gameId = searchParams.get('gameId') || sessionStorage.getItem('gameId');
     if (gameId) {
-      const storedProblem = localStorage.getItem(`problem_${gameId}`);
+      const storedProblem = sessionStorage.getItem(`problem_${gameId}`);
       if (storedProblem) {
         try {
           const parsedProblem: ProblemWithImages = JSON.parse(storedProblem);
@@ -29,9 +29,9 @@ export const useBattleProblem = (props?: UseBattleProblemProps) => {
 
   useEffect(() => {
     const gameId =
-      searchParams.get('gameId') || localStorage.getItem('gameId');
+      searchParams.get('gameId') || sessionStorage.getItem('gameId');
     if (problem && gameId) {
-      localStorage.setItem(`problem_${gameId}`, JSON.stringify(problem));
+      sessionStorage.setItem(`problem_${gameId}`, JSON.stringify(problem));
     }
   }, [problem, searchParams]);
 

@@ -22,7 +22,7 @@ const useWebSocketStore = create<WebSocketState>((set, get) => ({
   maxReconnectAttempts: 5,
   reconnectTimeoutId: null,
   isReconnecting: false,
-  reconnectUrl: localStorage.getItem('websocketUrl'), // Load from localStorage on init
+  reconnectUrl: sessionStorage.getItem('websocketUrl'), // Load from sessionStorage on init
 
   connect: (url: string) => {
     const { websocket, isReconnecting, reconnectTimeoutId } = get();
@@ -53,7 +53,7 @@ const useWebSocketStore = create<WebSocketState>((set, get) => ({
 
     ws.onopen = () => {
       console.log('WebSocket connected.');
-      localStorage.setItem('websocketUrl', url); // Save URL to localStorage on successful connection
+      sessionStorage.setItem('websocketUrl', url); // Save URL to sessionStorage on successful connection
       set({ websocket: ws, isConnected: true, reconnectAttempts: 0, isReconnecting: false });
     };
 

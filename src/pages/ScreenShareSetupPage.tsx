@@ -38,7 +38,7 @@ const ScreenShareSetupPage = () => {
 
   // effectiveGameId와 userId를 컴포넌트 최상위 레벨에서 정의
   const currentUrlGameId = searchParams.get('gameId');
-  const storedGameId = localStorage.getItem('currentGameId');
+  const storedGameId = sessionStorage.getItem('currentGameId');
   const effectiveGameId = currentUrlGameId || storedGameId;
   const userId = user?.user_id;
 
@@ -206,7 +206,7 @@ const ScreenShareSetupPage = () => {
 
   useEffect(() => {
     const currentUrlGameId = searchParams.get('gameId');
-    const storedGameId = localStorage.getItem('currentGameId');
+    const storedGameId = sessionStorage.getItem('currentGameId');
     const userId = user?.user_id;
 
     let effectiveGameId = null;

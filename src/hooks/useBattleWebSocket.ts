@@ -24,6 +24,7 @@ interface UseBattleWebSocketProps {
   isRemoteStreamActive: boolean;
   setShowOpponentScreenShareRequiredModal: React.Dispatch<React.SetStateAction<boolean>>;
   setOpponentScreenShareCountdown: React.Dispatch<React.SetStateAction<number>>;
+  isSolvingAlone: boolean;
 }
 
 export const useBattleWebSocket = ({
@@ -46,6 +47,7 @@ export const useBattleWebSocket = ({
   isRemoteStreamActive,
   setShowOpponentScreenShareRequiredModal,
   setOpponentScreenShareCountdown,
+  isSolvingAlone,
 }: UseBattleWebSocketProps) => {
   const { websocket, connect } = useWebSocketStore();
   const { user } = useUser();
@@ -59,7 +61,7 @@ export const useBattleWebSocket = ({
     : apiUrl.replace(/^http/, 'ws');
 
   useEffect(() => {
-    const storedWebsocketUrl = localStorage.getItem('websocketUrl');
+    const storedWebsocketUrl = sessionStorage.getItem('websocketUrl');
     let currentWsUrl: string | null = null;
 
     if (storedWebsocketUrl) {
@@ -127,7 +129,7 @@ export const useBattleWebSocket = ({
         } else if (data.type === 'match_result') {
           console.log('BattlePage: Match result received:', data);
           try {
-            localStorage.setItem('matchResult', JSON.stringify(data));
+            sessionStorage.setItem('matchResult', JSON.stringify(data));
             if (data.reason === 'surrender' && data.winner === user.user_id) {
               setIsGameFinished(true);
               setShowSurrenderModal(true);
@@ -141,6 +143,7 @@ export const useBattleWebSocket = ({
           navigate('/result');
         } else if (data.type === 'opponent_left') {
           setIsGameFinished(true);
+          setShowScreenShareRequiredModal(false);
           setShowOpponentLeftModal(true);
           setChatMessages((prev) => [
             ...prev,
@@ -151,6 +154,7 @@ export const useBattleWebSocket = ({
             },
           ]);
         } else if (data.type === 'opponent_rejoined') {
+          if (isSolvingAlone) return;
           console.log('Received opponent_rejoined message:', data);
           setShowOpponentLeftModal(false);
           setIsRemoteStreamActive(false);
@@ -177,7 +181,7 @@ export const useBattleWebSocket = ({
               type: 'system',
             },
           ]);
-          if (!isMe) {
+          if (!isMe && !isSolvingAlone) {
             setIsRemoteStreamActive(false);
             setShowRemoteScreenSharePrompt(true);
             setIsGamePaused(true); // 상대방 화면 공유 중단 시 게임 일시 정지
@@ -197,7 +201,7 @@ export const useBattleWebSocket = ({
                 return prev - 1;
               });
             }, 1000);
-          } else {
+          } else if (isMe) {
             // 자신이 화면 공유를 중지한 경우
             console.log("Setting showScreenShareRequiredModal to true.");
             setShowScreenShareRequiredModal(true);
@@ -263,7 +267,7 @@ export const useBattleWebSocket = ({
       }
     };
 
-  }, [websocket, user, handleSignal, navigate, setChatMessages, setIsGameFinished, setShowOpponentLeftModal, setIsRemoteStreamActive, setShowRemoteScreenSharePrompt, setIsGamePaused, setShowScreenShareRequiredModal, setScreenShareCountdown, screenShareCountdownIntervalRef, setProblem, sendMessage, cleanupScreenShare, isLocalStreamActive, isRemoteStreamActive, setShowOpponentScreenShareRequiredModal, setOpponentScreenShareCountdown]);
+  }, [websocket, user, handleSignal, navigate, setChatMessages, setIsGameFinished, setShowOpponentLeftModal, setIsRemoteStreamActive, setShowRemoteScreenSharePrompt, setIsGamePaused, setShowScreenShareRequiredModal, setScreenShareCountdown, screenShareCountdownIntervalRef, setProblem, sendMessage, cleanupScreenShare, isLocalStreamActive, isRemoteStreamActive, setShowOpponentScreenShareRequiredModal, setOpponentScreenShareCountdown, isSolvingAlone]);
 
   useEffect(() => {
     return () => {

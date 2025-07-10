@@ -15,6 +15,7 @@ interface UseBattleModalsProps {
   setShowLocalScreenSharePrompt: React.Dispatch<React.SetStateAction<boolean>>;
   setShowRemoteScreenSharePrompt: React.Dispatch<React.SetStateAction<boolean>>;
   setShowScreenSharePrompt: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowOpponentScreenShareRequiredModal: React.Dispatch<React.SetStateAction<boolean>>;
   reportCheating: (payload: any) => void; // Adjust payload type as needed
   // 추가된 속성들
   sharedLocalStream: MediaStream | null;
@@ -24,6 +25,7 @@ interface UseBattleModalsProps {
   setRemoteStream: (stream: MediaStream | null) => void;
   sharedPC: RTCPeerConnection | null;
   setPeerConnection: (pc: RTCPeerConnection | null) => void;
+  confirmNavigation?: () => void; // New prop
 }
 
 export const useBattleModals = ({
@@ -38,6 +40,7 @@ export const useBattleModals = ({
   setShowLocalScreenSharePrompt,
   setShowRemoteScreenSharePrompt,
   setShowScreenSharePrompt,
+  setShowOpponentScreenShareRequiredModal,
   reportCheating,
   // 추가된 속성들 구조 분해 할당
   sharedLocalStream,
@@ -47,6 +50,7 @@ export const useBattleModals = ({
   setRemoteStream,
   sharedPC,
   setPeerConnection,
+  confirmNavigation, // confirmNavigation 추가
 }: UseBattleModalsProps) => {
   const navigate = useNavigate();
   const { sendMessage } = useWebSocketStore();
@@ -99,8 +103,12 @@ export const useBattleModals = ({
   const handleConfirmSubmit = useCallback(() => {
     setIsSubmitModalOpen(false);
     cleanupScreenShare();
-    navigate('/result');
-  }, [cleanupScreenShare, navigate]);
+    if (confirmNavigation) {
+      confirmNavigation();
+    } else {
+      navigate('/result');
+    }
+  }, [cleanupScreenShare, navigate, confirmNavigation]);
 
   const handleCancelSubmit = useCallback(() => {
     setIsSubmitModalOpen(false);
@@ -135,6 +143,7 @@ export const useBattleModals = ({
     setShowLocalScreenSharePrompt(false); // 이 상태는 useBattleScreenShare에서 관리
     setShowRemoteScreenSharePrompt(false); // 이 상태는 useBattleWebRTC에서 관리
     setShowScreenSharePrompt(false); // 이 상태는 BattlePage에서 관리
+    setShowOpponentScreenShareRequiredModal(false);
 
     // WebRTC 연결 종료
     if (sharedPC) {
@@ -156,19 +165,27 @@ export const useBattleModals = ({
   }, [handleContinueAlone]);
 
   const handleSurrenderLeave = useCallback(() => {
-    const stored = localStorage.getItem('matchResult');
-    if (stored) {
-      navigate('/result', { state: { matchResult: JSON.parse(stored) } });
+    if (confirmNavigation) {
+      confirmNavigation();
     } else {
-      navigate('/result');
+      const stored = sessionStorage.getItem('matchResult');
+      if (stored) {
+        navigate('/result', { state: { matchResult: JSON.parse(stored) } });
+      } else {
+        navigate('/result');
+      }
     }
-  }, [navigate]);
+  }, [navigate, confirmNavigation]);
 
   const handleLeave = useCallback(() => {
     cleanupScreenShare();
     setShowOpponentLeftModal(false);
-    navigate('/waiting-room');
-  }, [cleanupScreenShare, navigate]);
+    if (confirmNavigation) {
+      confirmNavigation();
+    } else {
+      navigate('/waiting-room');
+    }
+  }, [cleanupScreenShare, navigate, confirmNavigation]);
 
   return {
     isExitModalOpen,
