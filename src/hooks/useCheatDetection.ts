@@ -4,6 +4,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { authFetch } from '@/utils/api';
 import { localStream as sharedLocalStream } from '@/utils/webrtcStore';
 
+const apiUrl = import.meta.env.VITE_API_URL;
+
 interface Options {
   gameId?: string | null;
   remoteVideoRef?: React.RefObject<HTMLVideoElement>;
@@ -100,7 +102,9 @@ export default function useCheatDetection({ gameId, remoteVideoRef, containerRef
         formData.append('description', description); // 상세 설명 추가
         formData.append('video', blob, 'evidence.webm');
 
-        await authFetch('http://localhost:8000/api/v1/report/', {
+        const reportUrl = `${apiUrl}/api/v1/report/`;
+
+        await authFetch(reportUrl, {
           method: 'POST',
           body: formData,
         });
