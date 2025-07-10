@@ -55,25 +55,29 @@ const App = () => {
 
     const fetchUser = async () => {
       setIsLoading(true);
-      try {
-        const userResponse = await authFetch(`${apiUrl}/api/v1/user/me`);
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          setUser(userData);
-        } else {
-          eraseCookie("access_token");
-          setUser(null);
+      const token = getCookie("access_token");
+      if (token) {
+        try {
+          const userResponse = await authFetch(
+            `${apiUrl}/api/v1/user/me`,
+          );
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            setUser(userData);
+          } else {
+            eraseCookie("access_token"); // Clear invalid token
+          }
+        } catch (error) {
+          eraseCookie("access_token"); // Clear token on network error
+        } finally {
+          setIsLoading(false);
         }
-      } catch (error) {
-        eraseCookie("access_token");
-        setUser(null);
-      } finally {
+      } else {
         setIsLoading(false);
       }
     };
-
     fetchUser();
-  }, []); //
+  }, [setUser, setIsLoading]);
 
   return (
     <QueryClientProvider client={queryClient}>

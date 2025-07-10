@@ -1,3 +1,4 @@
+import { eraseCookie } from "@/lib/utils";
 import { AwardIcon } from "lucide-react";
 import { Problem, ProblemWithImages, MatchLog } from "@/types/codeEditor";
 
@@ -16,12 +17,6 @@ export async function authFetch(
   };
 
   const response = await fetch(input, authInit);
-
-  if (response.status === 401) {
-    if (window.location.pathname !== "/login") {
-      window.location.href = "/login";
-    }
-  }
 
   return response;
 }
