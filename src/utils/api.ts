@@ -78,6 +78,7 @@ export async function fetchProblemForGame(
   try {
     // S3 presigned URL은 인증 헤더가 필요 없으므로 일반 fetch를 사용합니다.
     const problemResponse = await fetch(problemData.problem_url);
+    console.log(problemResponse);
     if (!problemResponse.ok) {
       throw new Error(
         `Failed to fetch problem from ${problemData.problem_url}`
@@ -85,10 +86,12 @@ export async function fetchProblemForGame(
     }
     const problem: Problem = await problemResponse.json();
 
-    const problemStatementImages = problemData.image_urls.map((url) => ({
-      url: url,
-      name: url.substring(url.lastIndexOf("/") + 1),
-    }));
+    const problemStatementImages = (problemData.image_urls || [])
+      .filter((url): url is string => typeof url === "string" && url.trim() !== "")
+      .map((url) => ({
+        url,
+        name: url.substring(url.lastIndexOf("/") + 1),
+      }));
 
     const problemWithImages: ProblemWithImages = {
       ...problem,
