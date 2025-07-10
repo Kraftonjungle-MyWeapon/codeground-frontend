@@ -1,3 +1,4 @@
+import { eraseCookie } from "@/lib/utils";
 import { AwardIcon } from "lucide-react";
 import { Problem, ProblemWithImages, MatchLog } from "@/types/codeEditor";
 
@@ -17,12 +18,6 @@ export async function authFetch(
 
   const response = await fetch(input, authInit);
 
-  if (response.status === 401) {
-    if (window.location.pathname !== "/login") {
-      window.location.href = "/login";
-    }
-  }
-
   return response;
 }
 
@@ -41,7 +36,7 @@ export async function getRankings(language: string = "python3") {
  * 사용자 프로필 요청
  */
 export async function getUserProfile() {
-  const response = await authFetch(`${apiUrl}/api/v1/users/me`);
+  const response = await authFetch(`${apiUrl}/api/v1/user/me`);
   if (!response.ok) throw new Error("Failed to fetch user profile");
   return response.json();
 }
@@ -50,7 +45,7 @@ export async function getUserProfile() {
  * 사용자 프로필 수정
  */
 export async function updateUserProfile(nickname: string, use_lang: string) {
-  const response = await authFetch(`${apiUrl}/api/v1/users/me`, {
+  const response = await authFetch(`${apiUrl}/api/v1/user/me`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -81,7 +76,8 @@ export async function fetchProblemForGame(
   game_id: number
 ): Promise<void> {
   try {
-    const problemResponse = await authFetch(problemData.problem_url);
+    // S3 presigned URL은 인증 헤더가 필요 없으므로 일반 fetch를 사용합니다.
+    const problemResponse = await fetch(problemData.problem_url);
     if (!problemResponse.ok) {
       throw new Error(
         `Failed to fetch problem from ${problemData.problem_url}`
@@ -109,26 +105,34 @@ export async function fetchProblemForGame(
       "Error fetching problem from S3, attempting DB fallback:",
       error
     );
-    try {
-      const problemFromDB: ProblemWithImages = await getProblemById(3);
-      const problemStatementImages = problemData.image_urls.map((url) => ({
-        url: url,
-        name: url.substring(url.lastIndexOf("/") + 1),
-      }));
+    // 개발 환경('development')에서만 DB fallback을 시도합니다.
+    if (import.meta.env.MODE === "development") {
+      try {
+        const problemFromDB: ProblemWithImages = await getProblemById(3);
+        const problemStatementImages = problemData.image_urls.map((url) => ({
+          url: url,
+          name: url.substring(url.lastIndexOf("/") + 1),
+        }));
 
-      const problemWithImages: ProblemWithImages = {
-        ...problemFromDB,
-        problemStatementImages,
-      };
+        const problemWithImages: ProblemWithImages = {
+          ...problemFromDB,
+          problemStatementImages,
+        };
 
-      localStorage.setItem(
-        `problem_${game_id}`,
-        JSON.stringify(problemWithImages)
-      );
-      console.log(`Problem for game ${game_id} saved to localStorage from DB.`);
-    } catch (dbError) {
-      console.error("DB fallback failed:", dbError);
-      throw dbError;
+        localStorage.setItem(
+          `problem_${game_id}`,
+          JSON.stringify(problemWithImages)
+        );
+        console.log(
+          `Problem for game ${game_id} saved to localStorage from DB.`
+        );
+      } catch (dbError) {
+        console.error("DB fallback failed:", dbError);
+        throw dbError;
+      }
+    } else {
+      // 운영 환경에서는 에러를 다시 던져서 상위에서 처리하도록 합니다.
+      throw error;
     }
   }
 }

@@ -26,6 +26,7 @@ const TierDemotionPage = lazy(() => import("./pages/TierDemotionPage"));
 const RankingPage = lazy(() => import("./pages/ranking/RankingPage"));
 const ProfilePage = lazy(() => import("./pages/profile/ProfilePage"));
 const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
+const CreateProblemPage = lazy(() => import("./pages/create-problem/CreateProblemPage"));
 const NotFound = lazy(() => import("./pages/not-found/NotFound"));
 const OAuthCallback = lazy(
   () => import("./pages/login/components/OAuthCallback")
@@ -54,25 +55,29 @@ const App = () => {
 
     const fetchUser = async () => {
       setIsLoading(true);
-      try {
-        const userResponse = await authFetch(`${apiUrl}/api/v1/user/me`);
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          setUser(userData);
-        } else {
-          eraseCookie("access_token");
-          setUser(null);
+      const token = getCookie("access_token");
+      if (token) {
+        try {
+          const userResponse = await authFetch(
+            `${apiUrl}/api/v1/user/me`,
+          );
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            setUser(userData);
+          } else {
+            eraseCookie("access_token"); // Clear invalid token
+          }
+        } catch (error) {
+          eraseCookie("access_token"); // Clear token on network error
+        } finally {
+          setIsLoading(false);
         }
-      } catch (error) {
-        eraseCookie("access_token");
-        setUser(null);
-      } finally {
+      } else {
         setIsLoading(false);
       }
     };
-
     fetchUser();
-  }, []); //
+  }, [setUser, setIsLoading]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -106,6 +111,7 @@ const App = () => {
                     { path: "/ranking", element: <RankingPage /> },
                     { path: "/profile", element: <ProfilePage /> },
                     { path: "/settings", element: <SettingsPage /> },
+                    { path: "/create-problem", element:<CreateProblemPage />}
                   ].map(({ path, element }) => (
                     <Route
                       key={path}
