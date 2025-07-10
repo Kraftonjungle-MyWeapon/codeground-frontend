@@ -233,6 +233,7 @@ const BattlePage = () => {
     setShowLocalScreenSharePrompt,
     setShowRemoteScreenSharePrompt,
     setShowScreenSharePrompt,
+    setShowOpponentScreenShareRequiredModal,
     sharedPC,
     setPeerConnection,
     reportCheating,
@@ -258,6 +259,7 @@ const BattlePage = () => {
     isRemoteStreamActive,
     setShowOpponentScreenShareRequiredModal,
     setOpponentScreenShareCountdown,
+    isSolvingAlone,
   });
 
   // usePreventNavigation hook

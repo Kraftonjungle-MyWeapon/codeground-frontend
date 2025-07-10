@@ -15,6 +15,7 @@ interface UseBattleModalsProps {
   setShowLocalScreenSharePrompt: React.Dispatch<React.SetStateAction<boolean>>;
   setShowRemoteScreenSharePrompt: React.Dispatch<React.SetStateAction<boolean>>;
   setShowScreenSharePrompt: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowOpponentScreenShareRequiredModal: React.Dispatch<React.SetStateAction<boolean>>;
   reportCheating: (payload: any) => void; // Adjust payload type as needed
   // 추가된 속성들
   sharedLocalStream: MediaStream | null;
@@ -39,6 +40,7 @@ export const useBattleModals = ({
   setShowLocalScreenSharePrompt,
   setShowRemoteScreenSharePrompt,
   setShowScreenSharePrompt,
+  setShowOpponentScreenShareRequiredModal,
   reportCheating,
   // 추가된 속성들 구조 분해 할당
   sharedLocalStream,
@@ -141,6 +143,7 @@ export const useBattleModals = ({
     setShowLocalScreenSharePrompt(false); // 이 상태는 useBattleScreenShare에서 관리
     setShowRemoteScreenSharePrompt(false); // 이 상태는 useBattleWebRTC에서 관리
     setShowScreenSharePrompt(false); // 이 상태는 BattlePage에서 관리
+    setShowOpponentScreenShareRequiredModal(false);
 
     // WebRTC 연결 종료
     if (sharedPC) {
