@@ -56,7 +56,6 @@ export const useBattleModals = ({
   const { sendMessage } = useWebSocketStore();
 
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
-  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [confirmExitCallback, setConfirmExitCallback] = useState<(() => void) | null>(null);
   const [cancelExitCallback, setCancelExitCallback] = useState<(() => void) | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -100,19 +99,7 @@ export const useBattleModals = ({
     }
   }, [cancelExitCallback]);
 
-  const handleConfirmSubmit = useCallback(() => {
-    setIsSubmitModalOpen(false);
-    cleanupScreenShare();
-    if (confirmNavigation) {
-      confirmNavigation();
-    } else {
-      navigate('/result');
-    }
-  }, [cleanupScreenShare, navigate, confirmNavigation]);
-
-  const handleCancelSubmit = useCallback(() => {
-    setIsSubmitModalOpen(false);
-  }, []);
+  
 
   const handleContinueAlone = useCallback(() => {
     setIsCheatDetectionActive(false); // 부정행위 감지 끄기
@@ -190,8 +177,6 @@ export const useBattleModals = ({
   return {
     isExitModalOpen,
     setIsExitModalOpen,
-    isSubmitModalOpen,
-    setIsSubmitModalOpen,
     confirmExitCallback,
     setConfirmExitCallback,
     cancelExitCallback,
@@ -209,8 +194,6 @@ export const useBattleModals = ({
     handleSurrenderButtonClick,
     handleConfirmExit,
     handleCancelExit,
-    handleConfirmSubmit,
-    handleCancelSubmit,
     handleContinueAlone,
     handleStay,
     handleSurrenderStay,

@@ -28,10 +28,10 @@ const apiUrl = import.meta.env.VITE_API_URL;
 
 // 서버에서 받는 데이터 형식
 interface MatchResult {
-  winner: number | null; // winner_id -> winner
-  reason: 'finish' | 'timeout' | 'surrender' | 'walkover' | 'late' | 'draw'; // reason 타입 추가
-  earned: number; // mmr_earned -> earned
-  // 상세 결과용 데이터 (추후 확장 가능)
+  winner: number | null;
+  reason: 'finish' | 'timeout' | 'surrender' | 'walkover' | 'late' | 'draw';
+  plus_mmr: number;
+  minus_mmr: number;
   my_time?: string;
   opponent_time?: string;
   my_code?: string;
@@ -93,10 +93,11 @@ const ResultPage = () => {
     );
   }
 
-  // matchResult에서 직접 값 가져오기
-  const { winner, reason, earned } = matchResult; // winner_id -> winner, mmr_earned -> earned
+  const { winner, reason, plus_mmr, minus_mmr } = matchResult;
   const victory = winner === user.user_id;
   const isDraw = winner === null;
+
+  const earned = isDraw ? 0 : victory ? plus_mmr : minus_mmr;
 
   let resultTitle = "";
   let resultMessage = "";
