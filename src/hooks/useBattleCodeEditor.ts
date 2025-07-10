@@ -35,6 +35,30 @@ export const useBattleCodeEditor = ({
 
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
 
+  const getResultMessage = (
+    status?: string,
+    allPassed?: boolean,
+  ): string => {
+    if (allPassed) return '성공';
+
+    switch (status) {
+      case 'success':
+        return '성공';
+      case 'compile_error':
+      case 'syntax_error':
+        return '실패 - 컴파일 오류';
+      case 'runtime_exception':
+        return '실패 - 런타임 예외';
+      case 'timeout':
+        return '실패 - 시간 초과';
+      case 'wrong_output':
+        return '실패 - 출력 결과 상이';
+      default:
+        console.log('status', status);
+        return '실패';
+    }
+  };
+
   useEffect(() => {
     if (highlightRef.current) {
       highlightRef.current.innerHTML = hljs.highlight(code, { language: 'python' }).value + (code.endsWith('\n') ? '\n' : '');
@@ -115,11 +139,9 @@ export const useBattleCodeEditor = ({
                   `${prev}\n[${data.index + 1}/${data.total}] duration: ${Number(data.result.duration).toFixed(2)} ms, memoryUsed: ${data.result.memoryUsed} KB, status: ${data.result.status}`,
                 );
             } else if (data.type === "final") {
-              setExecutionResult(
-                (prev) =>
-                  `${prev}\n채점 완료. All Passed: ${data.allPassed ? "Yes" : "No"}`,
-              );
-              setRunStatus(data.allPassed ? "성공" : "실패");
+              const message = getResultMessage(data.status, data.allPassed);
+              setExecutionResult((prev) => `${prev}\n채점 완료: ${message}`);
+              setRunStatus(message);
             }
           }
         }
@@ -178,12 +200,12 @@ export const useBattleCodeEditor = ({
                   ).toFixed(2)} ms, memoryUsed: ${data.result.memoryUsed} KB, status: ${data.result.status}`,
               );
             } else if (data.type === 'final') {
-              setExecutionResult(
-                (prev) =>
-                  `${prev}\n채점 완료. All Passed: ${data.allPassed ? 'Yes' : 'No'}`,
-              );
-              cleanupScreenShare();
-              navigate('/result');
+              const message = getResultMessage(data.result?.status, data.allPassed);
+              setExecutionResult((prev) => `${prev}\n채점 완료: ${message}`);
+              if (data.allPassed) {
+                cleanupScreenShare();
+                navigate('/result');
+              }
             }
           }
         }
