@@ -53,7 +53,14 @@ export function useMatching() {
             setAcceptTimeLeft(message.time_limit);
             matchIdRef.current = message.match_id;
             sessionStorage.setItem("currentMatchId", String(message.match_id));
-            // 상대 정보 동적으로 들어올 경우 여기에 setOpponent(message.opponent)
+            if (message.opponent_info) {
+                setOpponent({
+                    name: message.opponent_info.nickname,
+                    rank: message.opponent_info.user_rank,
+                    mmr: message.opponent_info.mmr || 0,
+                    winRate: message.opponent_info.win_rate || 0,
+                });
+            }
         } else if (message.type === "match_accepted") {
             if (message.problem && message.game_id) {
             try {
