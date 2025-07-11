@@ -25,6 +25,7 @@ interface UseBattleWebSocketProps {
   setShowOpponentScreenShareRequiredModal: React.Dispatch<React.SetStateAction<boolean>>;
   setOpponentScreenShareCountdown: React.Dispatch<React.SetStateAction<number>>;
   isSolvingAlone: boolean;
+  openCorrectAnswerModal: (isWinner: boolean) => void;
 }
 
 export const useBattleWebSocket = ({
@@ -48,6 +49,7 @@ export const useBattleWebSocket = ({
   setShowOpponentScreenShareRequiredModal,
   setOpponentScreenShareCountdown,
   isSolvingAlone,
+  openCorrectAnswerModal,
 }: UseBattleWebSocketProps) => {
   const { websocket, connect } = useWebSocketStore();
   const { user } = useUser();
@@ -133,6 +135,9 @@ export const useBattleWebSocket = ({
             if (data.reason === 'surrender' && data.winner === user.user_id) {
               setIsGameFinished(true);
               setShowSurrenderModal(true);
+            } else if (data.reason === 'finish') {
+              const isWinner = data.winner === user.user_id;
+              openCorrectAnswerModal(isWinner);
             } else {
               navigate('/result', { state: { matchResult: data } });
             }

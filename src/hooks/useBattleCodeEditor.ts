@@ -15,6 +15,8 @@ interface UseBattleCodeEditorProps {
   isGamePaused: boolean;
   cleanupScreenShare: () => void;
   gameId: string | null; // gameId prop 추가
+  isSolvingAlone: boolean; // isSolvingAlone prop 추가
+  openCorrectAnswerModal: (isWinner: boolean) => void; // openCorrectAnswerModal prop 추가
 }
 
 export const useBattleCodeEditor = ({
@@ -22,6 +24,8 @@ export const useBattleCodeEditor = ({
   isGamePaused,
   cleanupScreenShare,
   gameId, // gameId prop 받기
+  isSolvingAlone, // isSolvingAlone prop 받기
+  openCorrectAnswerModal, // openCorrectAnswerModal prop 받기
 }: UseBattleCodeEditorProps) => {
   const navigate = useNavigate();
   const [code, setCode] = useState("");
@@ -202,6 +206,9 @@ export const useBattleCodeEditor = ({
             } else if (data.type === 'final') {
               const message = getResultMessage(data.result?.status, data.allPassed);
               setExecutionResult((prev) => `${prev}\n채점 완료: ${message}`);
+              if (isSolvingAlone && data.allPassed) {
+                openCorrectAnswerModal(true); // 혼자 풀기 모드에서 정답 맞췄을 경우 승리 모달 띄움
+              }
               // 성공 시 페이지 이동 로직은 웹소켓 match_result 핸들러가 담당하므로 여기서는 제거합니다.
             }
           }
@@ -210,7 +217,7 @@ export const useBattleCodeEditor = ({
     } catch (error) {
       setExecutionResult('제출 중 오류가 발생했습니다.');
     }
-  }, [code, problemId, cleanupScreenShare, navigate]);
+  }, [code, problemId, cleanupScreenShare, navigate, isSolvingAlone, openCorrectAnswerModal]);
 
 
   const handleSubmit = useCallback(() => {

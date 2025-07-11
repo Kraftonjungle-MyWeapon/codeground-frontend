@@ -101,9 +101,11 @@ export const useBattleModals = ({
 
   
 
-  const handleContinueAlone = useCallback(() => {
+  const handleContinueAlone = useCallback((shouldUnpause: boolean = true) => {
     setIsCheatDetectionActive(false); // 부정행위 감지 끄기
-    setIsGamePaused(false); // 게임 일시정지 해제
+    if (shouldUnpause) {
+      setIsGamePaused(false); // 게임 일시정지 해제
+    }
     setShowScreenShareRequiredModal(false); // 화면공유 요구 모달 끄기
     if (screenShareCountdownIntervalRef.current) {
       clearInterval(screenShareCountdownIntervalRef.current);
@@ -174,6 +176,34 @@ export const useBattleModals = ({
     }
   }, [cleanupScreenShare, navigate, confirmNavigation]);
 
+  const [isCorrectAnswerModalOpen, setIsCorrectAnswerModalOpen] = useState(false);
+  const [isWinner, setIsWinner] = useState(false);
+
+  const openCorrectAnswerModal = useCallback((winner: boolean) => {
+    setIsWinner(winner);
+    setIsCorrectAnswerModalOpen(true);
+    setIsGamePaused(true);
+  }, [setIsGamePaused]);
+
+  const handleCorrectAnswerStay = useCallback(() => {
+    setIsCorrectAnswerModalOpen(false);
+    setIsGameFinished(true);
+    handleContinueAlone(false);
+  }, [setIsGameFinished, handleContinueAlone]);
+
+  const handleCorrectAnswerLeave = useCallback(() => {
+    if (confirmNavigation) {
+      confirmNavigation();
+    } else {
+      const stored = sessionStorage.getItem('matchResult');
+      if (stored) {
+        navigate('/result', { state: { matchResult: JSON.parse(stored) } });
+      } else {
+        navigate('/result');
+      }
+    }
+  }, [navigate, confirmNavigation]);
+
   return {
     isExitModalOpen,
     setIsExitModalOpen,
@@ -199,5 +229,10 @@ export const useBattleModals = ({
     handleSurrenderStay,
     handleSurrenderLeave,
     handleLeave,
+    isCorrectAnswerModalOpen,
+    isWinner,
+    openCorrectAnswerModal,
+    handleCorrectAnswerStay,
+    handleCorrectAnswerLeave,
   };
 };

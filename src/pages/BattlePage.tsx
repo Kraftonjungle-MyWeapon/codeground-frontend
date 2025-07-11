@@ -37,6 +37,7 @@ import ReportModal from "@/components/ReportModal";
 import { OpponentLeftModal } from "@/components/OpponentLeftModal";
 import { OpponentSurrenderModal } from "@/components/OpponentSurrenderModal";
 import { ScreenShareRequiredModal } from "@/components/ScreenShareRequiredModal";
+import { CorrectAnswerModal } from "@/components/CorrectAnswerModal";
 import hljs from "highlight.js/lib/core";
 import python from "highlight.js/lib/languages/python";
 import "highlight.js/styles/vs2015.css";
@@ -161,6 +162,59 @@ const BattlePage = () => {
     useBattleProblem();
 
   const {
+    isExitModalOpen,
+    setIsExitModalOpen,
+    confirmExitCallback,
+    setConfirmExitCallback,
+    cancelExitCallback,
+    setCancelExitCallback,
+    isReportModalOpen,
+    setIsReportModalOpen,
+    showOpponentLeftModal,
+    setShowOpponentLeftModal,
+    showSurrenderModal,
+    setShowSurrenderModal,
+    isSolvingAlone,
+    isConfirmedExitRef,
+    handleReportClick,
+    handleReportSubmit,
+    handleSurrenderButtonClick,
+    handleConfirmExit,
+    handleCancelExit,
+    handleContinueAlone,
+    handleStay,
+    handleSurrenderStay,
+    handleSurrenderLeave,
+    handleLeave,
+    isCorrectAnswerModalOpen,
+    isWinner,
+    openCorrectAnswerModal,
+    handleCorrectAnswerStay,
+    handleCorrectAnswerLeave,
+  } = useBattleModals({
+    cleanupScreenShare,
+    setIsGameFinished,
+    setIsGamePaused,
+    setIsCheatDetectionActive,
+    setShowScreenShareRequiredModal,
+    screenShareCountdownIntervalRef,
+    sharedLocalStream,
+    setLocalStream,
+    setIsLocalStreamActive,
+    sharedRemoteStream,
+    setRemoteStream,
+    remoteVideoRef,
+    setIsRemoteStreamActive,
+    setShowLocalScreenSharePrompt,
+    setShowRemoteScreenSharePrompt,
+    setShowScreenSharePrompt,
+    setShowOpponentScreenShareRequiredModal,
+    sharedPC,
+    setPeerConnection,
+    reportCheating,
+  });
+
+  const {
     code,
     setCode,
     executionResult,
@@ -186,54 +240,8 @@ const BattlePage = () => {
     isGamePaused,
     cleanupScreenShare,
     gameId, // gameId prop 전달
-  });
-
-  const {
-    isExitModalOpen,
-    setIsExitModalOpen,
-    confirmExitCallback,
-    setConfirmExitCallback,
-    cancelExitCallback,
-    setCancelExitCallback,
-    isReportModalOpen,
-    setIsReportModalOpen,
-    showOpponentLeftModal,
-    setShowOpponentLeftModal,
-    showSurrenderModal,
-    setShowSurrenderModal,
-    isSolvingAlone,
-    isConfirmedExitRef,
-    handleReportClick,
-    handleReportSubmit,
-    handleSurrenderButtonClick,
-    handleConfirmExit,
-    handleCancelExit,
-    handleContinueAlone,
-    handleStay,
-    handleSurrenderStay,
-    handleSurrenderLeave,
-    handleLeave,
-  } = useBattleModals({
-    cleanupScreenShare,
-    setIsGameFinished,
-    setIsGamePaused,
-    setIsCheatDetectionActive,
-    setShowScreenShareRequiredModal,
-    screenShareCountdownIntervalRef,
-    sharedLocalStream,
-    setLocalStream,
-    setIsLocalStreamActive,
-    sharedRemoteStream,
-    setRemoteStream,
-    remoteVideoRef,
-    setIsRemoteStreamActive,
-    setShowLocalScreenSharePrompt,
-    setShowRemoteScreenSharePrompt,
-    setShowScreenSharePrompt,
-    setShowOpponentScreenShareRequiredModal,
-    sharedPC,
-    setPeerConnection,
-    reportCheating,
+    isSolvingAlone, // isSolvingAlone prop 전달
+    openCorrectAnswerModal, // openCorrectAnswerModal prop 전달
   });
 
   useBattleWebSocket({
@@ -257,6 +265,7 @@ const BattlePage = () => {
     setShowOpponentScreenShareRequiredModal,
     setOpponentScreenShareCountdown,
     isSolvingAlone,
+    openCorrectAnswerModal,
   });
 
   // usePreventNavigation hook
@@ -300,42 +309,52 @@ const BattlePage = () => {
             </div>
             <div className="flex items-center space-x-2">
               <Clock className={`h-6 w-6 text-cyber-blue`} />
-              <span className={`text-2xl font-bold font-mono text-cyber-blue`}>
+              <span className={`text-2xl font-bold font-mono text-cyber-blue ${isGamePaused && "text-gray-500"}`}>
                 {`${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, "0")}`}
               </span>
             </div>
             <div className="flex items-center space-x-3">
-              {!isSolvingAlone && (
-                <CyberButton
-                  onClick={handleSurrenderButtonClick}
-                  size="sm"
-                  variant="secondary"
-                >
-                  <Flag className="mr-1 h-4 w-4" />
-                  항복
-                </CyberButton>
-              )}
-              <CyberButton
-                onClick={handleReportClick}
-                size="sm"
-                variant="secondary"
-              >
-                <AlertTriangle className="mr-1 h-4 w-4" />
-                신고
-              </CyberButton>
-              {isSolvingAlone ? (
-                <CyberButton onClick={handleSurrenderLeave} size="sm">
-                  <LogOut className="mr-1 h-4 w-4" />
-                  나가기
-                </CyberButton>
-              ) : (
-                !isLocalStreamActive &&
-                !isRemoteStreamActive && (
-                  <CyberButton onClick={startLocalScreenShare} size="sm">
-                    <Monitor className="mr-1 h-4 w-4" />
-                    화면 공유 시작
+              {isGamePaused || isGameFinished ? (
+                <>
+                  <CyberButton
+                    onClick={handleReportClick}
+                    size="sm"
+                    variant="secondary"
+                  >
+                    <AlertTriangle className="mr-1 h-4 w-4" />
+                    신고
                   </CyberButton>
-                )
+                  <CyberButton onClick={handleSurrenderLeave} size="sm">
+                    <LogOut className="mr-1 h-4 w-4" />
+                    나가기
+                  </CyberButton>
+                </>
+              ) : (
+                <>
+                  <CyberButton
+                    onClick={handleSurrenderButtonClick}
+                    size="sm"
+                    variant="secondary"
+                  >
+                    <Flag className="mr-1 h-4 w-4" />
+                    항복
+                  </CyberButton>
+                  <CyberButton
+                    onClick={handleReportClick}
+                    size="sm"
+                    variant="secondary"
+                  >
+                    <AlertTriangle className="mr-1 h-4 w-4" />
+                    신고
+                  </CyberButton>
+                  {!isLocalStreamActive &&
+                    !isRemoteStreamActive && (
+                      <CyberButton onClick={startLocalScreenShare} size="sm">
+                        <Monitor className="mr-1 h-4 w-4" />
+                        화면 공유 시작
+                      </CyberButton>
+                    )}
+                </>
               )}
             </div>
           </div>
@@ -429,6 +448,12 @@ const BattlePage = () => {
         isOpen={showOpponentScreenShareRequiredModal}
         countdown={opponentScreenShareCountdown}
         isOpponent={true}
+      />
+      <CorrectAnswerModal
+        isOpen={isCorrectAnswerModalOpen}
+        isWinner={isWinner}
+        onStay={handleCorrectAnswerStay}
+        onLeave={handleCorrectAnswerLeave}
       />
     </div>
   );
