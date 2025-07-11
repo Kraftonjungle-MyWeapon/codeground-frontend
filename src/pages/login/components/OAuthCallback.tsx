@@ -11,26 +11,51 @@ const OAuthCallback = () => {
   const { setUser } = useUser();
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const res = await authFetch(`${apiUrl}/api/v1/user/me`, {
-          method: "GET",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+    const handleOAuthCallback = async () => {
+      const params = new URLSearchParams(location.search);
+      const code = params.get("code");
 
-        if (res.ok) {
-          const userData = await res.json();
+      if (!code) {
+        console.error("Authorization code not found.");
+        navigate("/login?error=oauth_failed&message=인증 코드를 찾을 수 없습니다.");
+        return;
+      }
+
+      try {
+        // 1. 백엔드로 인증 코드 전송
+        const tokenResponse = await fetch(
+          `${apiUrl}/api/v1/auth/github/callback?code=${code}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+          }
+        );
+
+        if (!tokenResponse.ok) {
+          const errorData = await tokenResponse.json();
+          const message =
+            errorData?.detail ||
+            "GitHub 로그인에 실패했습니다. 일반 로그인 또는 다른 GitHub 계정을 사용해주세요.";
+          navigate(`/login?error=oauth_failed&message=${message}`);
+          return;
+        }
+
+        // 2. 사용자 정보 요청 (쿠키가 설정된 상태)
+        const userResponse = await authFetch(`${apiUrl}/api/v1/user/me`);
+
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
           setUser({
             ...userData,
             totalScore: userData.user_mmr,
             name: userData.nickname || userData.username,
           });
 
-          const params = new URLSearchParams(location.search);
-          const isNewUser = params.get("new_user") === "true";
+          const tokenData = await tokenResponse.json();
+          const isNewUser = tokenData.is_new_user;
 
           if (isNewUser) {
             navigate("/setup-profile");
@@ -38,34 +63,22 @@ const OAuthCallback = () => {
             navigate("/home");
           }
         } else {
-          const errorData = await res.json();
-          const message =
-            errorData?.detail ||
-            "GitHub 로그인에 실패했습니다. 일반 로그인 또는 다른 GitHub 계정을 사용해주세요.";
-
-          // 메시지 쿼리스트링으로 /login 페이지에 전달
-          const params = new URLSearchParams();
-          params.set("error", "oauth_failed");
-          params.set("message", message);
-
-          navigate(`/login?${params.toString()}`);
+          throw new Error("Failed to fetch user profile.");
         }
       } catch (error) {
         console.error("OAuth 처리 중 예외:", error);
-        const params = new URLSearchParams();
-        params.set("error", "network_error");
-        params.set("message", "OAuth 처리 중 오류가 발생했습니다. 다시 시도해주세요.");
-
-        navigate(`/login?${params.toString()}`);
+        navigate(
+          `/login?error=network_error&message=OAuth 처리 중 오류가 발생했습니다.`
+        );
       }
     };
 
-    fetchUser();
+    handleOAuthCallback();
   }, [location, navigate, setUser]);
 
   return (
     <div className="min-h-screen flex items-center justify-center text-white text-lg">
-      로그인 처리 중...
+      GitHub 로그인 처리 중...
     </div>
   );
 };

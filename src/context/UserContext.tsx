@@ -22,6 +22,7 @@ interface User {
   averageTime?: string;
   bestTime?: string;
   joinDate?: string;
+  profileImageUrl?: string;   // 이걸 추가해야 실사용 가능
 }
 interface UserContextType {
   user: User | null;
@@ -51,6 +52,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             rank : userData.user_rank,
             totalScore: userData.user_mmr,
             name: userData.nickname,
+            profileImageUrl: `${apiUrl}${userData.profile_img_url}`,
           });
         } else {
           console.error("Failed to fetch user data:", response.statusText);

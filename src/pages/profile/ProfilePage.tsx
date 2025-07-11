@@ -47,7 +47,8 @@ const ProfilePage = () => {
 
   const currentUser = {
     user_id: user?.user_id || 0,
-    username: user?.nickname || "CyberCoder",
+    username: user?.username || "CyberCoder", // ✅ 진짜 username = 본명
+    nickname: user?.nickname || "CyberCoder", // ✅ 닉네임 따로 관리
     email: user?.email || "cybercoder@example.com",
     joinDate: "2024-01-15",
     totalScore: user?.totalScore || 1580,
@@ -173,7 +174,8 @@ const ProfilePage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="flex flex-col space-y-6">
               <UserInfoCard
-                username={currentUser.username}
+                nickname={currentUser.nickname}
+                profileImageUrl={user?.profileImageUrl}
                 rank={currentUser.rank}
                 tier={tier}
                 lp={lp}
@@ -201,7 +203,8 @@ const ProfilePage = () => {
         <ProfileEditModal
           isOpen={showEditModal}
           onClose={() => setShowEditModal(false)}
-          currentUsername={currentUser.username}
+          currentNickname={currentUser.nickname}
+          currentProfileImageUrl={user?.profileImageUrl || ""}
         />
       )}
     </div>
