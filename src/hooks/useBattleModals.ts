@@ -235,4 +235,4 @@ export const useBattleModals = ({
     handleCorrectAnswerStay,
     handleCorrectAnswerLeave,
   };
-};""
+};
