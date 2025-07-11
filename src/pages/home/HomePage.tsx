@@ -65,6 +65,7 @@ const HomePage = () => {
                   loss: user.loss || 0,
                   win_rate: user.win_rate || 0,
                   rank: user.rank || 0,
+                  profileImageUrl: user.profileImageUrl, // 프로필 이미지 URL 추가
                 }}
                 onViewProfile={() => navigate("/profile")}
               />

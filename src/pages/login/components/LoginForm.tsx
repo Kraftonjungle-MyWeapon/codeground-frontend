@@ -41,16 +41,17 @@ const LoginForm = () => {
         const data = await response.json();
         const accessToken = data.access_token;
         setCookie("access_token", accessToken, 7);
-        
+
         const userResponse = await authFetch(`${apiUrl}/api/v1/user/me`, {
           method: "GET",
           headers: {
-      "Content-Type": "application/json",
+            "Content-Type": "application/json",
           },
         });
         if (userResponse.ok) {
           const userData = await userResponse.json();
           setUser({
+            id: userData.user_id, // 👈 명시적으로 추가
             ...userData,
             totalScore: userData.user_mmr,
             name: userData.nickname || userData.username,
@@ -76,26 +77,21 @@ const LoginForm = () => {
 
   const handleGithubLogin = async () => {
     setIsLoggingIn(true);
-    try {
-      const response = await authFetch(`${apiUrl}/api/v1/auth/github/login`);
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.redirect_url) {
-          window.location.href = data.redirect_url;
-        } else {
-          console.error("GitHub login redirect URL not found in response");
-          alert("GitHub 로그인에 실패했습니다.");
-        }
+    try {
+      const res = await fetch(`${apiUrl}/api/v1/auth/github/login`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+
+      if (data.redirect_url) {
+        window.location.href = data.redirect_url; // ✅ 실제 GitHub OAuth 페이지로 이동
       } else {
-        const errorData = await response.json();
-        console.error("GitHub login failed:", errorData);
-        alert("GitHub 로그인 실패: " + (errorData.detail || "알 수 없는 오류"));
+        throw new Error("redirect_url이 없습니다.");
       }
     } catch (error) {
-      console.error("Network error during GitHub login:", error);
-      alert("네트워크 오류가 발생했습니다.");
-    } finally {
+      console.error("GitHub 로그인 오류:", error);
+      alert("GitHub 로그인 중 오류가 발생했습니다.");
       setIsLoggingIn(false);
     }
   };
@@ -114,15 +110,15 @@ const LoginForm = () => {
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
           <IconInput
-              id="email"
-              name="email"
-              type="email"
-              label="이메일"
-              placeholder="이메일을 입력하세요"
-              value={formData.email}
-              onChange={handleChange}
-              icon={<Mail />}
-              required
+            id="email"
+            name="email"
+            type="email"
+            label="이메일"
+            placeholder="이메일을 입력하세요"
+            value={formData.email}
+            onChange={handleChange}
+            icon={<Mail />}
+            required
           />
           <IconInput
             id="password"

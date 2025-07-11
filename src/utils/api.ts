@@ -44,16 +44,11 @@ export async function getUserProfile() {
 /**
  * 사용자 프로필 수정
  */
-export async function updateUserProfile(nickname: string, use_lang: string) {
+export async function updateUserProfile(formData: FormData) {
   const response = await authFetch(`${apiUrl}/api/v1/user/me`, {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ nickname, use_lang }),
+    body: formData,
   });
-
-  if (!response.ok) throw new Error("Failed to update user profile");
   return response.json();
 }
 
@@ -169,4 +164,24 @@ export async function fetchUserlogs(
   }
 
   return (await response.json()) as MatchLog[];
+}
+
+/**
+ * 비밀번호 변경
+ */
+export async function changePassword(current_password, new_password) {
+  const response = await authFetch(`${apiUrl}/api/v1/users/password`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ current_password, new_password }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to change password");
+  }
+
+  return response.json();
 }

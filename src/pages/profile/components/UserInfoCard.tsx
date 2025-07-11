@@ -3,19 +3,24 @@ import CyberButton from "@/components/CyberButton";
 import { User } from "lucide-react";
 
 interface Props {
-  username: string;
+  nickname: string;
+  profileImageUrl?: string;
   rank: number;
   tier: { name: string; color: string };
   lp: number;
   onEdit: () => void;
 }
 
-const UserInfoCard = ({ username, rank, tier, lp, onEdit }: Props) => (
+const UserInfoCard = ({nickname, profileImageUrl, rank, tier, lp, onEdit }: Props) => (
   <CyberCard className="text-center">
-    <div className="w-24 h-24 bg-gradient-to-r from-cyber-blue to-cyber-purple rounded-full mx-auto mb-4 flex items-center justify-center">
-      <User className="h-12 w-12 text-white" />
+    <div className="w-24 h-24 bg-gradient-to-r from-cyber-blue to-cyber-purple rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden border-2 border-cyber-blue">
+      {profileImageUrl ? (
+        <img src={profileImageUrl} alt={nickname} className="w-full h-full object-cover" />
+      ) : (
+        <User className="h-12 w-12 text-white" />
+      )}
     </div>
-    <h1 className="text-2xl font-bold text-white mb-2">{username}</h1>
+    <h1 className="text-2xl font-bold text-white mb-2">{nickname}</h1>
     <div className="text-gray-400 text-sm mb-4">
       <span className={tier.color}>{tier.name}</span> • 전체랭킹 {rank}위
     </div>

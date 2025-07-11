@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState } from "react";import { toast } from "sonner";
 import CyberCard from "@/components/CyberCard";
 import CyberButton from "@/components/CyberButton";
+import { changePassword } from "@/utils/api";
 
 interface Props {
   onClose: () => void;
@@ -10,18 +11,29 @@ const PasswordChangeModal = ({ onClose }: Props) => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     if (newPassword !== confirmPassword) {
-      alert("비밀번호가 일치하지 않습니다.");
+      toast.error("새 비밀번호가 일치하지 않습니다.");
       return;
     }
     if (newPassword.length < 6) {
-      alert("비밀번호는 6자 이상이어야 합니다.");
+      toast.error("비밀번호는 6자 이상이어야 합니다.");
       return;
     }
-    alert("비밀번호가 변경되었습니다.");
-    onClose();
+    
+    setIsLoading(true);
+    try {
+      await changePassword(currentPassword, newPassword);
+      toast.success("비밀번호가 성공적으로 변경되었습니다.");
+      onClose();
+    } catch (error) {
+      console.error("Failed to change password:", error);
+      toast.error(error.message || "비밀번호 변경에 실패했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -38,6 +50,7 @@ const PasswordChangeModal = ({ onClose }: Props) => {
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               className="w-full p-3 bg-black/30 border border-gray-600 rounded text-white"
+              disabled={isLoading}
             />
           </div>
           <div>
@@ -49,6 +62,7 @@ const PasswordChangeModal = ({ onClose }: Props) => {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               className="w-full p-3 bg-black/30 border border-gray-600 rounded text-white"
+              disabled={isLoading}
             />
           </div>
           <div>
@@ -60,14 +74,18 @@ const PasswordChangeModal = ({ onClose }: Props) => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="w-full p-3 bg-black/30 border border-gray-600 rounded text-white"
+              disabled={isLoading}
             />
           </div>
         </div>
         <div className="flex justify-end space-x-3 mt-6">
-          <CyberButton variant="secondary" onClick={onClose}>
+          <CyberButton variant="secondary" onClick={onClose} disabled={isLoading}>
             취소
           </CyberButton>
-          <CyberButton onClick={handlePasswordChange}>변경</CyberButton>
+          <CyberButton onClick={handlePasswordChange} disabled={isLoading}>
+            {isLoading ? "변경 중..." : "변경"}
+          </CyberButton>
+        <CyberButton onClick={handlePasswordChange}>변경</CyberButton>
         </div>
       </CyberCard>
     </div>
