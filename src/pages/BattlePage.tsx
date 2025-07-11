@@ -162,34 +162,6 @@ const BattlePage = () => {
     useBattleProblem();
 
   const {
-    code,
-    setCode,
-    executionResult,
-    setExecutionResult,
-    runStatus,
-    setRunStatus,
-    textareaRef,
-    lineNumbersRef,
-    highlightRef,
-    editorHandlerRef,
-    languageConfig,
-    actualLineCount,
-    displayLineCount,
-    handleScroll,
-    handleKeyDown,
-    handleRun,
-    handleSubmit,
-    isSubmitModalOpen,
-    handleConfirmSubmit,
-    handleCancelSubmit,
-  } = useBattleCodeEditor({
-    problemId,
-    isGamePaused,
-    cleanupScreenShare,
-    gameId, // gameId prop 전달
-  });
-
-  const {
     isExitModalOpen,
     setIsExitModalOpen,
     confirmExitCallback,
@@ -240,6 +212,36 @@ const BattlePage = () => {
     sharedPC,
     setPeerConnection,
     reportCheating,
+  });
+
+  const {
+    code,
+    setCode,
+    executionResult,
+    setExecutionResult,
+    runStatus,
+    setRunStatus,
+    textareaRef,
+    lineNumbersRef,
+    highlightRef,
+    editorHandlerRef,
+    languageConfig,
+    actualLineCount,
+    displayLineCount,
+    handleScroll,
+    handleKeyDown,
+    handleRun,
+    handleSubmit,
+    isSubmitModalOpen,
+    handleConfirmSubmit,
+    handleCancelSubmit,
+  } = useBattleCodeEditor({
+    problemId,
+    isGamePaused,
+    cleanupScreenShare,
+    gameId, // gameId prop 전달
+    isSolvingAlone, // isSolvingAlone prop 전달
+    openCorrectAnswerModal, // openCorrectAnswerModal prop 전달
   });
 
   useBattleWebSocket({
