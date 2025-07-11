@@ -1,6 +1,5 @@
 import React from "react";
 import AcceptProgressCircle from "./AcceptProgressCircle";
-import OpponentInfo from "./OpponentInfo";
 import CyberButton from "../../../components/CyberButton";
 import { Check, X } from "lucide-react";
 import { useUser } from "@/context/UserContext";
@@ -51,12 +50,6 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
                             {opponent.name}
                         </span>
                     </div>
-                    {/* 필요하면 밑에 OpponentInfo... */}
-                    <OpponentInfo
-                        userAccepted={userAccepted}
-                        opponentAccepted={opponentAccepted}
-                        opponent={opponent}
-                    />
                 </div>
 
                 {/* 수락/거절 버튼 */}

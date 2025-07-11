@@ -7,6 +7,7 @@ export interface Tier {
   color: string;
   minLp: number;
   baseLp: number; // 해당 티어의 기준점 (100의 자리)
+  image: string; // 티어 이미지 경로 추가
 }
 
 export const tiers: Tier[] = [
@@ -16,6 +17,7 @@ export const tiers: Tier[] = [
     color: "text-orange-600",
     minLp: 0,
     baseLp: 0,
+    image: "/tiers/bronze.png",
   },
   {
     name: "Bronze IV",
@@ -23,6 +25,7 @@ export const tiers: Tier[] = [
     color: "text-orange-600",
     minLp: 100,
     baseLp: 100,
+    image: "/tiers/bronze.png",
   },
   {
     name: "Bronze III",
@@ -30,6 +33,7 @@ export const tiers: Tier[] = [
     color: "text-orange-600",
     minLp: 200,
     baseLp: 200,
+    image: "/tiers/bronze.png",
   },
   {
     name: "Bronze II",
@@ -37,6 +41,7 @@ export const tiers: Tier[] = [
     color: "text-orange-600",
     minLp: 300,
     baseLp: 300,
+    image: "/tiers/bronze.png",
   },
   {
     name: "Bronze I",
@@ -44,6 +49,7 @@ export const tiers: Tier[] = [
     color: "text-orange-600",
     minLp: 400,
     baseLp: 400,
+    image: "/tiers/bronze.png",
   },
   {
     name: "Silver V",
@@ -51,6 +57,7 @@ export const tiers: Tier[] = [
     color: "text-gray-400",
     minLp: 500,
     baseLp: 500,
+    image: "/tiers/silver.png",
   },
   {
     name: "Silver IV",
@@ -58,6 +65,7 @@ export const tiers: Tier[] = [
     color: "text-gray-400",
     minLp: 600,
     baseLp: 600,
+    image: "/tiers/silver.png",
   },
   {
     name: "Silver III",
@@ -65,6 +73,7 @@ export const tiers: Tier[] = [
     color: "text-gray-400",
     minLp: 700,
     baseLp: 700,
+    image: "/tiers/silver.png",
   },
   {
     name: "Silver II",
@@ -72,6 +81,7 @@ export const tiers: Tier[] = [
     color: "text-gray-400",
     minLp: 800,
     baseLp: 800,
+    image: "/tiers/silver.png",
   },
   {
     name: "Silver I",
@@ -79,6 +89,7 @@ export const tiers: Tier[] = [
     color: "text-gray-400",
     minLp: 900,
     baseLp: 900,
+    image: "/tiers/silver.png",
   },
   {
     name: "Gold V",
@@ -86,6 +97,7 @@ export const tiers: Tier[] = [
     color: "text-yellow-400",
     minLp: 1000,
     baseLp: 1000,
+    image: "/tiers/gold.png",
   },
   {
     name: "Gold IV",
@@ -93,6 +105,7 @@ export const tiers: Tier[] = [
     color: "text-yellow-400",
     minLp: 1100,
     baseLp: 1100,
+    image: "/tiers/gold.png",
   },
   {
     name: "Gold III",
@@ -100,6 +113,7 @@ export const tiers: Tier[] = [
     color: "text-yellow-400",
     minLp: 1200,
     baseLp: 1200,
+    image: "/tiers/gold.png",
   },
   {
     name: "Gold II",
@@ -107,6 +121,7 @@ export const tiers: Tier[] = [
     color: "text-yellow-400",
     minLp: 1300,
     baseLp: 1300,
+    image: "/tiers/gold.png",
   },
   {
     name: "Gold I",
@@ -114,6 +129,7 @@ export const tiers: Tier[] = [
     color: "text-yellow-400",
     minLp: 1400,
     baseLp: 1400,
+    image: "/tiers/gold.png",
   },
   {
     name: "Platinum V",
@@ -121,6 +137,7 @@ export const tiers: Tier[] = [
     color: "text-blue-400",
     minLp: 1500,
     baseLp: 1500,
+    image: "/tiers/platinum.png",
   },
   {
     name: "Platinum IV",
@@ -128,6 +145,7 @@ export const tiers: Tier[] = [
     color: "text-blue-400",
     minLp: 1600,
     baseLp: 1600,
+    image: "/tiers/platinum.png",
   },
   {
     name: "Platinum III",
@@ -135,6 +153,7 @@ export const tiers: Tier[] = [
     color: "text-blue-400",
     minLp: 1700,
     baseLp: 1700,
+    image: "/tiers/platinum.png",
   },
   {
     name: "Platinum II",
@@ -142,6 +161,7 @@ export const tiers: Tier[] = [
     color: "text-blue-400",
     minLp: 1800,
     baseLp: 1800,
+    image: "/tiers/platinum.png",
   },
   {
     name: "Platinum I",
@@ -149,6 +169,7 @@ export const tiers: Tier[] = [
     color: "text-blue-400",
     minLp: 1900,
     baseLp: 1900,
+    image: "/tiers/platinum.png",
   },
   {
     name: "Diamond V",
@@ -156,6 +177,7 @@ export const tiers: Tier[] = [
     color: "text-purple-400",
     minLp: 2000,
     baseLp: 2000,
+    image: "/tiers/diamond.png",
   },
   {
     name: "Diamond IV",
@@ -163,6 +185,7 @@ export const tiers: Tier[] = [
     color: "text-purple-400",
     minLp: 2100,
     baseLp: 2100,
+    image: "/tiers/diamond.png",
   },
   {
     name: "Diamond III",
@@ -170,6 +193,7 @@ export const tiers: Tier[] = [
     color: "text-purple-400",
     minLp: 2200,
     baseLp: 2200,
+    image: "/tiers/diamond.png",
   },
   {
     name: "Diamond II",
@@ -177,6 +201,7 @@ export const tiers: Tier[] = [
     color: "text-purple-400",
     minLp: 2300,
     baseLp: 2300,
+    image: "/tiers/diamond.png",
   },
   {
     name: "Diamond I",
@@ -184,6 +209,7 @@ export const tiers: Tier[] = [
     color: "text-purple-400",
     minLp: 2400,
     baseLp: 2400,
+    image: "/tiers/diamond.png",
   },
   {
     name: "Challenger",
@@ -191,6 +217,7 @@ export const tiers: Tier[] = [
     color: "text-red-400",
     minLp: 2500,
     baseLp: 2500,
+    image: "/tiers/challenger.png",
   },
 ];
 
