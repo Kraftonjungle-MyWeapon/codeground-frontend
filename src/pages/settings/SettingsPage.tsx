@@ -11,15 +11,10 @@ import DeleteAccountModal from "./components/DeleteAccountModal";
 const SettingsPage = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedTheme, setSelectedTheme] = useState("cyber");
-
-  const handleThemeChange = (theme: string) => {
-    setSelectedTheme(theme);
-    alert(`${theme} 테마가 적용되었습니다.`);
-  };
+  
 
   return (
-    <div className="min-h-screen cyber-grid">
+    <div>
       <Header />
 
       <main className="container mx-auto px-4 py-8">
@@ -37,16 +32,11 @@ const SettingsPage = () => {
               onChangePassword={() => setShowPasswordModal(true)}
               onDeleteAccount={() => setShowDeleteModal(true)}
             />
-            <ThemeSettingsCard
-              selectedTheme={selectedTheme}
-              onThemeChange={handleThemeChange}
-            />
+            
             <CreateProblemCard />
           </div>
 
-          <div className="mt-8 flex justify-center">
-            <CyberButton>설정 저장</CyberButton>
-          </div>
+          
         </div>
       </main>
 

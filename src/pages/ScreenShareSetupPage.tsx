@@ -487,7 +487,7 @@ const ScreenShareSetupPage = () => {
 
 
   return (
-    <div className="min-h-screen cyber-grid bg-cyber-darker">
+    <div className="min-h-screen">
       <header className="cyber-card border-b border-cyber-blue/20 backdrop-blur-md">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-center">

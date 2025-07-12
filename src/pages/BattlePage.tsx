@@ -300,7 +300,7 @@ const BattlePage = () => {
   }, [sharedLocalStream, sharedRemoteStream]);
 
   return (
-    <div ref={containerRef} className="min-h-screen cyber-grid bg-cyber-darker">
+    <div ref={containerRef} className="min-h-screen">
       <header className="sticky top-0 z-50 cyber-card border-b border-cyber-blue/20 backdrop-blur-md">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">

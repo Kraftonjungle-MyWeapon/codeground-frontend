@@ -29,7 +29,7 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-white p-4">
+    <div className="min-h-screen flex items-center justify-center">
       <CyberCard glowing className="p-8 text-center max-w-md w-full">
         <h1 className="text-6xl font-bold text-cyber-red mb-4">404</h1>
         <p className="text-2xl text-gray-300 mb-2">페이지를 찾을 수 없습니다</p>
