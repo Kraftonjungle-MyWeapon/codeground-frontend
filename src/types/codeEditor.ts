@@ -29,19 +29,19 @@ export interface Problem {
   description: string;
   input_format: string;
   output_format: string;
-  sample_input: string;
-  sample_output: string;
   time_limit_milliseconds: string;
   memory_limit_kilobytes: string;
   difficulty: string;
   category: string[];
   languages: string[];
   test_cases: {
-    id: number;
+    id?: number; // Make id optional as it's generated on frontend
     input: string;
     output: string;
+    description?: string; // Add optional description field
     visibility: 'public' | 'hidden';
   }[];
+  constraints?: string;
 }
 
 export interface ProblemWithImages extends Problem {
