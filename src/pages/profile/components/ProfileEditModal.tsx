@@ -65,14 +65,14 @@ const ProfileEditModal = ({
       const newUserState = {
         ...user, // 기존 user 상태를 스프레드
         ...updatedUserFromBackend, // 백엔드에서 받은 업데이트된 사용자 정보 스프레드
-        profileImageUrl: `${import.meta.env.VITE_API_URL}${updatedUserFromBackend.profile_img_url}`, // profile_img_url을 profileImageUrl로 매핑
+        profileImageUrl: updatedUserFromBackend.profile_img_url, // profile_img_url을 profileImageUrl로 매핑
         totalScore: updatedUserFromBackend.user_mmr, // user_mmr을 totalScore로 매핑
         rank: updatedUserFromBackend.user_rank, // user_rank를 rank로 매핑
       };
       setUser(newUserState);
 
       // 🔥 추가: 프리뷰 상태를 최신 이미지로 갱신 + 캐시 방지 쿼리 붙이기
-      setPreviewUrl(`${import.meta.env.VITE_API_URL}${updatedUserFromBackend.profile_img_url}?t=${Date.now()}`);
+      setPreviewUrl(`${updatedUserFromBackend.profile_img_url}?t=${Date.now()}`);
 
       toast.success("프로필이 성공적으로 업데이트되었습니다.");
       onClose();
