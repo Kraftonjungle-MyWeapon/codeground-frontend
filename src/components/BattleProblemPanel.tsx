@@ -7,20 +7,35 @@ import { ProblemWithImages } from "@/types/codeEditor";
 
 type BattleProblemPanelProps = {
   problem: ProblemWithImages | null;
-  renderDescription: () => React.ReactNode;
 };
 
 const BattleProblemPanel = ({
   problem,
-  renderDescription,
 }: BattleProblemPanelProps) => {
   const [showHint, setShowHint] = useState(false);
+
+  const renderProblemDescription = () => {
+    if (!problem || !problem.description) return null;
+
+    const parts = problem.description.split(/(\[IMAGE:[^\]]+\])/g);
+
+    return parts.map((part, index) => {
+      if (part.startsWith('[IMAGE:') && part.endsWith(']')) {
+        const imageId = part.substring(7, part.length - 1);
+        const image = problem.problemStatementImages?.find(img => img.name.includes(imageId));
+        if (image) {
+          return <img key={index} src={image.url} alt={image.name} className="my-2 max-w-full h-auto rounded-lg object-contain mx-auto block" />;
+        }
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
 
   return (
     <CyberCard className="h-[calc(100vh-24em)] p-4 mr-2 max-h-[860px]">
       <ScrollArea className="h-full">
         {problem ? (
-          <div className="space-y-4 pr-4">
+          <div className="space-y-4 pr-4 w-full">
             <div className="flex items-start justify-between">
               <div className="flex flex-col">
                 <h1 className="text-xl font-bold neon-text">{problem.title}</h1>
@@ -51,11 +66,36 @@ const BattleProblemPanel = ({
                 </div>
               </div>
             )}
-            <div>
-              <p className="text-gray-300 leading-relaxed">
-                {renderDescription()}
+            <div className="w-full">
+              <p className="text-gray-300 leading-relaxed max-w-full overflow-hidden">
+                {renderProblemDescription()}
               </p>
             </div>
+
+            {/* 입력 형식 */}
+            {problem.input_format && (
+              <div>
+                <h3 className="text-lg font-semibold text-cyber-blue mb-2">
+                  입력 형식
+                </h3>
+                <p className="text-gray-300 whitespace-pre-wrap break-words">
+                  {problem.input_format}
+                </p>
+              </div>
+            )}
+
+            {/* 출력 형식 */}
+            {problem.output_format && (
+              <div>
+                <h3 className="text-lg font-semibold text-cyber-blue mb-2">
+                  출력 형식
+                </h3>
+                <p className="text-gray-300 whitespace-pre-wrap break-words">
+                  {problem.output_format}
+                </p>
+              </div>
+            )}
+
             {(problem.time_limit_milliseconds ||
               problem.memory_limit_kilobytes) && (
               <div>
@@ -75,56 +115,53 @@ const BattleProblemPanel = ({
                       {parseInt(problem.memory_limit_kilobytes) / 1024} MB
                     </li>
                   )}
+                  {problem.constraints && (
+                    <li>
+                      • 제한 사항:{" "}
+                      {problem.constraints}
+                    </li>
+                  )}
                 </ul>
               </div>
             )}
 
-            {problem.sample_input && problem.sample_output && (
-              <div>
-                <h3 className="text-lg font-semibold text-cyber-blue mb-2">
-                  입출력 예
-                </h3>
-                <div className="flex space-x-4">
-                  <div className="w-1/2 flex-shrink-0 bg-black/30 p-3 rounded-lg border border-gray-700">
-                    <pre className="font-mono text-sm text-gray-400 whitespace-pre-wrap break-words">
-                      {problem.sample_input}
-                    </pre>
-                  </div>
-                  <div className="w-1/2 flex-shrink-0 bg-black/30 p-3 rounded-lg border border-gray-700">
-                    <pre className="font-mono text-sm text-green-400 whitespace-pre-wrap break-words">
-                      {problem.sample_output}
-                    </pre>
-                  </div>
-                </div>
-              </div>
-            )}
-
+            {/* 입출력 예 (Public Test Cases) */}
             {problem.test_cases &&
               problem.test_cases.filter((tc) => tc.visibility === "public")
                 .length > 0 && (
                 <div>
                   <h3 className="text-lg font-semibold text-cyber-blue mb-2">
-                    입출력 예 설명
+                    입출력 예
                   </h3>
                   {problem.test_cases
                     .filter((tc) => tc.visibility === "public")
                     .map((testCase, index) => (
-                      <div key={index} className="mb-4">
+                      <div key={index} className="mb-4 p-3 bg-black/20 rounded-lg border border-gray-700">
                         <h4 className="text-yellow-400 font-medium mb-2">
-                          입출력 예 #{index + 1}
+                          예제 {index + 1}
                         </h4>
-                        <div className="flex space-x-4">
-                          <div className="w-1/2 flex-shrink-0 bg-black/30 p-3 rounded-lg border border-gray-700">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <p className="text-gray-300">입력 예</p>
                             <pre className="font-mono text-sm text-gray-400 whitespace-pre-wrap break-words">
                               {testCase.input}
                             </pre>
                           </div>
-                          <div className="w-1/2 flex-shrink-0 bg-black/30 p-3 rounded-lg border border-gray-700">
+                          <div className="space-y-2">
+                            <p className="text-gray-300">출력 예</p>
                             <pre className="font-mono text-sm text-green-400 whitespace-pre-wrap break-words">
                               {testCase.output}
                             </pre>
                           </div>
                         </div>
+                        {testCase.description && (
+                          <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                            <h5 className="text-yellow-400 font-semibold mb-1">힌트:</h5>
+                            <p className="text-yellow-300 text-sm whitespace-pre-wrap break-words">
+                              {testCase.description}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     ))}
                 </div>

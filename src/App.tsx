@@ -26,7 +26,7 @@ const TierDemotionPage = lazy(() => import("./pages/TierDemotionPage"));
 const RankingPage = lazy(() => import("./pages/ranking/RankingPage"));
 const ProfilePage = lazy(() => import("./pages/profile/ProfilePage"));
 const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
-const CreateProblemPage = lazy(() => import("./pages/create-problem/CreateProblemPage"));
+const CreateProblemPage = lazy(() => import("./pages/CreateProblemPage"));
 const NotFound = lazy(() => import("./pages/not-found/NotFound"));
 const OAuthCallback = lazy(
   () => import("./pages/login/components/OAuthCallback")

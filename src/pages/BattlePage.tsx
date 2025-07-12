@@ -365,7 +365,7 @@ const BattlePage = () => {
         <ResizablePanelGroup direction="horizontal" className="h-full">
           <ResizablePanel defaultSize={40} minSize={30}>
             <div className="h-full flex flex-col">
-              <div className="flex-1 mb-2">
+              <div className="flex-grow mb-2 min-w-0">
                 <BattleProblemPanel
                   problem={problem}
                   renderDescription={renderDescription}

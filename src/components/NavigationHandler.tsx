@@ -33,6 +33,31 @@ const NavigationHandler: React.FC<NavigationHandlerProps> = ({ children }) => {
     '/result',
   ];
 
+  const allowedPathsForProblemData = [
+    '/battle',
+    '/matching',
+    '/screen-share-setup',
+    '/waiting-room',
+  ];
+
+  useEffect(() => {
+    if (!allowedPathsForProblemData.some(path => location.pathname.startsWith(path))) {
+      console.log("Clearing session storage for problem data.");
+      sessionStorage.removeItem("currentMatchId");
+      sessionStorage.removeItem("gameId");
+      sessionStorage.removeItem("matchResult");
+      sessionStorage.removeItem("websocketUrl");
+      sessionStorage.removeItem("currentGameId");
+
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith("problem_")) {
+          sessionStorage.removeItem(key);
+        }
+      }
+    }
+  }, [location.pathname]);
+
   const preventBack = noBackAllowedPaths.includes(location.pathname);
   const preventExit = noExitAllowedPaths.includes(location.pathname);
 

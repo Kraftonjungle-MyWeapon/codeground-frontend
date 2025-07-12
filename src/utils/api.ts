@@ -72,18 +72,7 @@ export async function fetchProblemForGame(
 ): Promise<void> {
   if (import.meta.env.MODE === "development") {
     try {
-      const problemFromDB: ProblemWithImages = await getProblemById(3);
-      const problemStatementImages = (problemData.image_urls || [])
-        .filter((url): url is string => typeof url === "string" && url.trim() !== "")
-        .map((url) => ({
-          url,
-          name: url.substring(url.lastIndexOf("/") + 1),
-        }));
-
-      const problemWithImages: ProblemWithImages = {
-        ...problemFromDB,
-        problemStatementImages,
-      };
+      const problemWithImages: ProblemWithImages = await getProblemById(3);
 
       sessionStorage.setItem(
         `problem_${game_id}`,
@@ -141,7 +130,34 @@ export async function getProblemById(
   console.log("getProblemById called with problemId:", problemId);
   const response = await authFetch(`${apiUrl}/api/v1/game/for_local`);
   if (!response.ok) throw new Error("Failed to fetch problem from DB");
-  return response.json();
+  
+  const problemData: Problem = await response.json();
+
+  // 목업 이미지 URL 생성 (public/tiers 폴더의 이미지 활용)
+  const mockImageUrls = [
+    "/tiers/bronze.png",
+    "/tiers/silver.png",
+    "/tiers/gold.png",
+  ];
+
+  const problemStatementImages = mockImageUrls.map((url, index) => ({
+    url: url,
+    name: `img_${index}`, // 태그에 사용할 이름
+  }));
+
+  // description에 이미지 태그 삽입
+  let modifiedDescription = problemData.description;
+  problemStatementImages.forEach((image, index) => {
+    modifiedDescription += `\n[IMAGE:${image.name}]`;
+  });
+
+  const problemWithImages: ProblemWithImages = {
+    ...problemData,
+    description: modifiedDescription,
+    problemStatementImages: problemStatementImages,
+  };
+
+  return problemWithImages;
 }
 
 /**
@@ -181,6 +197,25 @@ export async function changePassword(current_password, new_password) {
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.detail || "Failed to change password");
+  }
+
+  return response.json();
+}
+
+
+
+/**
+ * 문제 생성
+ */
+export async function createProblem(problemData: FormData) {
+  const response = await authFetch(`${apiUrl}/api/v1/problem/`, {
+    method: "POST",
+    body: problemData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || "Failed to create problem");
   }
 
   return response.json();
