@@ -19,7 +19,7 @@ const MatchingPage = () => {
   } = useMatching();
 
   return (
-    <div className="min-h-screen cyber-grid">
+    <div className="min-h-screen">
       <Header />
       <main className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[calc(100vh-200px)]">
         <div className="w-full max-w-2xl">

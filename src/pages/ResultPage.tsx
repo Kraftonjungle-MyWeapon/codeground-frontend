@@ -87,7 +87,7 @@ const ResultPage = () => {
 
   if (isLoading || !matchResult || !user || initialUserTotalScore === null) {
     return (
-      <div className="min-h-screen cyber-grid flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <p className="text-white text-2xl">결과를 불러오는 중...</p>
       </div>
     );
@@ -233,7 +233,7 @@ const ResultPage = () => {
   // 단계 1: 승패 결과
   if (currentStep === 1) {
     return (
-      <div className="min-h-screen cyber-grid">
+      <div className="min-h-screen">
         <Header />
         <main className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[calc(100vh-250px)]">
           <div className="w-full max-w-2xl">
@@ -277,7 +277,7 @@ const ResultPage = () => {
   // 단계 2: LP 변화 애니메이션 및 액션 선택
   if (currentStep === 2) {
     return (
-      <div className="min-h-screen cyber-grid">
+      <div className="min-h-screen">
         <Header />
         <main className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[calc(100vh-250px)]">
           <div className="w-full max-w-2xl">
@@ -371,7 +371,7 @@ const ResultPage = () => {
   // 상세 결과 페이지는 현재 비활성화 (추후 확장 가능)
   // 지금은 홈으로 가는 버튼만 제공
    return (
-    <div className="min-h-screen cyber-grid">
+    <div className="min-h-screen">
       <Header />
       <main className="container mx-auto px-4 py-8 flex items-center justify-center">
         <CyberCard className="p-8 text-center">

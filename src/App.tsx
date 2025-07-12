@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,6 +7,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import CyberLoadingSpinner from "@/components/CyberLoadingSpinner";
 import NavigationHandler from "./components/NavigationHandler";
+import { useUser } from "./context/UserContext";
+import { authFetch } from "./utils/api";
+import { getCookie, eraseCookie } from "@/lib/utils";
+
 const HomePage = lazy(() => import("./pages/home/HomePage"));
 const LandingPage = lazy(() => import("./pages/landing/LandingPage"));
 const LoginPage = lazy(() => import("./pages/login/LoginPage"));
@@ -27,15 +31,11 @@ const RankingPage = lazy(() => import("./pages/ranking/RankingPage"));
 const ProfilePage = lazy(() => import("./pages/profile/ProfilePage"));
 const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 const CreateProblemPage = lazy(() => import("./pages/CreateProblemPage"));
+const UploadProblemPage = lazy(() => import("./pages/UploadProblemPage"));
 const NotFound = lazy(() => import("./pages/not-found/NotFound"));
 const OAuthCallback = lazy(
   () => import("./pages/login/components/OAuthCallback")
 );
-
-import { useEffect } from "react";
-import { useUser } from "./context/UserContext";
-import { authFetch } from "./utils/api";
-import { getCookie, eraseCookie } from "@/lib/utils";
 
 const queryClient = new QueryClient();
 
@@ -84,47 +84,50 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          {isLoading ? (
-            <CyberLoadingSpinner />
-          ) : (
-            <Suspense fallback={<CyberLoadingSpinner />}>
-              <NavigationHandler>
-                <Routes>
-                  <Route path="/" element={<LandingPage />} />
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/signup" element={<SignupPage />} />
-                  <Route path="/oauth/callback" element={<OAuthCallback />} />
-                  {[
-                    { path: "/home", element: <HomePage /> },
-                    { path: "/setup-profile", element: <ProfileSetupPage /> },
-                    { path: "/matching", element: <MatchingPage /> },
-                    { path: "/waiting-room", element: <WaitingRoomPage /> },
-                    {
-                      path: "/screen-share-setup",
-                      element: <ScreenShareSetupPage />,
-                    },
-                    { path: "/battle", element: <BattlePage /> },
-                    { path: "/result", element: <ResultPage /> },
-                    { path: "/tier-promotion", element: <TierPromotionPage /> },
-                    { path: "/tier-demotion", element: <TierDemotionPage /> },
-                    { path: "/ranking", element: <RankingPage /> },
-                    { path: "/profile", element: <ProfilePage /> },
-                    { path: "/settings", element: <SettingsPage /> },
-                    { path: "/create-problem", element:<CreateProblemPage />}
-                  ].map(({ path, element }) => (
-                    <Route
-                      key={path}
-                      path={path}
-                      element={<ProtectedRoute>{element}</ProtectedRoute>}
-                    />
-                  ))}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </NavigationHandler>
-            </Suspense>
-          )}
-        </BrowserRouter>
+        <div className="min-h-screen"> {/* Apply min-h-screen here */}
+          <BrowserRouter>
+            {isLoading ? (
+              <CyberLoadingSpinner />
+            ) : (
+              <Suspense fallback={<CyberLoadingSpinner />}>
+                <NavigationHandler>
+                  <Routes>
+                    <Route path="/" element={<LandingPage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/signup" element={<SignupPage />} />
+                    <Route path="/oauth/callback" element={<OAuthCallback />} />
+                    {[
+                      { path: "/home", element: <HomePage /> },
+                      { path: "/setup-profile", element: <ProfileSetupPage /> },
+                      { path: "/matching", element: <MatchingPage /> },
+                      { path: "/waiting-room", element: <WaitingRoomPage /> },
+                      {
+                        path: "/screen-share-setup",
+                        element: <ScreenShareSetupPage />,
+                      },
+                      { path: "/battle", element: <BattlePage /> },
+                      { path: "/result", element: <ResultPage /> },
+                      { path: "/tier-promotion", element: <TierPromotionPage /> },
+                      { path: "/tier-demotion", element: <TierDemotionPage /> },
+                      { path: "/ranking", element: <RankingPage /> },
+                      { path: "/profile", element: <ProfilePage /> },
+                      { path: "/settings", element: <SettingsPage /> },
+                      { path: "/create-problem", element:<CreateProblemPage />},
+                      { path: "/upload-problem", element:<UploadProblemPage />}
+                    ].map(({ path, element }) => (
+                      <Route
+                        key={path}
+                        path={path}
+                        element={<ProtectedRoute>{element}</ProtectedRoute>}
+                      />
+                    ))}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </NavigationHandler>
+              </Suspense>
+            )}
+          </BrowserRouter>
+        </div>
       </TooltipProvider>
     </QueryClientProvider>
   );

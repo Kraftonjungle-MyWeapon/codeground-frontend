@@ -77,7 +77,7 @@ const OAuthCallback = () => {
   }, [location, navigate, setUser]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center text-white text-lg">
+    <div className="min-h-screen">
       GitHub 로그인 처리 중...
     </div>
   );

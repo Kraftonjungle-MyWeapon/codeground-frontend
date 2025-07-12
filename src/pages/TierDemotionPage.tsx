@@ -25,7 +25,7 @@ const TierDemotionPage = () => {
   }, []);
 
   return (
-    <div className="min-h-screen cyber-grid">
+    <div className="min-h-screen">
       <Header />
 
       <main className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[calc(100vh-250px)]">

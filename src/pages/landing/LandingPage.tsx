@@ -16,7 +16,7 @@ const LandingPage = () => {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen cyber-grid overflow-hidden">
+    <div className="min-h-screen overflow-hidden">
       <LandingHeader />
       <main className="relative z-10 container mx-auto px-6 py-16">
       <LandingHero />
