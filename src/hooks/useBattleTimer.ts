@@ -11,7 +11,7 @@ export const useBattleTimer = ({
   isGameFinished,
 }: UseBattleTimerProps) => {
   const { sendMessage } = useWebSocketStore();
-  const [timeLeft, setTimeLeft] = useState(930);
+  const [timeLeft, setTimeLeft] = useState(1800);
 
   useEffect(() => {
     if (isGamePaused || isGameFinished) return;
@@ -29,5 +29,5 @@ export const useBattleTimer = ({
     return () => clearInterval(timer);
   }, [sendMessage, isGamePaused, isGameFinished]);
 
-  return { timeLeft };
+  return { timeLeft, setTimeLeft };
 };
