@@ -222,9 +222,16 @@ export const useBattleCodeEditor = ({
 
   const handleSubmit = useCallback(() => {
     // 제출 버튼을 누르면 항상 확인 모달을 띄웁니다.
-    setIsSubmitModalOpen(true);
-  }, []);
-
+  //   setIsSubmitModalOpen(true);
+  // }, []);
+    if (runStatus === "성공") {
+      // 테스트케이스들을 모두 통과한 경우 바로 제출합니다.
+      submitFinal();
+    } else {
+      // 통과하지 못한 경우 확인 모달을 표시합니다.
+      setIsSubmitModalOpen(true);
+    }
+  }, [runStatus, submitFinal]);
 
   const handleConfirmSubmit = useCallback(() => {
     // 모달에서 확인을 누르면 제출 로직을 실행합니다.
