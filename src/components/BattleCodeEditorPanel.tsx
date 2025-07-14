@@ -95,7 +95,7 @@ const BattleCodeEditorPanel = ({
       </ResizablePanel>
       <ResizableHandle withHandle />
       <ResizablePanel defaultSize={25} minSize={15}>
-        <CyberCard className="h-full flex flex-col ml-2 mt-1">
+        <CyberCard className="h-full flex flex-col ml-2 mt-1 mb-[1px] overflow-hidden">
           <div className="flex items-center justify-between px-3 py-1 border-b border-gray-700/50">
             <h3 className="text-sm font-semibold text-cyber-blue">
               실행 결과
@@ -132,7 +132,7 @@ const BattleCodeEditorPanel = ({
               </CyberButton>
             </div>
           </div>
-          <div className="flex-1 p-2">
+          <div className="h-full flex-1 p-2"  style={{  overflowY: "auto" }}>
             <div className="h-full bg-black/30 border border-gray-700 rounded p-3 overflow-auto">
               <pre className="font-mono text-xs text-gray-300 whitespace-pre-wrap break-words">
                 {executionResult}
