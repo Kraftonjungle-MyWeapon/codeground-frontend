@@ -154,6 +154,8 @@ export const useBattleModals = ({
   }, [handleContinueAlone]);
 
   const handleSurrenderLeave = useCallback(() => {
+    cleanupScreenShare(); // 화면 공유 정리 추가
+    setIsGameFinished(true); // 게임 종료 상태 설정 추가
     if (confirmNavigation) {
       confirmNavigation();
     } else {
@@ -164,7 +166,7 @@ export const useBattleModals = ({
         navigate('/result');
       }
     }
-  }, [navigate, confirmNavigation]);
+  }, [cleanupScreenShare, setIsGameFinished, navigate, confirmNavigation]);
 
   const handleLeave = useCallback(() => {
     cleanupScreenShare();
@@ -192,6 +194,8 @@ export const useBattleModals = ({
   }, [setIsGameFinished, handleContinueAlone]);
 
   const handleCorrectAnswerLeave = useCallback(() => {
+    cleanupScreenShare();
+    setIsGameFinished(true); // 게임 종료 상태 설정
     if (confirmNavigation) {
       confirmNavigation();
     } else {
@@ -202,7 +206,7 @@ export const useBattleModals = ({
         navigate('/result');
       }
     }
-  }, [navigate, confirmNavigation]);
+  }, [cleanupScreenShare, navigate, confirmNavigation]);
 
   return {
     isExitModalOpen,

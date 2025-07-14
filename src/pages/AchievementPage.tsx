@@ -17,7 +17,9 @@ import {
   ChevronRight,
   Flame,
   Shield,
-  Sword
+  Sword,
+  Play, // 추가
+  Eye // 추가
 } from 'lucide-react';
 
 interface Achievement {
@@ -342,7 +344,7 @@ const AchievementPage = () => {
                   
                   <div className="flex justify-center space-x-4">
                     <CyberButton 
-                      onClick={() => navigate('/result')}
+                      onClick={() => navigate('/matching')}
                       size="lg"
                       className="animate-pulse-neon"
                     >

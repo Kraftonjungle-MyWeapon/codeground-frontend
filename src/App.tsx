@@ -33,6 +33,7 @@ const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 const CreateProblemPage = lazy(() => import("./pages/CreateProblemPage"));
 const UploadProblemPage = lazy(() => import("./pages/UploadProblemPage"));
 const AdminPage = lazy(() => import("./pages/admin/AdminPage")); // 관리자 페이지 import 추가
+const AchievementPage = lazy(() => import("./pages/AchievementPage"));
 const NotFound = lazy(() => import("./pages/not-found/NotFound"));
 const OAuthCallback = lazy(
   () => import("./pages/login/components/OAuthCallback")
@@ -123,6 +124,7 @@ const App = () => {
                         element={<ProtectedRoute adminOnly={adminOnly}>{element}</ProtectedRoute>}
                       />
                     ))}
+                    <Route path="*" element={<NotFound />} />
                   </Routes>
                 </NavigationHandler>
               </Suspense>

@@ -210,25 +210,7 @@ const ResultPage = () => {
     }
   };
 
-  const handlePlayAgain = async () => {
-    try {
-      const response = await authFetch(`${apiUrl}/api/v1/user/me`);
-      if (response.ok) {
-        const userData = await response.json();
-        setUser({
-          ...userData,
-          totalScore: userData.user_mmr,
-          name: userData.nickname || userData.username,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching user data:", error);
-    } finally {
-      navigate("/matching");
-    }
-  };
   const handleViewDetails = () => setCurrentStep(3);
-  const handleGoHome = () => navigate("/home");
 
   // 단계 1: 승패 결과
   if (currentStep === 1) {
@@ -348,14 +330,10 @@ const ResultPage = () => {
                 ) : (
                   <div className="space-y-6">
                     <h3 className={`text-2xl font-bold ${victory ? "text-green-400" : "text-red-400"}`}>최종 LP: {finalTierInfo.lp}</h3>
-                    <div className="flex justify-center gap-6">
-                      <CyberButton onClick={handlePlayAgain} size="lg" className="w-44 h-16 animate-pulse-neon flex items-center justify-center">
-                        <Play className="h-6 w-6 mr-2 flex-shrink-0" />
-                        <span className="text-base whitespace-nowrap">다시 도전</span>
-                      </CyberButton>
-                      <CyberButton onClick={handleGoHome} variant="secondary" size="lg" className="w-44 h-16 flex items-center justify-center">
-                        <Eye className="h-6 w-6 mr-2 flex-shrink-0" />
-                        <span className="text-base whitespace-nowrap">홈으로</span>
+                    <div className="flex justify-center">
+                      <CyberButton onClick={() => navigate("/achievement")} size="lg" className="animate-pulse-neon">
+                        <ArrowRight className="h-6 w-6 mr-2" />
+                        다음으로
                       </CyberButton>
                     </div>
                   </div>
@@ -368,28 +346,6 @@ const ResultPage = () => {
     );
   }
   
-  // 상세 결과 페이지는 현재 비활성화 (추후 확장 가능)
-  // 지금은 홈으로 가는 버튼만 제공
-   return (
-    <div className="min-h-screen">
-      <Header />
-      <main className="container mx-auto px-4 py-8 flex items-center justify-center">
-        <CyberCard className="p-8 text-center">
-            <h1 className="text-3xl font-bold mb-4">경기 종료</h1>
-            <p className="text-gray-300 mb-8">고생하셨습니다!</p>
-            <div className="flex justify-center gap-4 mt-8">
-              <CyberButton onClick={handlePlayAgain} size="lg" className="animate-pulse-neon">
-                <Play className="h-5 w-5 mr-2" />
-                다시 도전
-              </CyberButton>
-              <CyberButton onClick={handleGoHome} variant="secondary" size="lg">
-                홈으로
-              </CyberButton>
-            </div>
-        </CyberCard>
-      </main>
-    </div>
-   )
 };
 
 export default ResultPage;
