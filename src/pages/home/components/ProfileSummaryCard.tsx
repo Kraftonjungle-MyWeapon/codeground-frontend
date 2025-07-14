@@ -2,6 +2,7 @@ import CyberCard from "@/components/CyberCard";
 import CyberButton from "@/components/CyberButton";
 import { Users } from "lucide-react";
 import { parseTotalScore } from "@/utils/lpSystem";
+import { getAbsoluteUrl } from "@/lib/utils";
 
 interface UserStats {
   nickname: string;
@@ -22,12 +23,14 @@ const ProfileSummaryCard = ({ user, onViewProfile }: Props) => {
   const { tier, lp } = parseTotalScore(user.totalScore);
   const winRate = user.win_rate != null ? user.win_rate.toFixed(2) : "0.00";
 
+  const profileImageUrl = getAbsoluteUrl(user.profileImageUrl);
+
   return (
     <CyberCard className="text-center">
       {/* 1. 프로필 이미지 */}
       <div className="w-20 h-20 rounded-full mx-auto mb-2 overflow-hidden bg-cyber-dark flex items-center justify-center border-2 border-cyber-blue">
-        {user.profileImageUrl ? (
-          <img src={user.profileImageUrl} alt="프로필 이미지" className="h-full w-full object-cover" />
+        {profileImageUrl ? (
+          <img src={profileImageUrl} alt="프로필 이미지" className="h-full w-full object-cover" />
         ) : (
           <Users className="h-10 w-10 text-white" />
         )}
@@ -42,15 +45,14 @@ const ProfileSummaryCard = ({ user, onViewProfile }: Props) => {
           <img src={tier.image} alt={tier.name} className="h-20 w-20 object-contain" />
         )}
       </div>
-      {/* 4. V 0 LP (현재 LP) */}
+      {/* 4. 티어 + LP */}
       <div className="text-center mb-1">
         <span className="text-lg font-bold text-white">
           <span className={tier.color}>{tier.name}</span> • {user.rank}위
         </span>
         <div className="text-lg font-bold text-cyber-blue">{lp} LP</div>
-        {/* <span className="text-sm text-gray-400 ml-2">(현재 LP)</span> */}
       </div>
-      {/* 6. 승/패/승률 */}
+      {/* 5. 승/패/승률 */}
       <div className="grid grid-cols-3 gap-2 text-center mb-4">
         <div>
           <div className="text-lg font-bold text-green-400">{user.win}</div>
@@ -65,7 +67,7 @@ const ProfileSummaryCard = ({ user, onViewProfile }: Props) => {
           <div className="text-sm text-gray-400">승률</div>
         </div>
       </div>
-      {/* 7. 프로필 보기 버튼 */}
+      {/* 6. 프로필 보기 버튼 */}
       <CyberButton className="w-full" onClick={onViewProfile}>
         프로필 보기
       </CyberButton>

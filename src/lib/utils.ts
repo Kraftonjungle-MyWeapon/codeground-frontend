@@ -21,3 +21,11 @@ export function getCookie(name: string): string | null {
 export function eraseCookie(name: string) {
   document.cookie = name + "=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
 }
+
+const S3_BASE_URL = import.meta.env.VITE_S3_BASE_URL;
+
+export const getAbsoluteUrl = (path: string) => {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  return `${S3_BASE_URL}/${path}`;
+};
