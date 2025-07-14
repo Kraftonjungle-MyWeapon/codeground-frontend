@@ -58,7 +58,7 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
                         <CyberButton
                             onClick={handleAccept}
                             size="lg"
-                            className="w-32 h-16 text-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500"
+                            className="w-32 h-16 text-lg whitespace-nowrap bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 overflow-hidden"
                         >
                             <Check className="h-6 w-6" />
                             수락
@@ -67,7 +67,7 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
                             onClick={handleDecline}
                             variant="danger"
                             size="lg"
-                            className="w-32 h-16 text-lg"
+                            className="w-32 h-16 text-lg whitespace-nowrap "
                         >
                             <X className="h-6 w-6" />
                             거절
