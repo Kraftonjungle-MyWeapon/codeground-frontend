@@ -2,6 +2,7 @@ import CyberCard from "@/components/CyberCard";
 import CyberButton from "@/components/CyberButton";
 import { Users } from "lucide-react";
 import { parseTotalScore } from "@/utils/lpSystem";
+import { getAbsoluteUrl } from "@/lib/utils";
 
 interface UserStats {
   nickname: string;
@@ -22,8 +23,7 @@ const ProfileSummaryCard = ({ user, onViewProfile }: Props) => {
   const { tier, lp } = parseTotalScore(user.totalScore);
   const winRate = user.win_rate != null ? user.win_rate.toFixed(2) : "0.00";
 
-  const S3_BASE_URL = "https://codeground-profile.s3.ap-northeast-2.amazonaws.com";
-  const profileImageUrl = user.profileImageUrl ? `${S3_BASE_URL}/${user.profileImageUrl}` : undefined;
+  const profileImageUrl = getAbsoluteUrl(user.profileImageUrl);
 
   return (
     <CyberCard className="text-center">

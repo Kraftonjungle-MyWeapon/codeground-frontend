@@ -1,5 +1,6 @@
 import CyberCard from "@/components/CyberCard";
 import CyberButton from "@/components/CyberButton";
+import { getAbsoluteUrl } from "@/lib/utils";
 import { User } from "lucide-react";
 
 interface Props {
@@ -12,9 +13,7 @@ interface Props {
 }
 
 const UserInfoCard = ({ nickname, profileImageUrl: rawUrl, rank, tier, lp, onEdit }: Props) => {
-  const S3_BASE_URL = "https://codeground-profile.s3.ap-northeast-2.amazonaws.com";
-  const profileImageUrl =
-    rawUrl && !rawUrl.startsWith("http") ? `${S3_BASE_URL}/${rawUrl}` : rawUrl;
+  const profileImageUrl = getAbsoluteUrl(rawUrl);
 
   return (
     <CyberCard className="text-center">

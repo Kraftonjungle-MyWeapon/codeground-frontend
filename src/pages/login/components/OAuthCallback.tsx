@@ -2,6 +2,7 @@ import React, {useEffect} from "react";
 import {useLocation, useNavigate} from "react-router-dom";
 import {useUser} from "../../../context/UserContext";
 import {authFetch} from "../../../utils/api";
+import { getAbsoluteUrl } from "@/lib/utils";
 
 const OAuthCallback = () => {
     const location = useLocation();
@@ -25,6 +26,7 @@ const OAuthCallback = () => {
 
                 setUser({
                     ...userData,
+                    profileImageUrl: getAbsoluteUrl(userData.profile_image_url),
                     totalScore: userData.user_mmr,
                     name: userData.nickname || userData.username,
                 });
