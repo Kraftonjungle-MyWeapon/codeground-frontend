@@ -144,7 +144,7 @@ const BattlePage = () => {
     setShowRemoteScreenSharePrompt, // Passed from BattlePage
   });
 
-  const { timeLeft } = useBattleTimer({
+  const { timeLeft, setTimeLeft } = useBattleTimer({
     isGamePaused,
     isGameFinished,
   });
@@ -266,6 +266,7 @@ const BattlePage = () => {
     setOpponentScreenShareCountdown,
     isSolvingAlone,
     openCorrectAnswerModal,
+    setTimeLeft,
   });
 
   // usePreventNavigation hook
@@ -368,7 +369,6 @@ const BattlePage = () => {
               <div className="flex-grow mb-2 min-w-0">
                 <BattleProblemPanel
                   problem={problem}
-                  renderDescription={renderDescription}
                 />
               </div>
               <div className="h-1/3 min-h-[16em] flex gap-2 mr-2">

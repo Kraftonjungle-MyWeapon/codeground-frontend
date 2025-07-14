@@ -26,6 +26,7 @@ interface UseBattleWebSocketProps {
   setOpponentScreenShareCountdown: React.Dispatch<React.SetStateAction<number>>;
   isSolvingAlone: boolean;
   openCorrectAnswerModal: (isWinner: boolean) => void;
+  setTimeLeft: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export const useBattleWebSocket = ({
@@ -50,6 +51,7 @@ export const useBattleWebSocket = ({
   setOpponentScreenShareCountdown,
   isSolvingAlone,
   openCorrectAnswerModal,
+  setTimeLeft,
 }: UseBattleWebSocketProps) => {
   const { websocket, connect } = useWebSocketStore();
   const { user } = useUser();
@@ -139,6 +141,7 @@ export const useBattleWebSocket = ({
               const isWinner = data.winner === user.user_id;
               openCorrectAnswerModal(isWinner);
             } else {
+              cleanupScreenShare();
               navigate('/result', { state: { matchResult: data } });
             }
           } catch (e) {
@@ -174,6 +177,21 @@ export const useBattleWebSocket = ({
               type: 'system',
             },
           ]);
+          setOpponentScreenShareCountdown(60); // 1분 (60초) 카운트다운 시작
+          if (opponentScreenShareCountdownIntervalRef.current) {
+            clearInterval(opponentScreenShareCountdownIntervalRef.current);
+          }
+          opponentScreenShareCountdownIntervalRef.current = setInterval(() => {
+            setOpponentScreenShareCountdown((prev) => {
+              if (prev <= 1) {
+                clearInterval(opponentScreenShareCountdownIntervalRef.current!); // 카운트다운 종료
+                sendMessage(JSON.stringify({ type: "match_result", reason: "surrender" }));
+                navigate('/result');
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
         } else if (data.type === 'screen_share_stopped') {
           console.log("Received screen_share_stopped message:", data);
           const isMe = data.user_id === user.user_id;
@@ -263,9 +281,9 @@ export const useBattleWebSocket = ({
           if (data.problem) {
             setProblem(data.problem);
             console.log("Problem received via WebSocket:", data.problem);
-          } else {
-            console.error("WebSocket: 'match_accepted' message received but data.problem is missing or null.", data);
           }
+        } else if (data.type === 'timer_sync') {
+          setTimeLeft(data.timeLeft);
         }
       } catch (e) {
         console.error('BattlePage: ws message parse error', e);
