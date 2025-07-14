@@ -5,12 +5,13 @@ interface CyberButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "danger" | "destructive";
   size?: "sm" | "md" | "lg";
+  loading?: boolean; // Add loading prop
 }
 
 const CyberButton = React.forwardRef<
   HTMLButtonElement,
   CyberButtonProps
->(({ className, variant = "primary", size = "md", ...props }, ref) => {
+>(({ className, variant = "primary", size = "md", loading, ...props }, ref) => {
   const baseClasses = "cyber-button flex items-center justify-center gap-2";
 
   const variantClasses = {
@@ -29,11 +30,12 @@ const CyberButton = React.forwardRef<
   return (
     <button
       ref={ref}
+      {...(props.disabled || loading ? { disabled: true } : {})}
       className={cn(
         baseClasses,
         `bg-gradient-to-r ${variantClasses[variant]}`,
         sizeClasses[size],
-        props.disabled && "opacity-50 cursor-not-allowed",
+        (props.disabled || loading) && "opacity-50 cursor-not-allowed",
         className
       )}
       {...props}

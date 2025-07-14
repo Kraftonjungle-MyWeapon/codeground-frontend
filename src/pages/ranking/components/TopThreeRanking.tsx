@@ -83,8 +83,8 @@ const TopThreeRanking: FC<Props> = ({ players }) => (
           <div className="text-xs text-gray-400 mb-2">{lp} LP</div>
           <div className="text-xs text-gray-500 flex items-center justify-center">
             순위 변동:
-            <span className={`ml-1 ${getRankDiffColor(player.rank_diff)}`}>
-              {getRankDiffIcon(player.rank_diff)} {Math.abs(player.rank_diff)}
+            <span className={`ml-1 flex items-center ${getRankDiffColor(player.rank_diff)}`}>
+              {Math.abs(player.rank_diff)} {getRankDiffIcon(player.rank_diff)}
             </span>
           </div>
         </CyberCard>
