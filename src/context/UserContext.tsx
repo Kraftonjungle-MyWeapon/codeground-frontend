@@ -7,6 +7,7 @@ interface User {
   username: string;
   user_id: number;
   nickname: string;
+  role: string;
   use_lang?: string;
   name?: string;
   totalScore?: number;
