@@ -1,5 +1,5 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
-import { authFetch, getUserWinRate, getAllUserAchievements } from "@/utils/api";
+import React, { createContext, useState, useContext, ReactNode, useEffect, useRef } from "react";
+import { authFetch, getUserWinRate, getUserAchievements } from "@/utils/api";
 import { getCookie } from "@/lib/utils";
 import { UserAchievement } from "@/types/achievement";
 
@@ -42,6 +42,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [newlyAchieved, setNewlyAchieved] = useState<UserAchievement | null>(null);
+  const lastNotifiedAchievementId = useRef<number | null>(null);
+  const accessToken = getCookie("access_token"); // accessToken을 여기로 이동
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -62,21 +64,20 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           };
           setUser(currentUserData);
 
-          // Fetch achievements and check for unclaimed ones
-          const achievementData = await getAllUserAchievements(currentUserData.user_id);
-          const unclaimedAchievements = achievementData.user_achievements.filter(
+          const achievementData = await getUserAchievements(currentUserData.user_id);
+          const unclaimedAchievements = achievementData.filter(
             (ua) => !ua.is_reward_received
           );
 
           if (unclaimedAchievements.length > 0) {
-            // Only set if it's different from the currently notified one
-            // This prevents re-notifying the same achievement if the user hasn't dismissed the toast yet
-            if (!newlyAchieved || newlyAchieved.user_achievement_id !== unclaimedAchievements[0].user_achievement_id) {
-                setNewlyAchieved(unclaimedAchievements[0]);
+            const firstUnclaimed = unclaimedAchievements[0];
+            if (firstUnclaimed.user_achievement_id !== lastNotifiedAchievementId.current) {
+                setNewlyAchieved(firstUnclaimed);
+                lastNotifiedAchievementId.current = firstUnclaimed.user_achievement_id;
             }
           } else {
-            // If no unclaimed achievements, ensure newlyAchieved is null
             setNewlyAchieved(null);
+            lastNotifiedAchievementId.current = null;
           }
 
         } else {
@@ -93,14 +94,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    const accessToken = getCookie("access_token");
     if (accessToken) {
       fetchUser();
     } else {
       setIsLoading(false);
       setUser(null);
     }
-  }, [getCookie("access_token")]); // accessToken 변경 시 fetchUser 재실행
+  }, [accessToken]);
 
   return (
     <UserContext.Provider value={{ user, setUser, isLoading, setIsLoading, isError, newlyAchieved, setNewlyAchieved }}>

@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import CyberCard from "@/components/CyberCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Trophy, CheckCircle } from "lucide-react";
@@ -5,18 +6,21 @@ import { getBadgeRarityColor } from "../utils";
 
 interface AchievementDisplay {
   achievement_id: number;
+  user_achievement_id?: number; // Optional, only present if achieved by the user
   title: string;
   description: string;
   completed: boolean;
+  is_reward_received?: boolean; // Optional, only present if achieved by the user
   icon: React.FC<{ className?: string }>;
   rarity: string;
 }
 
 interface Props {
   achievements: AchievementDisplay[];
+  onClaimReward: (userAchievementId: number) => void;
 }
 
-const AchievementCollection = ({ achievements }: Props) => (
+const AchievementCollection = ({ achievements, onClaimReward }: Props) => (
   <CyberCard className="flex-1 flex flex-col">
     <div className="flex items-center space-x-2 mb-6">
       <Trophy className="h-5 w-5 text-yellow-400" />
@@ -55,7 +59,17 @@ const AchievementCollection = ({ achievements }: Props) => (
                 >
                   {achievement.description}
                 </span>
-                {achievement.completed && (
+                {achievement.completed && !achievement.is_reward_received && achievement.user_achievement_id && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => onClaimReward(achievement.user_achievement_id!)}
+                  >
+                    보상 획득
+                  </Button>
+                )}
+                {achievement.completed && achievement.is_reward_received && (
                   <CheckCircle className="h-4 w-4 text-green-400 mt-2" />
                 )}
               </div>

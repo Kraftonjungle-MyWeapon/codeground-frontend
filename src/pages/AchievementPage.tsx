@@ -1,17 +1,18 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '@/components/Header';
 import CyberCard from '@/components/CyberCard';
 import CyberButton from '@/components/CyberButton';
 import { Trophy, Crown, Zap, Target, Medal, Star, Sparkles, ChevronLeft, ChevronRight, Flame, Shield, Sword, Award, Play } from 'lucide-react';
-import { useUser } from '@/hooks/use-user';
+import { useUser } from '@/context/UserContext';
 import { getUserAchievements, claimAchievementReward } from '@/utils/api';
 import { UserAchievement } from '@/types/achievement';
 import { useToast } from '@/components/ui/use-toast';
 
 const AchievementPage = () => {
   const navigate = useNavigate();
-  const { user, isLoading: isUserLoading } = useUser();
+  const location = useLocation();
+  const { user, isLoading: isUserLoading, setNewlyAchieved } = useUser();
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
   const [isLoadingAchievements, setIsLoadingAchievements] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
@@ -40,10 +41,15 @@ const AchievementPage = () => {
   }, [user?.user_id, toast]);
 
   useEffect(() => {
-    if (!isUserLoading && user?.user_id) {
+    const { unclaimedAchievements } = location.state || {};
+
+    if (unclaimedAchievements && unclaimedAchievements.length > 0) {
+      setUserAchievements(unclaimedAchievements);
+      setIsLoadingAchievements(false);
+    } else if (!isUserLoading && user?.user_id) {
       fetchAchievements();
     }
-  }, [isUserLoading, user?.user_id, fetchAchievements]);
+  }, [isUserLoading, user?.user_id, fetchAchievements, location.state]);
 
   const handleClaimReward = async (userAchievementId: number) => {
     if (!user?.user_id) return;
@@ -56,6 +62,7 @@ const AchievementPage = () => {
       });
       // UI 업데이트를 위해 업적 목록을 다시 불러옵니다.
       fetchAchievements();
+      setNewlyAchieved(null); // 보상 수령 후 newlyAchieved 상태 초기화
     } catch (error: any) {
       console.error('Failed to claim reward:', error);
       toast({
@@ -157,7 +164,6 @@ const AchievementPage = () => {
                   className="flex transition-transform duration-500 ease-in-out"
                   style={{
                     transform: `translateX(-${currentPage * 100}%)`,
-                    width: `${totalPages * 100}%`,
                   }}
                 >
                   {Array.from({ length: totalPages }, (_, pageIndex) => {
@@ -169,9 +175,10 @@ const AchievementPage = () => {
                     return (
                       <div
                         key={pageIndex}
-                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flex-shrink-0 p-2"
-                        style={{ width: `${100 / totalPages}%` }}
+                        className="flex-shrink-0 p-2"
+                        style={{ width: `100%` }}
                       >
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {pageAchievements.map((userAchievement) => (
                           <div
                             key={userAchievement.user_achievement_id}
@@ -242,6 +249,7 @@ const AchievementPage = () => {
                           </div>
                         ))}
                       </div>
+                    </div>
                     );
                   })}
                 </div>

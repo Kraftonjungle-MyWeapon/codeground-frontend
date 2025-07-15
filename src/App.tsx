@@ -89,7 +89,7 @@ const App = () => {
         <Sonner />
         <div className="min-h-screen"> {/* Apply min-h-screen here */}
           <BrowserRouter>
-            <AchievementNotifier /> {/* AchievementNotifier 추가 */}
+            
             {isLoading ? (
               <CyberLoadingSpinner />
             ) : (

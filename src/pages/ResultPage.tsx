@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "@/components/Header";
 import CyberCard from "@/components/CyberCard";
 import CyberButton from "@/components/CyberButton";
-import { useUser } from "@/context/UserContext"; // useUser import
-import { useToast } from "@/components/ui/use-toast"; // useToast import
+import { useUser } from "@/context/UserContext";
+import { useToast } from "@/components/ui/use-toast";
+import { getAllUserAchievements, getUserAchievements } from "@/utils/api";
+import { UserAchievement } from "@/types/achievement"; // Import getAllUserAchievements
 import {
   Trophy,
   Clock,
@@ -39,26 +41,23 @@ interface MatchResult {
 
 const ResultPage = () => {
   const navigate = useNavigate();
-  const location = useLocation(); // useLocation 훅 추가
-  const { user, setUser, newlyAchieved } = useUser(); // setUser, newlyAchieved 추가
-  const { toast } = useToast(); // toast 훅 사용
+  const location = useLocation();
+  const { user, setUser, isLoading: isUserLoading } = useUser(); // newlyAchieved 제거
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
-  // const [resultData, setResultData] = useState<MatchResult | null>(null); // resultData 상태 제거
   const [isLoading, setIsLoading] = useState(true);
+  const [hasUnclaimedAchievements, setHasUnclaimedAchievements] = useState<UserAchievement[]>([]); // 새로운 상태 추가
 
   const [animatingLp, setAnimatingLp] = useState(false);
   const [displayLp, setDisplayLp] = useState(0);
   const [tierChangeAnimation, setTierChangeAnimation] = useState(false);
   const [initialUserTotalScore, setInitialUserTotalScore] = useState<number | null>(null);
 
-  // matchResult를 location.state에서 직접 가져오기
   const matchResult = location.state?.matchResult as MatchResult | null;
 
   useEffect(() => {
-    // problem_{gameId} 제거 (동적 키)를 위해 gameId를 먼저 가져옴
     const gameId = sessionStorage.getItem("gameId");
 
-    // 배틀 페이지 관련 세션 스토리지 데이터 제거
     sessionStorage.removeItem("currentMatchId");
     sessionStorage.removeItem("gameId");
     sessionStorage.removeItem("matchResult");
@@ -74,16 +73,36 @@ const ResultPage = () => {
     if (!matchResult) {
         console.log('ResultPage: No match result found in state. Navigating to home.');
         navigate("/home");
-        return; // Exit early if no matchResult
+        return;
     }
-    setIsLoading(false);
-    console.log('ResultPage: User context:', user);
 
-    // user.totalScore가 로드되면 initialUserTotalScore 설정
-    if (user && user.totalScore !== undefined && initialUserTotalScore === null) {
+    // user 데이터 로딩이 완료되면 initialUserTotalScore 설정 및 업적 불러오기
+    if (!isUserLoading && user && user.totalScore !== undefined && initialUserTotalScore === null) {
       setInitialUserTotalScore(user.totalScore);
+
+      const fetchAchievements = async () => {
+        if (user?.user_id) {
+          try {
+            const data = await getUserAchievements(user.user_id);
+            const unclaimed = data.filter(ua => !ua.is_reward_received);
+            setHasUnclaimedAchievements(unclaimed);
+          } catch (error) {
+            console.error("Failed to fetch achievements in ResultPage:", error);
+            setHasUnclaimedAchievements([]);
+          } finally {
+            setIsLoading(false); // 모든 데이터 로딩 완료 후 로딩 상태 해제
+          }
+        }
+      };
+      fetchAchievements();
+    } else if (isUserLoading) {
+      setIsLoading(true); // user 로딩 중이면 페이지 로딩 상태 유지
+    } else if (!user) {
+      // user가 없으면 (로그인 안 됨 등) 홈으로 리다이렉트
+      navigate("/home");
     }
-  }, [navigate, user, initialUserTotalScore, matchResult]); // matchResult를 의존성 배열에 추가
+
+  }, [navigate, user, isUserLoading, initialUserTotalScore, matchResult]);
 
   if (isLoading || !matchResult || !user || initialUserTotalScore === null) {
     return (
@@ -331,8 +350,8 @@ const ResultPage = () => {
                   <div className="space-y-6">
                     <h3 className={`text-2xl font-bold ${victory ? "text-green-400" : "text-red-400"}`}>최종 LP: {finalTierInfo.lp}</h3>
                     <div className="flex justify-center">
-                      {newlyAchieved ? (
-                        <CyberButton onClick={() => navigate("/achievement")} size="lg" className="animate-pulse-neon">
+                      {hasUnclaimedAchievements.length > 0 ? (
+                        <CyberButton onClick={() => navigate("/achievement", { state: { unclaimedAchievements: hasUnclaimedAchievements } })} size="lg" className="animate-pulse-neon">
                           <ArrowRight className="h-6 w-6 mr-2" />
                           다음으로
                         </CyberButton>
