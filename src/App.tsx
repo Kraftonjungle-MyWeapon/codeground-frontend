@@ -8,6 +8,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import CyberLoadingSpinner from "@/components/CyberLoadingSpinner";
 import NavigationHandler from "./components/NavigationHandler";
 import { useUser } from "./context/UserContext";
+import AchievementNotifier from "./components/AchievementNotifier";
 import { authFetch } from "./utils/api";
 import { getCookie, eraseCookie } from "@/lib/utils";
 
@@ -88,6 +89,7 @@ const App = () => {
         <Sonner />
         <div className="min-h-screen"> {/* Apply min-h-screen here */}
           <BrowserRouter>
+            <AchievementNotifier /> {/* AchievementNotifier 추가 */}
             {isLoading ? (
               <CyberLoadingSpinner />
             ) : (

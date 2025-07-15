@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import Header from "@/components/Header";
 import CyberCard from "@/components/CyberCard";
 import CyberButton from "@/components/CyberButton";
-import { useUser } from "@/context/UserContext";
+import { useUser } from "@/context/UserContext"; // useUser import
 import { useToast } from "@/components/ui/use-toast"; // useToast import
 import {
   Trophy,
@@ -40,7 +40,7 @@ interface MatchResult {
 const ResultPage = () => {
   const navigate = useNavigate();
   const location = useLocation(); // useLocation 훅 추가
-  const { user, setUser } = useUser(); // setUser 추가
+  const { user, setUser, newlyAchieved } = useUser(); // setUser, newlyAchieved 추가
   const { toast } = useToast(); // toast 훅 사용
   const [currentStep, setCurrentStep] = useState(1);
   // const [resultData, setResultData] = useState<MatchResult | null>(null); // resultData 상태 제거
@@ -331,10 +331,23 @@ const ResultPage = () => {
                   <div className="space-y-6">
                     <h3 className={`text-2xl font-bold ${victory ? "text-green-400" : "text-red-400"}`}>최종 LP: {finalTierInfo.lp}</h3>
                     <div className="flex justify-center">
-                      <CyberButton onClick={() => navigate("/achievement")} size="lg" className="animate-pulse-neon">
-                        <ArrowRight className="h-6 w-6 mr-2" />
-                        다음으로
-                      </CyberButton>
+                      {newlyAchieved ? (
+                        <CyberButton onClick={() => navigate("/achievement")} size="lg" className="animate-pulse-neon">
+                          <ArrowRight className="h-6 w-6 mr-2" />
+                          다음으로
+                        </CyberButton>
+                      ) : (
+                        <div className="flex justify-center space-x-4">
+                          <CyberButton onClick={() => navigate("/matching")} size="lg" className="animate-pulse-neon">
+                            <Play className="h-6 w-6 mr-2" />
+                            다시 하기
+                          </CyberButton>
+                          <CyberButton onClick={() => navigate("/home")} size="lg" variant="secondary">
+                            <ArrowRight className="h-6 w-6 mr-2" />
+                            홈으로 나가기
+                          </CyberButton>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -349,3 +362,4 @@ const ResultPage = () => {
 };
 
 export default ResultPage;
+

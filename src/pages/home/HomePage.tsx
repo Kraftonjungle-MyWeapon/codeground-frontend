@@ -21,7 +21,24 @@ const HomePage = () => {
     const fetchRankings = async () => {
       try {
         const data = await getRankings("python3");
-        setTopRanking(data.rankings.slice(0, 5));
+        // MMR 기준으로 내림차순 정렬
+        const sortedRankings = data.rankings.sort((a: any, b: any) => b.mmr - a.mmr);
+        
+        let currentRank = 1;
+        let previousMmr = -1; // MMR은 음수가 될 수 없으므로 초기값으로 -1 설정
+
+        const rankingsWithRank = sortedRankings.map((player: any, index: number) => {
+          if (player.mmr !== previousMmr) {
+            currentRank = index + 1;
+          }
+          previousMmr = player.mmr;
+          return {
+            ...player,
+            rank: currentRank,
+            rank_diff: 0, // rank_diff를 0으로 초기화
+          };
+        });
+        setTopRanking(rankingsWithRank.slice(0, 5));
       } catch (error) {
         console.error(error);
       }
