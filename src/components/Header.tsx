@@ -93,6 +93,15 @@ const Header = () => {
                     <Settings className="mr-2 h-4 w-4" />
                     설정
                   </DropdownMenuItem>
+                  {user?.role?.toLowerCase() === 'admin' && (
+                    <DropdownMenuItem
+                      onClick={() => navigate('/admin')}
+                      className="cursor-pointer hover:bg-cyber-blue/10 text-gray-300 hover:text-white"
+                    >
+                      <UserRound className="mr-2 h-4 w-4" />
+                      관리자 페이지
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator className="bg-gray-700" />
                   <DropdownMenuItem 
                     onClick={handleLogout}
