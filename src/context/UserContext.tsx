@@ -60,7 +60,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             rank : userData.user_rank,
             totalScore: userData.user_mmr,
             name: userData.nickname,
-            profileImageUrl: `${apiUrl}${userData.profile_img_url}`,
+            // profileImageUrl: `${apiUrl}${userData.profile_img_url}`,
+            profileImageUrl: `${userData.profile_img_url}`,
           };
           setUser(currentUserData);
 
