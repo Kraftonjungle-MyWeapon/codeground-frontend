@@ -17,6 +17,9 @@ const OAuthCallback = () => {
             const params = new URLSearchParams(location.search);
             const isNewUser = params.get("is_new_user") === "true";
             const newAccessToken = params.get("new_access_token");
+                
+            // 이거는 `code-ground.com`을 세팅하는 쿠키. `.code-ground-com`은 백엔드에서 세팅했음.
+            setCookie("access_token", newAccessToken, 7); 
 
             try {
                 // const userResponse = await authFetch(`/api/v1/user/me`);
@@ -28,9 +31,6 @@ const OAuthCallback = () => {
                 }
 
                 const userData = await userResponse.json();
-                
-                // 이거는 `code-ground.com`을 세팅하는 쿠키. `.code-ground-com`은 백엔드에서 세팅했음.
-                setCookie("access_token", newAccessToken, 7); 
 
                 setUser({
                     ...userData,
