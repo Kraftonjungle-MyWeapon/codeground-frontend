@@ -45,7 +45,12 @@ export const useBattleScreenShare = ({
       setShowLocalScreenSharePrompt(true);
       sendMessage(JSON.stringify({ type: 'screen_share_stopped' }));
     }
-  }, [sendMessage, setLocalStream, setIsLocalStreamActive, setShowLocalScreenSharePrompt]); // 의존성 추가
+    // Peer Connection 정리 추가
+    if (sharedPC) {
+      sharedPC.close();
+      setPeerConnection(null);
+    }
+  }, [sendMessage, setLocalStream, setIsLocalStreamActive, setShowLocalScreenSharePrompt, sharedPC, setPeerConnection]);
 
   const startLocalScreenShare = useCallback(async () => {
     try {

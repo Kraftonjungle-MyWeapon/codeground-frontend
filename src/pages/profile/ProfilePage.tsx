@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Header from "@/components/Header";
 import { parseTotalScore } from "@/utils/lpSystem";
 import { useUser } from "@/context/UserContext";
-import { fetchUserlogs } from "@/utils/api";
+import { fetchUserlogs, getAllUserAchievements } from "@/utils/api";
 import { MatchLog } from "@/types/codeEditor";
 import UserInfoCard from "./components/UserInfoCard";
 import GameStatsCard from "./components/GameStatsCard";
@@ -21,13 +21,21 @@ import {
   Flame,
   User,
   Gem,
+  Sword
 } from "lucide-react";
+import { toast } from 'sonner';
+import { Achievement, UserAchievement } from "@/types/achievement";
+import { claimAchievementReward } from "@/utils/api";
 
 const ProfilePage = () => {
-  const { user } = useUser();
+  const { user, isLoading: isUserLoading } = useUser();
   const [showEditModal, setShowEditModal] = useState(false);
   const [recentMatches, setRecentMatches] = useState<MatchLog[]>([]);
   const [logCount, setLogCount] = useState(0);
+  const [allAchievements, setAllAchievements] = useState<Achievement[]>([]);
+  const [userAchievedIds, setUserAchievedIds] = useState<Set<number>>(new Set());
+  const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
+  const [isLoadingAchievements, setIsLoadingAchievements] = useState(true);
 
   useEffect(() => {
     const getRecentMatches = async () => {
@@ -44,6 +52,42 @@ const ProfilePage = () => {
 
     getRecentMatches();
   }, [user?.user_id, logCount]);
+
+  const fetchAllAchievements = useCallback(async () => {
+    if (!user?.user_id) return;
+    setIsLoadingAchievements(true);
+    try {
+      const data = await getAllUserAchievements(user.user_id);
+      setAllAchievements(data.all_achievements);
+      const achievedIds = new Set(data.user_achievements.map(ua => ua.achievement.achievement_id));
+      setUserAchievedIds(achievedIds);
+      // Store user achievements with their reward status
+      setUserAchievements(data.user_achievements);
+    } catch (error) {
+      console.error("Failed to fetch all achievements:", error);
+    } finally {
+      setIsLoadingAchievements(false);
+    }
+  }, [user?.user_id]);
+
+  const handleClaimReward = useCallback(async (userAchievementId: number) => {
+    if (!user?.user_id) return;
+    try {
+      await claimAchievementReward(user.user_id, userAchievementId);
+      toast.success("보상이 성공적으로 수령되었습니다!");
+      // Re-fetch achievements to update the UI
+      fetchAllAchievements();
+    } catch (error) {
+      console.error("Failed to claim reward:", error);
+      toast.error("보상 수령에 실패했습니다.");
+    }
+  }, [user?.user_id, fetchAllAchievements]);
+
+  useEffect(() => {
+    if (!isUserLoading && user?.user_id) {
+      fetchAllAchievements();
+    }
+  }, [isUserLoading, user?.user_id, fetchAllAchievements]);
 
   const currentUser = {
     user_id: user?.user_id || 0,
@@ -67,104 +111,43 @@ const ProfilePage = () => {
   const { tier, lp } = parseTotalScore(currentUser.totalScore);
   const winRate = user?.win_rate != null ? user.win_rate.toFixed(2) : "0.00";
 
-  const allAchievements = [
-    {
-      id: 1,
-      title: "첫 승리",
-      description: "첫 대결에서 승리하기",
-      completed: true,
-      icon: Trophy,
-      rarity: "common",
-    },
-    {
-      id: 2,
-      title: "연승왕",
-      description: "5연승 달성하기",
-      completed: true,
-      icon: Flame,
-      rarity: "rare",
-    },
-    {
-      id: 3,
-      title: "속도왕",
-      description: "2분 이내 문제 해결하기",
-      completed: true,
-      icon: Zap,
-      rarity: "epic",
-    },
-    {
-      id: 4,
-      title: "완벽주의자",
-      description: "정확도 100% 10회 달성",
-      completed: true,
-      icon: Target,
-      rarity: "rare",
-    },
-    {
-      id: 5,
-      title: "실버 등급",
-      description: "실버 티어 달성하기",
-      completed: true,
-      icon: Medal,
-      rarity: "common",
-    },
-    {
-      id: 6,
-      title: "골드 등급",
-      description: "골드 티어 달성하기",
-      completed: true,
-      icon: Award,
-      rarity: "uncommon",
-    },
-    {
-      id: 7,
-      title: "플래티넘 등급",
-      description: "플래티넘 티어 달성하기",
-      completed: false,
-      icon: Shield,
-      rarity: "epic",
-    },
-    {
-      id: 8,
-      title: "다이아몬드 등급",
-      description: "다이아몬드 티어 달성하기",
-      completed: false,
-      icon: Gem,
-      rarity: "legendary",
-    },
-    {
-      id: 9,
-      title: "마스터 등급",
-      description: "마스터 티어 달성하기",
-      completed: false,
-      icon: Crown,
-      rarity: "legendary",
-    },
-    {
-      id: 10,
-      title: "100전 100승",
-      description: "100승 달성하기",
-      completed: false,
-      icon: Star,
-      rarity: "epic",
-    },
-    {
-      id: 11,
-      title: "언어 마스터",
-      description: "5개 언어로 승리하기",
-      completed: false,
-      icon: User,
-      rarity: "rare",
-    },
-    {
-      id: 12,
-      title: "전설의 연승",
-      description: "20연승 달성하기",
-      completed: false,
-      icon: Flame,
-      rarity: "legendary",
-    },
-  ];
+  const achievementsToDisplay = allAchievements.map(achievement => {
+    const userAchievement = userAchievements.find(ua => ua.achievement.achievement_id === achievement.achievement_id);
+    return {
+      ...achievement,
+      completed: !!userAchievement,
+      user_achievement_id: userAchievement?.user_achievement_id,
+      is_reward_received: userAchievement?.is_reward_received,
+      icon: (() => {
+        switch (achievement.trigger_type) {
+          case 'TOTAL_WIN':
+          case 'FIRST_WIN':
+          case 'CONSECUTIVE_WIN': return Trophy;
+          case 'TOTAL_LOSS':
+          case 'CONSECUTIVE_LOSS': return Shield;
+          case 'TOTAL_DRAW': return Sword;
+          case 'PROBLEM_SOLVED': return Target;
+          case 'WIN_WITHIN_N_SUBMISSIONS':
+          case 'WIN_WITHOUT_MISS': return Zap;
+          case 'FAST_WIN': return Flame;
+          case 'APPROVED_PROBLEM_COUNT': return Medal;
+          default: return Award;
+        }
+      })(),
+      rarity: achievement.reward_type.toLowerCase(), // API의 reward_type을 소문자로 변환하여 rarity로 사용
+    };
+  }).sort((a, b) => {
+    // completed가 true인 업적을 먼저 정렬
+    if (a.completed && !b.completed) return -1;
+    if (!a.completed && b.completed) return 1;
+    // completed 상태가 같으면 is_reward_received가 false인 업적을 먼저 정렬
+    if (a.completed && b.completed) {
+      if (!a.is_reward_received && b.is_reward_received) return -1;
+      if (a.is_reward_received && !b.is_reward_received) return 1;
+    }
+    // 그 외의 경우 achievement_id로 정렬 (안정적인 정렬을 위해)
+    return a.achievement_id - b.achievement_id;
+  });
 
   return (
     <div>
@@ -194,7 +177,7 @@ const ProfilePage = () => {
             </div>
             <div className="lg:col-span-2 flex flex-col space-y-6">
               <MatchHistory matches={recentMatches} />
-              <AchievementCollection achievements={allAchievements} />
+              <AchievementCollection achievements={achievementsToDisplay} onClaimReward={handleClaimReward} />
             </div>
           </div>
         </div>

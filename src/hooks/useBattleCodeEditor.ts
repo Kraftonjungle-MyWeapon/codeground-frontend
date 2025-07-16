@@ -17,6 +17,7 @@ interface UseBattleCodeEditorProps {
   gameId: string | null; // gameId prop 추가
   isSolvingAlone: boolean; // isSolvingAlone prop 추가
   openCorrectAnswerModal: (isWinner: boolean) => void; // openCorrectAnswerModal prop 추가
+  setIsGameFinished: (isFinished: boolean) => void; // setIsGameFinished prop 추가
 }
 
 export const useBattleCodeEditor = ({
@@ -208,6 +209,7 @@ export const useBattleCodeEditor = ({
               setExecutionResult((prev) => `${prev}\n채점 완료: ${message}`);
               if (isSolvingAlone && data.allPassed) {
                 openCorrectAnswerModal(true); // 혼자 풀기 모드에서 정답 맞췄을 경우 승리 모달 띄움
+                setIsGameFinished(true); // 게임 종료 상태 설정
               }
               // 성공 시 페이지 이동 로직은 웹소켓 match_result 핸들러가 담당하므로 여기서는 제거합니다.
             }

@@ -92,10 +92,10 @@ const RankingList: FC<Props> = ({ players }) => (
                       <div className="text-sm text-gray-400 flex items-center">
                         순위 변동:{" "}
                         <span
-                          className={`ml-1 ${getRankDiffColor(player.rank_diff)}`}
+                          className={`ml-1 flex items-center ${getRankDiffColor(player.rank_diff)}`}
                         >
-                          {getRankDiffIcon(player.rank_diff)}{" "}
-                          {Math.abs(player.rank_diff)}
+                          {Math.abs(player.rank_diff)}{" "}
+                          {getRankDiffIcon(player.rank_diff)}
                         </span>
                       </div>
                     </div>

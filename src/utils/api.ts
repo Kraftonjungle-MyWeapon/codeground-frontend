@@ -1,6 +1,7 @@
 import { eraseCookie } from "@/lib/utils";
 import { AwardIcon } from "lucide-react";
 import { Problem, ProblemWithImages, MatchLog } from "@/types/codeEditor";
+import { AllAchievementsResponse } from "@/types/achievement";
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -218,5 +219,44 @@ export async function createProblem(problemData: FormData) {
     throw new Error(errorData.message || "Failed to create problem");
   }
 
+  return response.json();
+}
+
+/**
+ * 유저 업적 정보 가져오기
+ */
+export async function getUserAchievements(userId: number) {
+  const response = await authFetch(`${apiUrl}/api/v1/achievements/users/${userId}`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch user achievements");
+  }
+  return response.json();
+}
+
+/**
+ * 업적 보상 수령 처리
+ */
+export async function claimAchievementReward(userId: number, userAchievementId: number) {
+  const response = await authFetch(
+    `${apiUrl}/api/v1/achievements/users/${userId}/achievements/${userAchievementId}/reward-received`,
+    {
+      method: "PATCH",
+    }
+  );
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to claim achievement reward");
+  }
+  return response.json();
+}
+
+/**
+ * 모든 업적 및 유저 획득 업적 정보 가져오기
+ */
+export async function getAllUserAchievements(userId: number): Promise<AllAchievementsResponse> {
+  const response = await authFetch(`${apiUrl}/api/v1/achievements/users/${userId}/all-achievements`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch all user achievements");
+  }
   return response.json();
 }

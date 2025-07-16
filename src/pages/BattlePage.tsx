@@ -242,6 +242,7 @@ const BattlePage = () => {
     gameId, // gameId prop 전달
     isSolvingAlone, // isSolvingAlone prop 전달
     openCorrectAnswerModal, // openCorrectAnswerModal prop 전달
+    setIsGameFinished, // setIsGameFinished prop 전달
   });
 
   useBattleWebSocket({

@@ -1,6 +1,7 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
-import { authFetch, getUserWinRate } from "@/utils/api";
+import React, { createContext, useState, useContext, ReactNode, useEffect, useRef } from "react";
+import { authFetch, getUserWinRate, getUserAchievements } from "@/utils/api";
 import { getCookie } from "@/lib/utils";
+import { UserAchievement } from "@/types/achievement";
 
 interface User {
   email: string;  
@@ -31,6 +32,8 @@ interface UserContextType {
   isLoading: boolean;
   setIsLoading: (isLoading: boolean) => void;
   isError: boolean;
+  newlyAchieved: UserAchievement | null;
+  setNewlyAchieved: (achievement: UserAchievement | null) => void;
 }
 const UserContext = createContext<UserContextType | undefined>(undefined);
 const apiUrl = import.meta.env.VITE_API_URL;
@@ -38,6 +41,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
+  const [newlyAchieved, setNewlyAchieved] = useState<UserAchievement | null>(null);
+  const lastNotifiedAchievementId = useRef<number | null>(null);
+  const accessToken = getCookie("access_token"); // accessToken을 여기로 이동
+
   useEffect(() => {
     const fetchUser = async () => {
       setIsLoading(true);
@@ -47,14 +54,32 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         if (response.ok) {
           const userData = await response.json();
           const winRateData = await getUserWinRate(userData.user_id);
-          setUser({
+          const currentUserData = {
             ...userData,
             ...winRateData,
             rank : userData.user_rank,
             totalScore: userData.user_mmr,
             name: userData.nickname,
             profileImageUrl: `${apiUrl}${userData.profile_img_url}`,
-          });
+          };
+          setUser(currentUserData);
+
+          const achievementData = await getUserAchievements(currentUserData.user_id);
+          const unclaimedAchievements = achievementData.filter(
+            (ua) => !ua.is_reward_received
+          );
+
+          if (unclaimedAchievements.length > 0) {
+            const firstUnclaimed = unclaimedAchievements[0];
+            if (firstUnclaimed.user_achievement_id !== lastNotifiedAchievementId.current) {
+                setNewlyAchieved(firstUnclaimed);
+                lastNotifiedAchievementId.current = firstUnclaimed.user_achievement_id;
+            }
+          } else {
+            setNewlyAchieved(null);
+            lastNotifiedAchievementId.current = null;
+          }
+
         } else {
           console.error("Failed to fetch user data:", response.statusText);
           setUser(null);
@@ -69,17 +94,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    const accessToken = getCookie("access_token");
     if (accessToken) {
       fetchUser();
     } else {
       setIsLoading(false);
       setUser(null);
     }
-  }, [getCookie("access_token")]); // accessToken 변경 시 fetchUser 재실행
+  }, [accessToken]);
 
   return (
-    <UserContext.Provider value={{ user, setUser, isLoading, setIsLoading, isError }}>
+    <UserContext.Provider value={{ user, setUser, isLoading, setIsLoading, isError, newlyAchieved, setNewlyAchieved }}>
       {children}
     </UserContext.Provider>
   );

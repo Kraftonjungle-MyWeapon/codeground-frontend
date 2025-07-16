@@ -8,6 +8,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import CyberLoadingSpinner from "@/components/CyberLoadingSpinner";
 import NavigationHandler from "./components/NavigationHandler";
 import { useUser } from "./context/UserContext";
+import AchievementNotifier from "./components/AchievementNotifier";
 import { authFetch } from "./utils/api";
 import { getCookie, eraseCookie } from "@/lib/utils";
 
@@ -33,6 +34,7 @@ const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 const CreateProblemPage = lazy(() => import("./pages/CreateProblemPage"));
 const UploadProblemPage = lazy(() => import("./pages/UploadProblemPage"));
 const AdminPage = lazy(() => import("./pages/admin/AdminPage")); // 관리자 페이지 import 추가
+const AchievementPage = lazy(() => import("./pages/AchievementPage"));
 const NotFound = lazy(() => import("./pages/not-found/NotFound"));
 const OAuthCallback = lazy(
   () => import("./pages/login/components/OAuthCallback")
@@ -87,6 +89,7 @@ const App = () => {
         <Sonner />
         <div className="min-h-screen"> {/* Apply min-h-screen here */}
           <BrowserRouter>
+            
             {isLoading ? (
               <CyberLoadingSpinner />
             ) : (
@@ -123,6 +126,7 @@ const App = () => {
                         element={<ProtectedRoute adminOnly={adminOnly}>{element}</ProtectedRoute>}
                       />
                     ))}
+                    <Route path="*" element={<NotFound />} />
                   </Routes>
                 </NavigationHandler>
               </Suspense>
