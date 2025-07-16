@@ -27,5 +27,11 @@ const S3_BASE_URL = import.meta.env.VITE_S3_BASE_URL;
 export const getAbsoluteUrl = (path: string) => {
   if (!path) return "";
   if (path.startsWith("http")) return path;
-  return `${S3_BASE_URL}/${path}`;
+
+  try {
+    const url = new URL(path, S3_BASE_URL);
+    return url.toString();
+  } catch {
+    return "";
+  }
 };
