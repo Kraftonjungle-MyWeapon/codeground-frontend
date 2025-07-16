@@ -3,6 +3,9 @@ import {useLocation, useNavigate} from "react-router-dom";
 import {useUser} from "../../../context/UserContext";
 import {authFetch} from "../../../utils/api";
 import { getAbsoluteUrl } from "@/lib/utils";
+// Define your API base URL here
+const apiUrl = import.meta.env.VITE_API_URL;
+
 
 const OAuthCallback = () => {
     const location = useLocation();
@@ -15,7 +18,8 @@ const OAuthCallback = () => {
             const isNewUser = params.get("is_new_user") === "true";
 
             try {
-                const userResponse = await authFetch(`/api/v1/user/me`);
+                // const userResponse = await authFetch(`/api/v1/user/me`);
+                const userResponse = await authFetch(`${apiUrl}/api/v1/user/me`);
 
                 const contentType = userResponse.headers.get("content-type") || "";
                 if (!userResponse.ok || !contentType.includes("application/json")) {
