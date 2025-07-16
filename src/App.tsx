@@ -104,7 +104,7 @@ const App = () => {
                       { path: "/home", element: <HomePage /> },
                       { path: "/setup-profile", element: <ProfileSetupPage /> },
                       { path: "/matching", element: <MatchingPage /> },
-                      { path: "/waiting-room", element: <WaitingRoomPage /> },
+                      { path: "/waiting-room/:roomId", element: <WaitingRoomPage /> },
                       {
                         path: "/screen-share-setup",
                         element: <ScreenShareSetupPage />,

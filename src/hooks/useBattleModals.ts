@@ -3,7 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import useWebSocketStore from '@/stores/websocketStore';
 import { localStream as sharedLocalStream, setLocalStream, peerConnection as sharedPC, setPeerConnection, setRemoteStream, remoteStream as sharedRemoteStream } from '@/utils/webrtcStore';
 
+import { leaveRoom } from '@/utils/api';
+
 interface UseBattleModalsProps {
+  gameId: string | null;
+  userId: number | undefined;
+  matchType: string | null;
   cleanupScreenShare: () => void;
   setIsGameFinished: React.Dispatch<React.SetStateAction<boolean>>;
   setIsGamePaused: React.Dispatch<React.SetStateAction<boolean>>;
@@ -29,6 +34,9 @@ interface UseBattleModalsProps {
 }
 
 export const useBattleModals = ({
+  gameId,
+  userId,
+  matchType,
   cleanupScreenShare,
   setIsGameFinished,
   setIsGamePaused,
@@ -75,14 +83,25 @@ export const useBattleModals = ({
 
   const handleSurrenderButtonClick = useCallback(() => {
     setIsExitModalOpen(true);
-    setConfirmExitCallback(() => () => {
-      cleanupScreenShare();
+    setConfirmExitCallback(() => async () => {
+      // Call leave_room API for the surrendering player
+      if (gameId && userId && matchType === 'custom') {
+        try {
+          await leaveRoom(Number(gameId), userId);
+          console.log(`Player ${userId} successfully left room ${gameId} due to surrender.`);
+        } catch (error) {
+          console.error("Error leaving room on surrender:", error);
+        }
+      }
+
+      // Send surrender message via WebSocket
       sendMessage(JSON.stringify({ type: "match_result", reason: "surrender" }));
+      setIsExitModalOpen(false); // 모달 닫기
     });
     setCancelExitCallback(() => () => {
-      setIsExitModalOpen(false);
+      setIsExitModalOpen(false); // 모달 닫기
     });
-  }, [sendMessage, cleanupScreenShare]);
+  }, [sendMessage, gameId, userId, matchType]);
 
   const handleConfirmExit = useCallback(() => {
     isConfirmedExitRef.current = true;
@@ -153,7 +172,15 @@ export const useBattleModals = ({
     handleContinueAlone();
   }, [handleContinueAlone]);
 
-  const handleSurrenderLeave = useCallback(() => {
+  const handleSurrenderLeave = useCallback(async () => {
+    if (gameId && userId && matchType === 'custom') {
+      try {
+        await leaveRoom(Number(gameId), userId);
+      } catch (error) {
+        console.error("Error leaving room:", error);
+      }
+    }
+
     cleanupScreenShare(); // 화면 공유 정리 추가
     setIsGameFinished(true); // 게임 종료 상태 설정 추가
     if (confirmNavigation) {
@@ -161,12 +188,12 @@ export const useBattleModals = ({
     } else {
       const stored = sessionStorage.getItem('matchResult');
       if (stored) {
-        navigate('/result', { state: { matchResult: JSON.parse(stored) } });
+        navigate('/result', { state: { matchResult: JSON.parse(stored), matchType: matchType } });
       } else {
         navigate('/result');
       }
     }
-  }, [cleanupScreenShare, setIsGameFinished, navigate, confirmNavigation]);
+  }, [cleanupScreenShare, setIsGameFinished, navigate, confirmNavigation, gameId, userId, matchType]);
 
   const handleLeave = useCallback(() => {
     cleanupScreenShare();
@@ -191,9 +218,18 @@ export const useBattleModals = ({
     setIsCorrectAnswerModalOpen(false);
     setIsGameFinished(true);
     handleContinueAlone(false);
-  }, [setIsGameFinished, handleContinueAlone]);
+    setIsGamePaused(false); // 추가: 게임 일시 정지 해제
+  }, [setIsGameFinished, handleContinueAlone, setIsGamePaused]);
 
-  const handleCorrectAnswerLeave = useCallback(() => {
+  const handleCorrectAnswerLeave = useCallback(async () => {
+    if (gameId && userId && matchType === 'custom') {
+      try {
+        await leaveRoom(Number(gameId), userId);
+      } catch (error) {
+        console.error("Error leaving room:", error);
+      }
+    }
+
     cleanupScreenShare();
     setIsGameFinished(true); // 게임 종료 상태 설정
     if (confirmNavigation) {
@@ -201,12 +237,12 @@ export const useBattleModals = ({
     } else {
       const stored = sessionStorage.getItem('matchResult');
       if (stored) {
-        navigate('/result', { state: { matchResult: JSON.parse(stored) } });
+        navigate('/result', { state: { matchResult: JSON.parse(stored), matchType: matchType } });
       } else {
         navigate('/result');
       }
     }
-  }, [cleanupScreenShare, navigate, confirmNavigation]);
+  }, [cleanupScreenShare, navigate, confirmNavigation, matchType, gameId, userId]);
 
   return {
     isExitModalOpen,

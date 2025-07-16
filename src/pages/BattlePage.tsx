@@ -69,6 +69,7 @@ const BattlePage = () => {
   const { user } = useUser();
   const [searchParams] = useSearchParams();
   const gameId = searchParams.get("gameId");
+  const matchType = searchParams.get("matchType");
   const { websocket, sendMessage, disconnect, connect } = useWebSocketStore();
   const { toast } = useToast(); // useToast 훅 사용
 
@@ -192,6 +193,9 @@ const BattlePage = () => {
     handleCorrectAnswerStay,
     handleCorrectAnswerLeave,
   } = useBattleModals({
+    gameId,
+    userId: user?.user_id,
+    matchType,
     cleanupScreenShare,
     setIsGameFinished,
     setIsGamePaused,
@@ -247,9 +251,11 @@ const BattlePage = () => {
 
   useBattleWebSocket({
     gameId,
+    matchType,
     handleSignal,
     setChatMessages,
     setIsGameFinished,
+    isGameFinished, // useBattleWebSocket에 isGameFinished 전달
     setShowOpponentLeftModal,
     setShowSurrenderModal,
     setIsRemoteStreamActive,
@@ -279,14 +285,14 @@ const BattlePage = () => {
       setCancelExitCallback(() => cancel);
     },
     onNavigationConfirmed: useCallback(() => {
-      // 배틀 페이지 관련 로컬 스토리지 데이터 제거
-      localStorage.removeItem("currentMatchId");
-      localStorage.removeItem("gameId");
-      localStorage.removeItem("matchResult");
-      localStorage.removeItem("websocketUrl");
-      localStorage.removeItem("currentGameId");
+      // 배틀 페이지 관련 세션 스토리지 데이터 제거
+      sessionStorage.removeItem("currentMatchId");
+      sessionStorage.removeItem("gameId");
+      sessionStorage.removeItem("matchResult");
+      sessionStorage.removeItem("websocketUrl");
+      sessionStorage.removeItem("currentGameId");
       if (gameId) {
-        localStorage.removeItem(`problem_${gameId}`);
+        sessionStorage.removeItem(`problem_${gameId}`);
       }
     }, [gameId]), // gameId를 종속성 배열에 추가
   });
@@ -440,16 +446,20 @@ const BattlePage = () => {
         onStay={handleSurrenderStay}
         onLeave={handleSurrenderLeave}
       />
-      <ScreenShareRequiredModal
-        isOpen={showScreenShareRequiredModal}
-        countdown={screenShareCountdown}
-        onRestartScreenShare={startLocalScreenShare}
-      />
-      <ScreenShareRequiredModal
-        isOpen={showOpponentScreenShareRequiredModal}
-        countdown={opponentScreenShareCountdown}
-        isOpponent={true}
-      />
+      {!isGameFinished && (
+        <ScreenShareRequiredModal
+          isOpen={showScreenShareRequiredModal}
+          countdown={screenShareCountdown}
+          onRestartScreenShare={startLocalScreenShare}
+        />
+      )}
+      {!isGameFinished && (
+        <ScreenShareRequiredModal
+          isOpen={showOpponentScreenShareRequiredModal}
+          countdown={opponentScreenShareCountdown}
+          isOpponent={true}
+        />
+      )}
       <CorrectAnswerModal
         isOpen={isCorrectAnswerModalOpen}
         isWinner={isWinner}

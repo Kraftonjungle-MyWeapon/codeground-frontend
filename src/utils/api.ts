@@ -1,6 +1,6 @@
 import { eraseCookie } from "@/lib/utils";
-import { AwardIcon } from "lucide-react";
 import { Problem, ProblemWithImages, MatchLog } from "@/types/codeEditor";
+import { ResponseRoom, CustomRoom, RoomCreateRequest } from "@/types/room";
 import { AllAchievementsResponse } from "@/types/achievement";
 
 const apiUrl = import.meta.env.VITE_API_URL;
@@ -221,6 +221,95 @@ export async function createProblem(problemData: FormData) {
 
   return response.json();
 }
+
+/**
+ * 방 생성
+ */
+export async function createRoom(roomData: RoomCreateRequest, userId: number) {
+  const response = await authFetch(`${apiUrl}/api/v1/create_room/${userId}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(roomData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to create room");
+  }
+
+  return response.json();
+}
+
+/**
+ * 방 목록 조회
+ */
+export async function getRooms(page: number): Promise<ResponseRoom[]> {
+  const response = await authFetch(`${apiUrl}/api/v1/rooms/${page}`);
+  if (!response.ok) throw new Error("Failed to fetch rooms");
+  return response.json();
+}
+
+/**
+ * 방 정보 조회
+ */
+export async function getRoomInfo(roomId: number): Promise<CustomRoom> {
+  const response = await authFetch(`${apiUrl}/api/v1/get_room/${roomId}`);
+  if (!response.ok) throw new Error("Failed to fetch room info");
+  return response.json();
+}
+
+/**
+ * 방 정보 업데이트
+ */
+export async function updateRoom(roomId: number, userId: number, updateData: { [key: string]: any }): Promise<CustomRoom> {
+  const response = await authFetch(`${apiUrl}/api/v1/update_room/${roomId}/${userId}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(updateData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to update room");
+  }
+
+  return response.json();
+}
+
+/**
+ * 방 입장
+ */
+export async function joinRoom(roomId: number, userId: number): Promise<CustomRoom> {
+  const response = await authFetch(`${apiUrl}/api/v1/join_room/${roomId}/${userId}`, {
+    method: "PATCH",
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to join room");
+  }
+
+  return response.json();
+}
+
+/**
+ * 방 나가기
+ */
+export async function leaveRoom(roomId: number, userId: number): Promise<void> {
+  const response = await authFetch(`${apiUrl}/api/v1/leave_room/${roomId}/${userId}`, {
+    method: "PATCH",
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to leave room");
+  }
+}
+
 
 /**
  * 유저 업적 정보 가져오기

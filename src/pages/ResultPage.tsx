@@ -54,6 +54,7 @@ const ResultPage = () => {
   const [initialUserTotalScore, setInitialUserTotalScore] = useState<number | null>(null);
 
   const matchResult = location.state?.matchResult as MatchResult | null;
+  const matchType = location.state?.matchType as string | null;
 
   useEffect(() => {
     const gameId = sessionStorage.getItem("gameId");
@@ -113,7 +114,8 @@ const ResultPage = () => {
   }
 
   const { winner, reason, plus_mmr, minus_mmr } = matchResult;
-  const victory = winner === user.user_id;
+
+  const victory = winner !== null && Number(winner) === Number(user.user_id);
   const isDraw = winner === null;
 
   const earned = isDraw ? 0 : victory ? plus_mmr : minus_mmr;
@@ -167,6 +169,10 @@ const ResultPage = () => {
   const finalTierInfo = parseTotalScore(finalTotalScore);
   const tierChange = getTierChange(initialTotalScore, finalTotalScore);
   const hasTierChange = tierChange !== "none";
+
+  const handleGoHome = () => {
+    navigate("/home");
+  };
 
   const handleContinue = () => {
     if (currentStep === 1) {
@@ -262,10 +268,17 @@ const ResultPage = () => {
                   </>
                 )}
                 <div className="flex justify-center">
-                  <CyberButton onClick={handleContinue} size="lg" className="animate-pulse-neon">
-                    <ArrowRight className="h-6 w-6 mr-2" />
-                    결과 확인
-                  </CyberButton>
+                  {matchType === 'custom' ? (
+                    <CyberButton onClick={handleGoHome} size="lg" className="animate-pulse-neon">
+                      <ArrowRight className="h-6 w-6 mr-2" />
+                      홈으로 가기
+                    </CyberButton>
+                  ) : (
+                    <CyberButton onClick={handleContinue} size="lg" className="animate-pulse-neon">
+                      <ArrowRight className="h-6 w-6 mr-2" />
+                      결과 확인
+                    </CyberButton>
+                  )}
                 </div>
               </div>
             </CyberCard>
