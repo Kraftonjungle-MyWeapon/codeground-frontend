@@ -26,7 +26,7 @@ export function eraseCookie(name: string) {
 
 export const getAbsoluteUrl = (path: string) => {
   // console.log("getAbsoluteUrl called with path:", path);
-  if (!path) return "";
+  if (!path || path === "null" || path === "undefined" || path.trim() === "") return "";
   if (/^[a-zA-Z]+:\/\//.test(path)) return path;
 
   try {
