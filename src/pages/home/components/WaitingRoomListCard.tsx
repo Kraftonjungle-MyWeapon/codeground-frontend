@@ -64,59 +64,66 @@ const WaitingRoomListCard = ({ waitingRooms, onCreateRoom, onJoinRoom }: Props) 
       </CyberButton>
     </div>
     <div className="h-[500px] overflow-hidden">
-      <ScrollArea className="h-full">
-        <div className="space-y-3 pr-4">
-          {waitingRooms.map((room) => (
-            <div
-              key={room.room_id}
-              className="flex items-center justify-between p-4 bg-black/20 rounded-lg hover:bg-black/30 transition-colors"
-            >
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-1">
-                  <Crown className="h-4 w-4 text-yellow-400" />
-                  <span className="text-white font-medium">{room.title}</span>
-                  <span
-                    className={`px-2 py-1 text-xs rounded-full ${
-                      room.difficulty === "bronze"
-                        ? "bg-amber-800/20 text-amber-400"
-                        : room.difficulty === "silver"
-                        ? "bg-gray-500/20 text-gray-400"
-                        : room.difficulty === "gold"
-                        ? "bg-yellow-500/20 text-yellow-400"
-                        : room.difficulty === "platinum"
-                        ? "bg-blue-500/20 text-blue-400"
-                        : room.difficulty === "diamond"
-                        ? "bg-purple-500/20 text-purple-400"
-                        : "bg-red-500/20 text-red-400"
-                    }`}
-                  >
-                    {availableDifficulties.find(d => d.value === room.difficulty)?.label || room.difficulty}
-                  </span>
+      {waitingRooms.length > 0 ? (
+        <ScrollArea className="h-full">
+          <div className="space-y-3 pr-4">
+            {waitingRooms.map((room) => (
+              <div
+                key={room.room_id}
+                className="flex items-center justify-between p-4 bg-black/20 rounded-lg hover:bg-black/30 transition-colors"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2 mb-1">
+                    <Crown className="h-4 w-4 text-yellow-400" />
+                    <span className="text-white font-medium">{room.title}</span>
+                    <span
+                      className={`px-2 py-1 text-xs rounded-full ${
+                        room.difficulty === "bronze"
+                          ? "bg-amber-800/20 text-amber-400"
+                          : room.difficulty === "silver"
+                          ? "bg-gray-500/20 text-gray-400"
+                          : room.difficulty === "gold"
+                          ? "bg-yellow-500/20 text-yellow-400"
+                          : room.difficulty === "platinum"
+                          ? "bg-blue-500/20 text-blue-400"
+                          : room.difficulty === "diamond"
+                          ? "bg-purple-500/20 text-purple-400"
+                          : "bg-red-500/20 text-red-400"
+                      }`}
+                    >
+                      {availableDifficulties.find(d => d.value === room.difficulty)?.label || room.difficulty}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-400 mb-1">
+                    언어: {availableLanguages.find(l => l.value === room.use_language)?.label || room.use_language}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    분야: {getCategoryNamesFromBitmask(room.category)}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    호스트: {room.maker}
+                  </p>
                 </div>
-                <p className="text-sm text-gray-400 mb-1">
-                  언어: {availableLanguages.find(l => l.value === room.use_language)?.label || room.use_language}
-                </p>
-                <p className="text-xs text-gray-500">
-                  분야: {getCategoryNamesFromBitmask(room.category)}
-                </p>
-                <p className="text-xs text-gray-500">
-                  호스트: {room.maker}
-                </p>
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-gray-400">{room.user_cnt}/2</span>
+                  <CyberButton
+                    size="sm"
+                    disabled={room.user_cnt === 2 || room.is_gaming}
+                    onClick={() => onJoinRoom(room.room_id)}
+                  >
+                    {room.is_gaming ? "게임 중" : room.user_cnt === 2 ? "정원 초과" : "입장"}
+                  </CyberButton>
+                </div>
               </div>
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-400">{room.user_cnt}/2</span>
-                <CyberButton
-                  size="sm"
-                  disabled={room.user_cnt === 2 || room.is_gaming}
-                  onClick={() => onJoinRoom(room.room_id)}
-                >
-                  {room.is_gaming ? "게임 중" : room.user_cnt === 2 ? "정원 초과" : "입장"}
-                </CyberButton>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        </ScrollArea>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-full text-center">
+          <p className="text-gray-400 text-lg mb-4">현재 참여 가능한 대기실이 없습니다.</p>
+          <p className="text-gray-500">직접 방을 만들어 친구와 함께 즐겨보세요!</p>
         </div>
-      </ScrollArea>
+      )}
     </div>
   </CyberCard>
 );

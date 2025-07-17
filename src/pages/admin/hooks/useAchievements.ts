@@ -5,10 +5,12 @@ export interface Achievement {
   achievement_id: number;
   title: string;
   description: string;
+  achievement_category_id?: number; // 카테고리 ID 필드 추가
   trigger_type: string;
   parameter: number;
   reward_type: string;
   reward_amount: number;
+  prerequisite_achievement_ids?: number[];
   created_at: string;
   updated_at: string;
 }

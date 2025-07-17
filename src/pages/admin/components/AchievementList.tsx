@@ -99,6 +99,7 @@ const AchievementList = ({ achievements, refreshAchievements }: Props) => {
         initialData={editingAchievement}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
+        allAchievements={achievements} // Pass all achievements to the modal
       />
     </div>
   );
