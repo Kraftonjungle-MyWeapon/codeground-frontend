@@ -31,7 +31,7 @@ import usePreventNavigation from "@/hooks/usePreventNavigation";
 import GameExitModal from "@/components/GameExitModal";
 import SubmitConfirmModal from "@/components/SubmitConfirmModal";
 import useWebSocketStore from "@/stores/websocketStore";
-import { authFetch } from "@/utils/api";
+import { authFetch, leaveRoom } from "@/utils/api";
 import useCheatDetection, { ReportPayload } from "@/hooks/useCheatDetection";
 import ReportModal from "@/components/ReportModal";
 import { OpponentLeftModal } from "@/components/OpponentLeftModal";
@@ -284,7 +284,7 @@ const BattlePage = () => {
       setConfirmExitCallback(() => confirm);
       setCancelExitCallback(() => cancel);
     },
-    onNavigationConfirmed: useCallback(() => {
+    onNavigationConfirmed: useCallback(async () => {
       // 웹소켓 연결 해제
       disconnect();
       // WebRTC 연결 해제 및 초기화
@@ -293,6 +293,16 @@ const BattlePage = () => {
       }
       setPeerConnection(null);
       setRemoteStream(null);
+
+      // leaveRoom API 호출 (사설 방일 경우)
+      if (gameId && user?.user_id && matchType === 'custom') {
+        try {
+          await leaveRoom(Number(gameId), user.user_id);
+          console.log(`Player ${user.user_id} successfully left room ${gameId} via navigation.`);
+        } catch (error) {
+          console.error("Error leaving room on navigation:", error);
+        }
+      }
 
       // 배틀 페이지 관련 세션 스토리지 데이터 제거
       sessionStorage.removeItem("currentMatchId");
@@ -303,7 +313,7 @@ const BattlePage = () => {
       if (gameId) {
         sessionStorage.removeItem(`problem_${gameId}`);
       }
-    }, [gameId, disconnect]), // gameId와 disconnect를 종속성 배열에 추가
+    }, [gameId, disconnect, user?.user_id, matchType]), // gameId, disconnect, user.user_id, matchType를 종속성 배열에 추가
   });
 
   // Effect for localVideoRef and remoteVideoRef srcObject
