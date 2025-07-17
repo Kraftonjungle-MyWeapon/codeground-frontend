@@ -1,10 +1,10 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect, useRef } from "react";
+import React, {createContext, useState, useContext, ReactNode, useEffect, useRef,} from "react";
 import { authFetch, getUserWinRate, getUserAchievements } from "@/utils/api";
 import { getCookie } from "@/lib/utils";
 import { UserAchievement } from "@/types/achievement";
 
-interface User {
-  email: string;  
+export interface User {
+  email: string;
   username: string;
   user_id: number;
   nickname: string;
@@ -24,9 +24,11 @@ interface User {
   averageTime?: string;
   bestTime?: string;
   joinDate?: string;
-  profileImageUrl?: string;   // 이걸 추가해야 실사용 가능
+  profileImageUrl?: string;
+  user_mmr?: number;
 }
-interface UserContextType {
+
+export interface UserContextType {
   user: User | null;
   setUser: (user: User | null) => void;
   isLoading: boolean;
@@ -34,67 +36,73 @@ interface UserContextType {
   isError: boolean;
   newlyAchieved: UserAchievement | null;
   setNewlyAchieved: (achievement: UserAchievement | null) => void;
+  refreshUser: () => Promise<void>;
 }
+
 const UserContext = createContext<UserContextType | undefined>(undefined);
 const apiUrl = import.meta.env.VITE_API_URL;
+
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [newlyAchieved, setNewlyAchieved] = useState<UserAchievement | null>(null);
   const lastNotifiedAchievementId = useRef<number | null>(null);
-  const accessToken = getCookie("access_token"); // accessToken을 여기로 이동
+  const accessToken = getCookie("access_token");
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      setIsLoading(true);
-      setIsError(false);
-      try {
-        const response = await authFetch(`${apiUrl}/api/v1/user/me`);
-        if (response.ok) {
-          const userData = await response.json();
-          const winRateData = await getUserWinRate(userData.user_id);
-          const currentUserData = {
-            ...userData,
-            ...winRateData,
-            rank : userData.user_rank,
-            totalScore: userData.user_mmr,
-            name: userData.nickname,
-            // profileImageUrl: `${apiUrl}${userData.profile_img_url}`,
-            profileImageUrl: `${userData.profile_img_url}`,
-          };
-          setUser(currentUserData);
+  const fetchUser = async () => {
+    setIsLoading(true);
+    setIsError(false);
+    try {
+      const response = await authFetch(`${apiUrl}/api/v1/user/me`);
+      if (response.ok) {
+        const userData = await response.json();
+        const winRateData = await getUserWinRate(userData.user_id);
 
-          const achievementData = await getUserAchievements(currentUserData.user_id);
-          const unclaimedAchievements = achievementData.filter(
-            (ua) => !ua.is_reward_received
-          );
+        const currentUserData: User = {
+          ...userData,
+          ...winRateData,
+          rank: userData.user_rank,
+          totalScore: userData.user_mmr,
+          name: userData.nickname,
+          profileImageUrl: `${userData.profile_img_url}`,
+        };
 
-          if (unclaimedAchievements.length > 0) {
-            const firstUnclaimed = unclaimedAchievements[0];
-            if (firstUnclaimed.user_achievement_id !== lastNotifiedAchievementId.current) {
-                setNewlyAchieved(firstUnclaimed);
-                lastNotifiedAchievementId.current = firstUnclaimed.user_achievement_id;
-            }
-          } else {
-            setNewlyAchieved(null);
-            lastNotifiedAchievementId.current = null;
+        setUser(currentUserData);
+
+        const achievementData = await getUserAchievements(currentUserData.user_id);
+        const unclaimedAchievements = achievementData.filter(
+          (ua) => !ua.is_reward_received
+        );
+
+        if (unclaimedAchievements.length > 0) {
+          const firstUnclaimed = unclaimedAchievements[0];
+          if (
+            firstUnclaimed.user_achievement_id !== lastNotifiedAchievementId.current
+          ) {
+            setNewlyAchieved(firstUnclaimed);
+            lastNotifiedAchievementId.current = firstUnclaimed.user_achievement_id;
           }
-
         } else {
-          console.error("Failed to fetch user data:", response.statusText);
-          setUser(null);
-          setIsError(true);
+          setNewlyAchieved(null);
+          lastNotifiedAchievementId.current = null;
         }
-      } catch (error) {
-        console.error("Error fetching user data:", error);
+      } else {
+        console.error("Failed to fetch user data:", response.statusText);
         setUser(null);
         setIsError(true);
-      } finally {
-        setIsLoading(false);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      setUser(null);
+      setIsError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  // 최초 마운트 시에만 accessToken 검사해서 호출
+  useEffect(() => {
     if (accessToken) {
       fetchUser();
     } else {
@@ -104,7 +112,18 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   }, [accessToken]);
 
   return (
-    <UserContext.Provider value={{ user, setUser, isLoading, setIsLoading, isError, newlyAchieved, setNewlyAchieved }}>
+    <UserContext.Provider
+      value={{
+        user,
+        setUser,
+        isLoading,
+        setIsLoading,
+        isError,
+        newlyAchieved,
+        setNewlyAchieved,
+        refreshUser: fetchUser,
+      }}
+    >
       {children}
     </UserContext.Provider>
   );
