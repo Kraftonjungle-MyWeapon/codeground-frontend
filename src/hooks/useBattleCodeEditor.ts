@@ -4,7 +4,7 @@ import { getLanguageConfig } from '@/utils/languageConfig';
 import { CodeEditorHandler } from '@/utils/codeEditorHandlers';
 import hljs from 'highlight.js/lib/core';
 import python from 'highlight.js/lib/languages/python';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom'; // useSearchParams 임포트
 
 hljs.registerLanguage('python', python);
 
@@ -24,11 +24,17 @@ export const useBattleCodeEditor = ({
   problemId,
   isGamePaused,
   cleanupScreenShare,
-  gameId, // gameId prop 받기
   isSolvingAlone, // isSolvingAlone prop 받기
   openCorrectAnswerModal, // openCorrectAnswerModal prop 받기
+  setIsGameFinished, // setIsGameFinished prop 받기
 }: UseBattleCodeEditorProps) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams(); // useSearchParams 훅 사용
+  const matchType = searchParams.get('matchType'); // matchType 가져오기
+
+  // gameId를 sessionStorage에서 가져오도록 변경
+  const gameId = sessionStorage.getItem("gameId");
+
   const [code, setCode] = useState("");
   const [executionResult, setExecutionResult] = useState("실행 결과가 여기에 표시됩니다.");
   const [runStatus, setRunStatus] = useState<string | null>(null);
@@ -115,6 +121,7 @@ export const useBattleCodeEditor = ({
             code,
             problem_id: `${problemId}`,
             match_id: gameId, // sessionStorage 대신 gameId prop 사용
+            is_public: matchType !== 'custom',
           }),
         },
       );
@@ -172,7 +179,8 @@ export const useBattleCodeEditor = ({
             language: 'python',
             code,
             problem_id: `${problemId}`,
-            match_id: gameId, // sessionStorage 대신 gameId prop 사용
+            match_id: gameId,
+            is_public: matchType !== 'custom',
           }),
         },
       );
@@ -207,10 +215,6 @@ export const useBattleCodeEditor = ({
             } else if (data.type === 'final') {
               const message = getResultMessage(data.result?.status, data.allPassed);
               setExecutionResult((prev) => `${prev}\n채점 완료: ${message}`);
-              if (isSolvingAlone && data.allPassed) {
-                openCorrectAnswerModal(true); // 혼자 풀기 모드에서 정답 맞췄을 경우 승리 모달 띄움
-                setIsGameFinished(true); // 게임 종료 상태 설정
-              }
               // 성공 시 페이지 이동 로직은 웹소켓 match_result 핸들러가 담당하므로 여기서는 제거합니다.
             }
           }

@@ -1,52 +1,74 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import AchievementNotifier from "@/components/AchievementNotifier";
 import CreateRoomModal from "@/components/CreateRoomModal";
 import { useUser } from "@/context/UserContext";
-import { getRankings } from "@/utils/api";
+import useWebSocketStore from "@/stores/websocketStore";
+import { localStream, remoteStream, peerConnection, setLocalStream, setRemoteStream, setPeerConnection } from "@/utils/webrtcStore";
+import { getRankings, getRooms, getRoomInfo, joinRoom } from "@/utils/api";
 import RealTimeBattleCard from "./components/RealTimeBattleCard";
 import WaitingRoomListCard from "./components/WaitingRoomListCard";
 import ProfileSummaryCard from "./components/ProfileSummaryCard";
 import TopRankingCard from "./components/TopRankingCard";
-import { waitingRooms } from "./constants";
+import { ResponseRoom, CustomRoom } from "@/types/room";
+
 
 const HomePage = () => {
   const navigate = useNavigate();
   const [showCreateRoom, setShowCreateRoom] = useState(false);
   const [topRanking, setTopRanking] = useState<any[]>([]);
+  const [waitingRooms, setWaitingRooms] = useState<ResponseRoom[]>([]);
 
   const { user, isLoading, isError } = useUser();
+  const { disconnect } = useWebSocketStore();
+
+  const handleRoomCreated = useCallback(async (roomId: number) => {
+    // 1) 모달 닫기
+    setShowCreateRoom(false);
+    try {
+      const roomInfo = await getRoomInfo(roomId);
+      // 2) 대기실로 이동
+      navigate(`/waiting-room/${roomId}`, { state: { roomInfo } });
+    } catch (error) {
+      console.error("Failed to fetch room info after creation:", error);
+      // TODO: 사용자에게 에러 메시지 표시
+      navigate("/home"); // 에러 발생 시 홈으로 돌아가기
+    }
+  }, [navigate]);
 
   useEffect(() => {
-    const fetchRankings = async () => {
-      try {
-        const data = await getRankings("python3");
-        // MMR 기준으로 내림차순 정렬
-        const sortedRankings = data.rankings.sort((a: any, b: any) => b.mmr - a.mmr);
-        
-        let currentRank = 1;
-        let previousMmr = -1; // MMR은 음수가 될 수 없으므로 초기값으로 -1 설정
+    // 웹소켓 연결 끊기
+    disconnect();
 
-        const rankingsWithRank = sortedRankings.map((player: any, index: number) => {
-          if (player.mmr !== previousMmr) {
-            currentRank = index + 1;
-          }
-          previousMmr = player.mmr;
-          return {
-            ...player,
-            rank: currentRank,
-            rank_diff: 0, // rank_diff를 0으로 초기화
-          };
-        });
-        setTopRanking(rankingsWithRank.slice(0, 5));
+    // WebRTC 연결 정리
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop());
+      setLocalStream(null);
+    }
+    if (remoteStream) {
+      remoteStream.getTracks().forEach(track => track.stop());
+      setRemoteStream(null);
+    }
+    if (peerConnection) {
+      peerConnection.close();
+      setPeerConnection(null);
+    }
+
+    const fetchRankingsAndRooms = async () => {
+      try {
+        const rankingData = await getRankings("python3");
+        setTopRanking(rankingData.rankings.slice(0, 5));
+
+        const roomsData = await getRooms(0); // 첫 페이지의 방 목록을 가져옴
+        setWaitingRooms(roomsData);
       } catch (error) {
-        console.error(error);
+        console.error("Failed to fetch data:", error);
       }
     };
 
-    fetchRankings();
-  }, []);
+    fetchRankingsAndRooms();
+  }, [disconnect]);
 
   if (isLoading) {
     return <div>Loading user data...</div>;
@@ -72,7 +94,19 @@ const HomePage = () => {
               <WaitingRoomListCard
                 waitingRooms={waitingRooms}
                 onCreateRoom={() => setShowCreateRoom(true)}
-                onJoinRoom={() => navigate("/waiting-room")}
+                onJoinRoom={async (roomId: number) => {
+                  if (!user?.user_id) {
+                    console.error("User not logged in.");
+                    return;
+                  }
+                  try {
+                    const roomInfo = await joinRoom(roomId, user.user_id);
+                    navigate(`/waiting-room/${roomId}`, { state: { roomInfo } });
+                  } catch (error) {
+                    console.error("Failed to join room:", error);
+                    // TODO: 사용자에게 에러 메시지 표시
+                  }
+                }}
               />
             </div>
             <div className="flex flex-col space-y-6">
@@ -100,6 +134,7 @@ const HomePage = () => {
         <CreateRoomModal
           isOpen={showCreateRoom}
           onClose={() => setShowCreateRoom(false)}
+          onRoomCreated={handleRoomCreated}
         />
       )}
     </div>

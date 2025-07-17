@@ -16,65 +16,95 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import CyberButton from "@/components/CyberButton";
+import { createRoom } from "@/utils/api";
+import { useUser } from "@/context/UserContext";
 
 interface CreateRoomModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit?: () => void;
+  onRoomCreated: (roomId: number) => void; // New prop for handling room creation success
 }
 
 const CreateRoomModal = ({
   isOpen,
   onClose,
-  onSubmit,
+  onRoomCreated,
 }: CreateRoomModalProps) => {
+  const { user } = useUser();
+
+  const availableCategories = [
+    { value: 'implementation', label: '구현' },
+    { value: 'simulation', label: '시뮬레이션' },
+    { value: 'dp', label: 'DP (동적계획법)' },
+    { value: 'greedy', label: '그리디' },
+    { value: 'stack', label: '스택' },
+    { value: 'queue', label: '큐' },
+    { value: 'string', label: '문자열' },
+    { value: 'math', label: '수학' },
+    { value: 'geometry', label: '기하학' },
+    { value: 'sorting', label: '정렬' },
+    { value: 'binary-search', label: '이분탐색' },
+    { value: 'parametric-search', label: '매개변수 탐색' },
+    { value: 'graph', label: '그래프' },
+    { value: 'dfs', label: 'DFS' },
+    { value: 'bfs', label: 'BFS' },
+    { value: 'shortest-path', label: '최단거리 탐색' }
+  ];
+
+  const getCategoryBitValue = (index: number) => 1 << index;
+
   const [formData, setFormData] = useState({
     title: "",
     language: "",
-    category: "",
+    category: 0, // Changed to number for bitmasking
     difficulty: "",
     isPrivate: false,
     password: "",
   });
 
-  const languages = [
-    "Python",
-    "JavaScript",
-    "Java",
-    "C++",
-    "C#",
-    "Go",
-    "Rust",
-    "TypeScript",
+  const availableLanguages = [
+    { value: 'python', label: 'Python' },
+    { value: 'java', label: 'Java' },
+    { value: 'c', label: 'C' },
+    { value: 'cpp', label: 'C++' }
   ];
 
-  const categories = [
-    "자료구조",
-    "알고리즘",
-    "동적계획법",
-    "그래프",
-    "문자열",
-    "수학",
-    "구현",
-    "완전탐색",
-    "이분탐색",
-    "정렬",
+  const difficulties = [
+    { value: 'bronze', label: '브론즈' },
+    { value: 'silver', label: '실버' },
+    { value: 'gold', label: '골드' },
+    { value: 'platinum', label: '플래티넘' },
+    { value: 'diamond', label: '다이아몬드' },
+    { value: 'challenger', label: '챌린저' }
   ];
 
-  const difficulties = ["초급", "중급", "고급", "전문가"];
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("대기실 생성:", formData);
-    // TODO: 실제 대기실 생성 로직 구현
-    if (onSubmit) {
-      onSubmit();
+    if (!user?.user_id) {
+      console.error("User not logged in.");
+      return;
     }
+
+    try {
+      const roomData = {
+        title: formData.title,
+        use_language: formData.language,
+        category: formData.category,
+        difficulty: formData.difficulty,
+      };
+      const response = await createRoom(roomData, user.user_id);
+      console.log("대기실 생성 성공:", response);
+      onRoomCreated(response.room_id);
+    } catch (error) {
+      console.error("대기실 생성 실패:", error);
+      // TODO: 사용자에게 에러 메시지 표시
+    }
+
     onClose();
     setFormData({
       title: "",
       language: "",
-      category: "",
+      category: 0,
       difficulty: "",
       isPrivate: false,
       password: "",
@@ -122,13 +152,13 @@ const CreateRoomModal = ({
                 <SelectValue placeholder="언어를 선택하세요" />
               </SelectTrigger>
               <SelectContent className="bg-cyber-darker border-gray-600">
-                {languages.map((language) => (
+                {availableLanguages.map((lang) => (
                   <SelectItem
-                    key={language}
-                    value={language}
+                    key={lang.value}
+                    value={lang.value}
                     className="text-white hover:bg-cyber-blue/20"
                   >
-                    {language}
+                    {lang.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -137,25 +167,31 @@ const CreateRoomModal = ({
 
           <div className="space-y-2">
             <Label className="text-gray-300">문제 분야</Label>
-            <Select
-              value={formData.category}
-              onValueChange={(value) => handleInputChange("category", value)}
-            >
-              <SelectTrigger className="bg-black/30 border-gray-600 text-white">
-                <SelectValue placeholder="분야를 선택하세요" />
-              </SelectTrigger>
-              <SelectContent className="bg-cyber-darker border-gray-600">
-                {categories.map((category) => (
-                  <SelectItem
-                    key={category}
-                    value={category}
-                    className="text-white hover:bg-cyber-blue/20"
-                  >
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="grid grid-cols-2 gap-2">
+              {availableCategories.map((category, index) => {
+                const bitValue = getCategoryBitValue(index);
+                return (
+                  <div key={category.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`category-${category.value}`}
+                      checked={(formData.category & bitValue) === bitValue}
+                      onCheckedChange={(checked) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          category: checked
+                            ? prev.category | bitValue
+                            : prev.category & ~bitValue,
+                        }));
+                      }}
+                      className="border-gray-600"
+                    />
+                    <Label htmlFor={`category-${category.value}`} className="text-gray-300">
+                      {category.label}
+                    </Label>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -168,13 +204,13 @@ const CreateRoomModal = ({
                 <SelectValue placeholder="난이도를 선택하세요" />
               </SelectTrigger>
               <SelectContent className="bg-cyber-darker border-gray-600">
-                {difficulties.map((difficulty) => (
+                {difficulties.map((tier) => (
                   <SelectItem
-                    key={difficulty}
-                    value={difficulty}
+                    key={tier.value}
+                    value={tier.value}
                     className="text-white hover:bg-cyber-blue/20"
                   >
-                    {difficulty}
+                    {tier.label}
                   </SelectItem>
                 ))}
               </SelectContent>

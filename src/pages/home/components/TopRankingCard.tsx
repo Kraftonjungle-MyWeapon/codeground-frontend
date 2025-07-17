@@ -34,7 +34,7 @@ const TopRankingCard = ({ topRanking, onViewRanking }: Props) => (
             const { tier: playerTier, lp: playerLp } = parseTotalScore(player.mmr);
             return (
               <div
-                key={player.rank}
+                key={player.user_id}
                 className="flex items-center justify-between p-3 bg-black/20 rounded-lg hover:bg-black/30 transition-colors"
               >
                 <div className="flex items-center space-x-3">

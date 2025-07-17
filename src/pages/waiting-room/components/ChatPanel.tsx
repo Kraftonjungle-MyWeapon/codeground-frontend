@@ -5,8 +5,9 @@ import { MessageCircle, Send } from "lucide-react";
 import { FC } from "react";
 
 export interface ChatMessage {
-  type: "system" | "user";
+  type: "system" | "user" | "chat"; // Add 'chat' type
   message: string;
+  user: string;
 }
 
 interface Props {
@@ -35,7 +36,7 @@ const ChatPanel: FC<Props> = ({
           key={index}
           className={`text-sm ${msg.type === "system" ? "text-gray-400 italic" : "text-white"}`}
         >
-          {msg.message}
+          {msg.user}: {msg.message}
         </div>
       ))}
     </div>

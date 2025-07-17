@@ -3,12 +3,15 @@ import useWebSocketStore from '@/stores/websocketStore';
 import { useUser } from '@/context/UserContext';
 import { useNavigate } from 'react-router-dom';
 import { ProblemWithImages } from '@/types/codeEditor';
+import { leaveRoom } from '@/utils/api'; // leaveRoom 함수 임포트 추가
 
 interface UseBattleWebSocketProps {
   gameId: string | null;
+  matchType: string | null;
   handleSignal: (signal: any) => Promise<void>;
   setChatMessages: React.Dispatch<React.SetStateAction<{ user: string; message: string; type: 'chat' | 'system' }[]>>;
   setIsGameFinished: React.Dispatch<React.SetStateAction<boolean>>;
+  isGameFinished: boolean; // 추가: 게임 종료 상태를 읽기 위해
   setShowOpponentLeftModal: React.Dispatch<React.SetStateAction<boolean>>;
   setShowSurrenderModal: React.Dispatch<React.SetStateAction<boolean>>;
   setIsRemoteStreamActive: React.Dispatch<React.SetStateAction<boolean>>;
@@ -31,9 +34,11 @@ interface UseBattleWebSocketProps {
 
 export const useBattleWebSocket = ({
   gameId,
+  matchType,
   handleSignal,
   setChatMessages,
   setIsGameFinished,
+  isGameFinished, // 추가: isGameFinished prop 받기
   setShowOpponentLeftModal,
   setShowSurrenderModal,
   setIsRemoteStreamActive,
@@ -134,15 +139,31 @@ export const useBattleWebSocket = ({
           console.log('BattlePage: Match result received:', data);
           try {
             sessionStorage.setItem('matchResult', JSON.stringify(data));
+            // Clear opponent screen share modal and countdown regardless of result
+            setShowOpponentScreenShareRequiredModal(false);
+            if (opponentScreenShareCountdownIntervalRef.current) {
+              clearInterval(opponentScreenShareCountdownIntervalRef.current);
+            }
+
             if (data.reason === 'surrender' && data.winner === user.user_id) {
-              setIsGameFinished(true);
-              setShowSurrenderModal(true);
+              // For both custom and rank matches, if opponent surrenders, show OpponentSurrenderModal
+              setIsGameFinished(true); // Game is finished
+              setShowSurrenderModal(true); // Show opponent surrendered modal
             } else if (data.reason === 'finish') {
               const isWinner = data.winner === user.user_id;
+              console.log(`[DEBUG] isWinner: ${isWinner}, gameId: ${gameId}, userId: ${user?.user_id}, matchType: ${matchType}`);
+              if (isWinner && gameId && user?.user_id && matchType === 'custom') {
+                try {
+                  await leaveRoom(Number(gameId), user.user_id);
+                  console.log(`Player ${user.user_id} successfully left room ${gameId} due to winning.`);
+                } catch (error) {
+                  console.error("Error leaving room on win:", error);
+                }
+              }
               openCorrectAnswerModal(isWinner);
-            } else {
+            } else { // This 'else' block handles navigation to /result for other reasons
               cleanupScreenShare();
-              navigate('/result', { state: { matchResult: data } });
+              navigate('/result', { state: { matchResult: data, matchType: matchType } });
             }
           } catch (e) {
             console.error('BattlePage: Failed to save match result or navigate:', e);
@@ -153,6 +174,7 @@ export const useBattleWebSocket = ({
           setIsGameFinished(true);
           setShowScreenShareRequiredModal(false);
           setShowOpponentLeftModal(true);
+          setShowOpponentScreenShareRequiredModal(false); // 추가: 상대방 화면 공유 모달 닫기
           setChatMessages((prev) => [
             ...prev,
             {
@@ -162,6 +184,7 @@ export const useBattleWebSocket = ({
             },
           ]);
         } else if (data.type === 'opponent_rejoined') {
+          if (isGameFinished) return; // 게임이 종료된 경우 처리하지 않음
           if (isSolvingAlone) return;
           console.log('Received opponent_rejoined message:', data);
           setShowOpponentLeftModal(false);
@@ -193,6 +216,7 @@ export const useBattleWebSocket = ({
             });
           }, 1000);
         } else if (data.type === 'screen_share_stopped') {
+          if (isGameFinished) return; // 게임이 종료된 경우 처리하지 않음
           console.log("Received screen_share_stopped message:", data);
           const isMe = data.user_id === user.user_id;
           console.log("isMe:", isMe, "data.user_id:", data.user_id, "user.user_id:", user.user_id);

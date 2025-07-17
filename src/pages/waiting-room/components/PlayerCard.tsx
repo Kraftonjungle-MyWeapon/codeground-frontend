@@ -2,6 +2,7 @@ import CyberCard from "@/components/CyberCard";
 import CyberButton from "@/components/CyberButton";
 import { User } from "lucide-react";
 import { FC } from "react";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
 
 interface Props {
   name: string;
@@ -11,6 +12,7 @@ interface Props {
   isReady: boolean;
   onToggleReady?: () => void;
   onGameStart?: () => void;
+  profileImageUrl: string;
 }
 
 const PlayerCard: FC<Props> = ({
@@ -21,14 +23,16 @@ const PlayerCard: FC<Props> = ({
   isReady,
   onToggleReady,
   onGameStart,
+  profileImageUrl,
 }) => (
   <CyberCard glowing={role === "host"}>
     <div className="text-center space-y-4">
-      <div
-        className={`w-20 h-20 ${role === "host" ? "bg-gradient-to-r from-cyber-blue to-cyber-purple" : "bg-gradient-to-r from-gray-600 to-gray-700"} rounded-full mx-auto flex items-center justify-center`}
+      <Avatar
+        className={`w-20 h-20 mx-auto ${role === "host" ? "border-2 border-cyber-blue" : ""}`}
       >
+        <AvatarImage src={profileImageUrl} alt={`${name}'s profile`} />
         <User className="h-10 w-10 text-white" />
-      </div>
+      </Avatar>
       <div>
         <h3 className="text-xl font-bold text-white">{name}</h3>
         <p
@@ -50,7 +54,11 @@ const PlayerCard: FC<Props> = ({
             게임 시작
           </CyberButton>
         ) : (
-          <div className="text-green-400 font-semibold">준비 완료</div>
+          <div
+            className={`font-semibold ${isReady ? "text-green-400" : "text-yellow-400"}`}
+          >
+            {isReady ? "준비 완료" : "준비 중..."}
+          </div>
         )
       ) : isHostView ? (
         <div

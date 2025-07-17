@@ -15,6 +15,7 @@ const ScreenShareSetupPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const gameId = searchParams.get("gameId");
+  const matchType = searchParams.get("matchType");
   /**
    * 아래 skipScreenShare 변수는 디버그 모드에서 화면 공유를 건너뛰기 위한 설정임.
    * 이를 실제로 사용하려면 웹 브라우저의 개발자 콘솔에서 아래와 같이 입력:
@@ -27,12 +28,12 @@ const ScreenShareSetupPage = () => {
   useEffect(() => {
     if (skipScreenShare) {
       if (gameId) {
-        navigate(`/battle?gameId=${gameId}`);
+        navigate(`/battle?gameId=${gameId}&matchType=${matchType}`);
       } else {
         navigate('/battle');
       }
     }
-  }, [skipScreenShare, gameId, navigate]);  // skipScreenShare가 true인 경우, 화면 공유 설정 페이지를 건너뛰고 바로 전투 페이지로 이동
+  }, [skipScreenShare, gameId, navigate, matchType]);  // skipScreenShare가 true인 경우, 화면 공유 설정 페이지를 건너뛰고 바로 전투 페이지로 이동
   const { user } = useUser();
   const { websocket, connect, disconnect, sendMessage } = useWebSocketStore();
 
@@ -171,12 +172,12 @@ const ScreenShareSetupPage = () => {
     } else if (isCountingDown && countdown === 0) {
       console.log("Game starting...");
       if (gameId) {
-        navigate(`/battle?gameId=${gameId}`);
+        navigate(`/battle?gameId=${gameId}&matchType=${matchType}`);
       } else {
         navigate("/battle");
       }
     }
-  }, [isCountingDown, countdown, myStream, navigate, gameId]);
+  }, [isCountingDown, countdown, myStream, navigate, gameId, matchType]);
 
   useEffect(() => {
     if (myStream && localVideoRef.current) {
@@ -221,7 +222,12 @@ const ScreenShareSetupPage = () => {
       return;
     }
 
-    const webSocketUrl = `${wsUrl}/api/v1/game/ws/game/${effectiveGameId}?user_id=${userId}`;
+    let webSocketUrl = '';
+    if (matchType === 'custom') {
+      webSocketUrl = `${wsUrl}/api/v1/game/ws/custom_match/${effectiveGameId}?user_id=${userId}`;
+    } else {
+      webSocketUrl = `${wsUrl}/api/v1/game/ws/game/${effectiveGameId}?user_id=${userId}`;
+    }
     console.log('ScreenShareSetupPage: Attempting to connect WebSocket to:', webSocketUrl);
 
     if (!webSocketUrl) { // wsUrl이 없으면 연결 시도 안 함
@@ -230,9 +236,16 @@ const ScreenShareSetupPage = () => {
     }
 
     // 웹소켓이 이미 연결되어 있고, 연결하려는 URL과 동일하다면 다시 연결하지 않음
-    if (websocket && websocket.readyState === WebSocket.OPEN && websocket.url === webSocketUrl) {
-      console.log('ScreenShareSetupPage: WebSocket already connected to the target URL. Skipping connect.');
-      return;
+    // 커스텀 매치인 경우, 기존 웹소켓 연결을 재사용
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      if (matchType === 'custom') {
+        console.log('ScreenShareSetupPage: Custom match, reusing existing WebSocket connection.');
+      } else if (websocket.url === webSocketUrl) {
+        console.log('ScreenShareSetupPage: WebSocket already connected to the target URL. Skipping connect.');
+        return;
+      }
+    } else if (matchType !== 'custom') { // 커스텀 매치가 아니면 새로운 웹소켓 연결 시도
+      connect(webSocketUrl); // 항상 현재 세션에 맞는 정확한 URL을 connect 함수에 전달
     }
 
     // PeerConnection이 초기화되지 않았다면 초기화
@@ -243,21 +256,19 @@ const ScreenShareSetupPage = () => {
       console.log('ScreenShareSetupPage: sharedPC already exists.');
     }
 
-    connect(webSocketUrl); // 항상 현재 세션에 맞는 정확한 URL을 connect 함수에 전달
-
     return () => {
       // Disconnect only if this component is responsible for the connection
       // and if the connection is still active.
       // This prevents disconnecting a shared WebSocket if another component
       // is also using it.
-      if (websocket && websocket.readyState === WebSocket.OPEN) {
+      if (websocket && websocket.readyState === WebSocket.OPEN && matchType !== 'custom') {
         // You might want to add a more sophisticated check here
         // to ensure you only disconnect if this component initiated the connection
         // or if it's the last one using it.
         // For now, we'll rely on the global state.
       }
     };
-  }, [effectiveGameId, userId, connect, disconnect]);
+  }, [effectiveGameId, userId, connect, disconnect, matchType]);
 
   useEffect(() => {
     if (!websocket) return;
