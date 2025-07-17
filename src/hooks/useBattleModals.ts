@@ -195,7 +195,15 @@ export const useBattleModals = ({
     }
   }, [cleanupScreenShare, setIsGameFinished, navigate, confirmNavigation, gameId, userId, matchType]);
 
-  const handleLeave = useCallback(() => {
+  const handleLeave = useCallback(async () => {
+    if (gameId && userId && matchType === 'custom') {
+      try {
+        await leaveRoom(Number(gameId), userId);
+        console.log(`Player ${userId} successfully left room ${gameId} via handleLeave.`);
+      } catch (error) {
+        console.error("Error leaving room on handleLeave:", error);
+      }
+    }
     cleanupScreenShare();
     setShowOpponentLeftModal(false);
     if (confirmNavigation) {
@@ -203,7 +211,7 @@ export const useBattleModals = ({
     } else {
       navigate('/waiting-room');
     }
-  }, [cleanupScreenShare, navigate, confirmNavigation]);
+  }, [cleanupScreenShare, navigate, confirmNavigation, gameId, userId, matchType]);
 
   const [isCorrectAnswerModalOpen, setIsCorrectAnswerModalOpen] = useState(false);
   const [isWinner, setIsWinner] = useState(false);
