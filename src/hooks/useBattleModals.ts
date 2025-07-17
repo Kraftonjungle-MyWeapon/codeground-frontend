@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import useWebSocketStore from '@/stores/websocketStore';
 import { localStream as sharedLocalStream, setLocalStream, peerConnection as sharedPC, setPeerConnection, setRemoteStream, remoteStream as sharedRemoteStream } from '@/utils/webrtcStore';
 
-import { leaveRoom } from '@/utils/api';
-
 interface UseBattleModalsProps {
   gameId: string | null;
   userId: number | undefined;
@@ -61,7 +59,7 @@ export const useBattleModals = ({
   confirmNavigation, // confirmNavigation 추가
 }: UseBattleModalsProps) => {
   const navigate = useNavigate();
-  const { sendMessage } = useWebSocketStore();
+  const { sendMessage, disconnect } = useWebSocketStore();
 
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
   const [confirmExitCallback, setConfirmExitCallback] = useState<(() => void) | null>(null);
@@ -84,16 +82,6 @@ export const useBattleModals = ({
   const handleSurrenderButtonClick = useCallback(() => {
     setIsExitModalOpen(true);
     setConfirmExitCallback(() => async () => {
-      // Call leave_room API for the surrendering player
-      if (gameId && userId && matchType === 'custom') {
-        try {
-          await leaveRoom(Number(gameId), userId);
-          console.log(`Player ${userId} successfully left room ${gameId} due to surrender.`);
-        } catch (error) {
-          console.error("Error leaving room on surrender:", error);
-        }
-      }
-
       // Send surrender message via WebSocket
       sendMessage(JSON.stringify({ type: "match_result", reason: "surrender" }));
       setIsExitModalOpen(false); // 모달 닫기
@@ -101,7 +89,7 @@ export const useBattleModals = ({
     setCancelExitCallback(() => () => {
       setIsExitModalOpen(false); // 모달 닫기
     });
-  }, [sendMessage, gameId, userId, matchType]);
+  }, [sendMessage]);
 
   const handleConfirmExit = useCallback(() => {
     isConfirmedExitRef.current = true;
@@ -173,14 +161,7 @@ export const useBattleModals = ({
   }, [handleContinueAlone]);
 
   const handleSurrenderLeave = useCallback(async () => {
-    if (gameId && userId && matchType === 'custom') {
-      try {
-        await leaveRoom(Number(gameId), userId);
-      } catch (error) {
-        console.error("Error leaving room:", error);
-      }
-    }
-
+    disconnect();
     cleanupScreenShare(); // 화면 공유 정리 추가
     setIsGameFinished(true); // 게임 종료 상태 설정 추가
     if (confirmNavigation) {
@@ -193,17 +174,9 @@ export const useBattleModals = ({
         navigate('/result');
       }
     }
-  }, [cleanupScreenShare, setIsGameFinished, navigate, confirmNavigation, gameId, userId, matchType]);
+  }, [disconnect, cleanupScreenShare, setIsGameFinished, navigate, confirmNavigation, matchType]);
 
   const handleLeave = useCallback(async () => {
-    if (gameId && userId && matchType === 'custom') {
-      try {
-        await leaveRoom(Number(gameId), userId);
-        console.log(`Player ${userId} successfully left room ${gameId} via handleLeave.`);
-      } catch (error) {
-        console.error("Error leaving room on handleLeave:", error);
-      }
-    }
     cleanupScreenShare();
     setShowOpponentLeftModal(false);
     if (confirmNavigation) {
@@ -230,14 +203,7 @@ export const useBattleModals = ({
   }, [setIsGameFinished, handleContinueAlone, setIsGamePaused]);
 
   const handleCorrectAnswerLeave = useCallback(async () => {
-    if (gameId && userId && matchType === 'custom') {
-      try {
-        await leaveRoom(Number(gameId), userId);
-      } catch (error) {
-        console.error("Error leaving room:", error);
-      }
-    }
-
+    disconnect();
     cleanupScreenShare();
     setIsGameFinished(true); // 게임 종료 상태 설정
     if (confirmNavigation) {
@@ -250,7 +216,7 @@ export const useBattleModals = ({
         navigate('/result');
       }
     }
-  }, [cleanupScreenShare, navigate, confirmNavigation, matchType, gameId, userId]);
+  }, [disconnect, cleanupScreenShare, navigate, confirmNavigation, matchType]);
 
   return {
     isExitModalOpen,

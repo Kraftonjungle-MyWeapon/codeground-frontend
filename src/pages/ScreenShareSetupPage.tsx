@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import CyberCard from '@/components/CyberCard';
 import CyberButton from '@/components/CyberButton';
@@ -7,6 +7,7 @@ import { useUser } from '@/context/UserContext';
 import { localStream as sharedLocalStream, remoteStream as sharedRemoteStream, 
     setLocalStream, setRemoteStream, setPeerConnection, peerConnection as sharedPC } from '@/utils/webrtcStore';
 import useWebSocketStore from '@/stores/websocketStore';
+import { useToast } from "@/components/ui/use-toast";
 
 const apiUrl = import.meta.env.VITE_API_URL;
 const wsUrl = apiUrl.replace(/^http/, 'ws');
@@ -36,6 +37,32 @@ const ScreenShareSetupPage = () => {
   }, [skipScreenShare, gameId, navigate, matchType]);  // skipScreenShare가 true인 경우, 화면 공유 설정 페이지를 건너뛰고 바로 전투 페이지로 이동
   const { user } = useUser();
   const { websocket, connect, disconnect, sendMessage } = useWebSocketStore();
+  const { toast } = useToast();
+
+  const handlePeerConnectionStateChange = useCallback((pc: RTCPeerConnection) => {
+    console.log('ScreenShareSetupPage: sharedPC connectionState changed:', pc.connectionState);
+    if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+      setOpponentScreenShareStatus('disconnected');
+      setShowMyScreenShareRestartButton(true);
+      setIsWebRTCConnected(false); // WebRTC 연결 상태 업데이트
+      setRemoteStream(null); // 상대방 스트림 제거
+      setRemoteStreamState(null); // 상대방 스트림 상태 제거
+
+      if (matchType === 'custom') {
+        disconnect(); // 웹소켓 연결 끊기
+        navigate('/home'); // 홈으로 이동
+        toast({
+          title: "상대방 연결 끊김",
+          description: "상대방이 연결을 끊었습니다. 홈으로 이동합니다.",
+          variant: "destructive",
+        });
+      }
+    } else if (pc.connectionState === 'connected') {
+      setOpponentScreenShareStatus('connected');
+      setShowMyScreenShareRestartButton(false);
+      setIsWebRTCConnected(true); // WebRTC 연결 상태 업데이트
+    }
+  }, [matchType, disconnect, navigate, toast]);
 
   // effectiveGameId와 userId를 컴포넌트 최상위 레벨에서 정의
   const currentUrlGameId = searchParams.get('gameId');
@@ -286,6 +313,17 @@ const ScreenShareSetupPage = () => {
         } else if (data.type === "all_ready") {
           setOpponentReady(true);
           setMyReady(true);
+        } else if (data.type === 'match_result') {
+          console.log('ScreenShareSetupPage: Match result received:', data);
+          if (matchType === 'custom') {
+            disconnect();
+            navigate('/home');
+            toast({
+              title: "상대방 연결 끊김",
+              description: "상대방이 연결을 끊었습니다. 홈으로 이동합니다.",
+              variant: "destructive",
+            });
+          }
         }
       } catch (e) {
         console.error("ws message parse error", e);
@@ -305,25 +343,12 @@ const ScreenShareSetupPage = () => {
   useEffect(() => {
     if (!sharedPC) return;
 
-    const handleConnectionStateChange = () => {
-      console.log('ScreenShareSetupPage: sharedPC connectionState changed:', sharedPC.connectionState);
-      if (sharedPC.connectionState === 'disconnected' || sharedPC.connectionState === 'failed' || sharedPC.connectionState === 'closed') {
-        setOpponentScreenShareStatus('disconnected');
-        setShowMyScreenShareRestartButton(true);
-        setIsWebRTCConnected(false); // WebRTC 연결 상태 업데이트
-      } else if (sharedPC.connectionState === 'connected') {
-        setOpponentScreenShareStatus('connected');
-        setShowMyScreenShareRestartButton(false);
-        setIsWebRTCConnected(true); // WebRTC 연결 상태 업데이트
-      }
-    };
-
-    sharedPC.addEventListener('connectionstatechange', handleConnectionStateChange);
+    sharedPC.addEventListener('connectionstatechange', () => handlePeerConnectionStateChange(sharedPC));
 
     return () => {
-      sharedPC.removeEventListener('connectionstatechange', handleConnectionStateChange);
+      sharedPC.removeEventListener('connectionstatechange', () => handlePeerConnectionStateChange(sharedPC));
     };
-  }, [sharedPC]);
+  }, [sharedPC, handlePeerConnectionStateChange]);
 
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection({
@@ -349,17 +374,7 @@ const ScreenShareSetupPage = () => {
 
     pc.oniceconnectionstatechange = () => {
       console.log('ICE connection state changed:', pc.iceConnectionState);
-      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
-        setOpponentScreenShareStatus('disconnected');
-        setShowMyScreenShareRestartButton(true);
-        setRemoteStream(null); // 상대방 스트림 제거
-        setRemoteStreamState(null); // 상대방 스트림 상태 제거
-        setIsWebRTCConnected(false); // WebRTC 연결 상태 업데이트
-      } else if (pc.iceConnectionState === 'connected') {
-        setOpponentScreenShareStatus('connected');
-        setShowMyScreenShareRestartButton(false);
-        setIsWebRTCConnected(true); // WebRTC 연결 상태 업데이트
-      }
+      handlePeerConnectionStateChange(pc);
     };
 
     const stream = myStream || sharedLocalStream;

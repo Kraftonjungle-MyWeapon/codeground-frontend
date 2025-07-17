@@ -306,6 +306,8 @@ export const useBattleWebSocket = ({
             setProblem(data.problem);
             console.log("Problem received via WebSocket:", data.problem);
           }
+        } else if (data.type === 'opponent_left_waiting') {
+          // Pass, do nothing
         } else if (data.type === 'timer_sync') {
           setTimeLeft(data.timeLeft);
         }
