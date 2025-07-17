@@ -64,7 +64,9 @@ export function useMatching() {
         } else if (message.type === "match_accepted") {
             if (message.problem && message.game_id) {
             try {
-                fetchProblemForGame(message.problem, message.game_id);
+                // problem_id를 세션 스토리지에 저장
+                sessionStorage.setItem("currentProblemId", message.problem.problem_id);
+                fetchProblemForGame(message.problem, message.game_id, message.problem.problem_id); // problem_id 추가 전달
                 setOpponentAccepted(true);
                 sessionStorage.setItem("gameId", message.game_id);
                 navigate(`/screen-share-setup?gameId=${message.game_id}`);
