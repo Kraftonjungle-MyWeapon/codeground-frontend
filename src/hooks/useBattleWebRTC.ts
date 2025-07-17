@@ -17,6 +17,16 @@ export const useBattleWebRTC = ({
   const [isRemoteStreamActive, setIsRemoteStreamActive] = useState(true); // 훅 내부 상태로 변경
   const [showRemoteScreenSharePrompt, setShowRemoteScreenSharePrompt] = useState(false); // 훅 내부 상태로 변경
 
+  const resetWebRTC = useCallback(() => {
+    if (sharedPC) {
+      sharedPC.close();
+      setPeerConnection(null);
+    }
+    setRemoteStream(null);
+    setIsRemoteStreamActive(false);
+    setShowRemoteScreenSharePrompt(false);
+  }, [sharedPC]);
+
   const createPeerConnection = useCallback(() => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' },
@@ -40,11 +50,14 @@ export const useBattleWebRTC = ({
     setPeerConnection(pc);
 
     pc.oniceconnectionstatechange = () => {
-      if (isGameFinished) return;
       if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
-        setRemoteStream(null);
-        setIsRemoteStreamActive(false); // 상태 업데이트
-        setShowRemoteScreenSharePrompt(true); // 상태 업데이트
+        if (isGameFinished) {
+          resetWebRTC(); // 게임 종료 시 WebRTC 연결 초기화
+        } else {
+          setRemoteStream(null);
+          setIsRemoteStreamActive(false); // 상태 업데이트
+          setShowRemoteScreenSharePrompt(true); // 상태 업데이트
+        }
       }
     };
 
@@ -123,6 +136,12 @@ export const useBattleWebRTC = ({
   }, [createPeerConnection, sendMessage, sharedLocalStream, setIsRemoteStreamActive, setShowRemoteScreenSharePrompt]);
 
   useEffect(() => {
+    if (isGameFinished) {
+      resetWebRTC();
+    }
+  }, [isGameFinished, resetWebRTC]);
+
+  useEffect(() => {
     if (sharedPC) {
       if (sharedPC.remoteDescription && sharedPC.remoteDescription.type === 'offer' && !sharedPC.localDescription) {
         // If we have a remote offer but no local answer, create one
@@ -134,5 +153,5 @@ export const useBattleWebRTC = ({
     }
   }, [sharedPC, sendMessage]);
 
-  return { createPeerConnection, handleSignal, isRemoteStreamActive, setIsRemoteStreamActive, showRemoteScreenSharePrompt, setShowRemoteScreenSharePrompt };
+  return { createPeerConnection, handleSignal, isRemoteStreamActive, setIsRemoteStreamActive, showRemoteScreenSharePrompt, setShowRemoteScreenSharePrompt, resetWebRTC };
 };

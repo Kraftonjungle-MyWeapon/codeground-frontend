@@ -285,6 +285,15 @@ const BattlePage = () => {
       setCancelExitCallback(() => cancel);
     },
     onNavigationConfirmed: useCallback(() => {
+      // 웹소켓 연결 해제
+      disconnect();
+      // WebRTC 연결 해제 및 초기화
+      if (sharedPC) {
+        sharedPC.close();
+      }
+      setPeerConnection(null);
+      setRemoteStream(null);
+
       // 배틀 페이지 관련 세션 스토리지 데이터 제거
       sessionStorage.removeItem("currentMatchId");
       sessionStorage.removeItem("gameId");
@@ -294,7 +303,7 @@ const BattlePage = () => {
       if (gameId) {
         sessionStorage.removeItem(`problem_${gameId}`);
       }
-    }, [gameId]), // gameId를 종속성 배열에 추가
+    }, [gameId, disconnect]), // gameId와 disconnect를 종속성 배열에 추가
   });
 
   // Effect for localVideoRef and remoteVideoRef srcObject
