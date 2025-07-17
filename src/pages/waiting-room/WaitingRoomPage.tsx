@@ -244,10 +244,10 @@ const WaitingRoomPage = () => {
             break;
           case 'get_problem':
             console.log("Received get_problem message:", data);
-            if (roomInfo?.room_id && data.problem) {
+            if (roomInfo?.room_id && data.problem && data.problem.problem_id) {
               try {
                 // 문제 정보를 sessionStorage에 저장 시도
-                await fetchProblemForGame(data.problem, Number(roomInfo.room_id));
+                await fetchProblemForGame(data.problem, Number(roomInfo.room_id), data.problem.problem_id);
                 const fetchedProblem = sessionStorage.getItem(`problem_${roomInfo.room_id}`);
                 if (!fetchedProblem) {
                     throw new Error("Problem not saved to sessionStorage by fetchProblemForGame.");
