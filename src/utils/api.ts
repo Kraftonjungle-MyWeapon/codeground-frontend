@@ -69,7 +69,8 @@ export async function getUserWinRate(userId: number) {
  */
 export async function fetchProblemForGame(
   problemData: { problem_url: string; image_urls: string[] },
-  game_id: number
+  game_id: number,
+  problemIdFromBackend: string // 새로운 인자 추가
 ): Promise<void> {
   if (import.meta.env.MODE === "development") {
     try {
@@ -77,7 +78,7 @@ export async function fetchProblemForGame(
 
       sessionStorage.setItem(
         `problem_${game_id}`,
-        JSON.stringify(problemWithImages)
+        JSON.stringify({ ...problemWithImages, problem_id: problemIdFromBackend }) // problem_id 덮어쓰기
       );
       console.log(
         `Problem for game ${game_id} saved to localStorage from DB (development mode).`
@@ -112,7 +113,7 @@ export async function fetchProblemForGame(
 
       sessionStorage.setItem(
         `problem_${game_id}`,
-        JSON.stringify(problemWithImages)
+        JSON.stringify({ ...problemWithImages, problem_id: problemIdFromBackend }) // problem_id 덮어쓰기
       );
       console.log(`Problem for game ${game_id} saved to localStorage.`);
     } catch (error) {
