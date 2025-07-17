@@ -33,7 +33,8 @@ const ProfilePage = lazy(() => import("./pages/profile/ProfilePage"));
 const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 const CreateProblemPage = lazy(() => import("./pages/CreateProblemPage"));
 const UploadProblemPage = lazy(() => import("./pages/UploadProblemPage"));
-const AdminPage = lazy(() => import("./pages/admin/AdminPage")); // 관리자 페이지 import 추가
+const AdminPage = lazy(() => import("./pages/admin/AdminPage"));
+const ProblemDetailEdit = lazy(() => import("./pages/admin/components/ProblemDetailEdit"));
 const AchievementPage = lazy(() => import("./pages/AchievementPage"));
 const NotFound = lazy(() => import("./pages/not-found/NotFound"));
 const OAuthCallback = lazy(
@@ -118,7 +119,8 @@ const App = () => {
                       { path: "/settings", element: <SettingsPage /> },
                       { path: "/create-problem", element:<CreateProblemPage />},
                       { path: "/upload-problem", element:<UploadProblemPage />},
-                      { path: "/admin", element: <AdminPage />, adminOnly: true } // 관리자 페이지 라우트 추가
+                      { path: "/admin/problems/:problemId", element: <ProblemDetailEdit />, adminOnly: true },
+                      { path: "/admin", element: <AdminPage />, adminOnly: true }
                     ].map(({ path, element, adminOnly }) => (
                       <Route
                         key={path}

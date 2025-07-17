@@ -2,11 +2,15 @@ import { useEffect, useState } from 'react';
 import { fetchAchievements } from '../api/adminApi';
 
 export interface Achievement {
-  id: number;
+  achievement_id: number;
   title: string;
   description: string;
-  rarity: string;
-  unlocked: number;
+  trigger_type: string;
+  parameter: number;
+  reward_type: string;
+  reward_amount: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export function useAchievements() {
@@ -14,12 +18,18 @@ export function useAchievements() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<null | Error>(null);
 
-  useEffect(() => {
+  const refreshAchievements = () => {
+    setLoading(true);
+    setError(null);
     fetchAchievements()
       .then(setAchievements)
       .catch(setError)
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    refreshAchievements();
   }, []);
 
-  return { achievements, loading, error };
+  return { achievements, loading, error, refreshAchievements };
 }
