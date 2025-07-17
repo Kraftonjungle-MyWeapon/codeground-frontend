@@ -120,7 +120,8 @@ const App = () => {
                       { path: "/create-problem", element:<CreateProblemPage />},
                       { path: "/upload-problem", element:<UploadProblemPage />},
                       { path: "/admin/problems/:problemId", element: <ProblemDetailEdit />, adminOnly: true },
-                      { path: "/admin", element: <AdminPage />, adminOnly: true }
+                      { path: "/admin", element: <AdminPage />, adminOnly: true },
+                      { path: "/achievement", element:<AchievementPage /> } 
                     ].map(({ path, element, adminOnly }) => (
                       <Route
                         key={path}
