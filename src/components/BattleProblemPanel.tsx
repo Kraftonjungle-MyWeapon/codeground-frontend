@@ -17,19 +17,69 @@ const BattleProblemPanel = ({
   const renderProblemDescription = () => {
     if (!problem || !problem.description) return null;
 
-    const parts = problem.description.split(/(\[IMAGE:[^\]]+\])/g);
+  //   const parts = problem.description.split(/(\[IMAGE:[^\]]+\])/g);
 
-    return parts.map((part, index) => {
+  //   return parts.map((part, index) => {
+  //     if (part.startsWith('[IMAGE:') && part.endsWith(']')) {
+  //       const imageId = part.substring(7, part.length - 1);
+  //       const image = problem.problemStatementImages?.find(img => img.name.includes(imageId));
+  //       if (image) {
+  //         return <img key={index} src={image.url} alt={image.name} className="my-2 max-w-full h-auto rounded-lg object-contain mx-auto block" />;
+  //       }
+  //     }
+  //     return <span key={index}>{part}</span>;
+  //   });
+  // };
+
+    // 1차: 이미지 토큰 기준 분리 (캡처 그룹 유지)
+    const parts = problem.description.split(/(\[IMAGE:[^\]]+\])/g);
+    let key = 0;
+
+    return parts.flatMap((part) => {
+      if (!part) return []; // skip empty
+
+      // 이미지 토큰?
       if (part.startsWith('[IMAGE:') && part.endsWith(']')) {
-        const imageId = part.substring(7, part.length - 1);
-        const image = problem.problemStatementImages?.find(img => img.name.includes(imageId));
-        if (image) {
-          return <img key={index} src={image.url} alt={image.name} className="my-2 max-w-full h-auto rounded-lg object-contain mx-auto block" />;
-        }
+        const imageId = part.slice(7, -1); // "[IMAGE:" == 7 chars
+        const image = problem.problemStatementImages?.find((img) =>
+          img.name.includes(imageId)
+        );
+        if (!image) return []; // 이미지 못 찾으면 무시(또는 대체 텍스트)
+        return (
+          <img
+            key={`img-${key++}`}
+            src={image.url}
+            alt={image.name ?? imageId}
+            className="my-2 max-w-full h-auto rounded-lg object-contain mx-auto block"
+          />
+        );
       }
-      return <span key={index}>{part}</span>;
+
+      // 텍스트 조각: 줄바꿈 기준으로 다시 분리
+      const lines = part.split(/\r?\n/g);
+      const nodes: React.ReactNode[] = [];
+
+      lines.forEach((line, i) => {
+        // 줄 내용
+        nodes.push(
+          <span
+            key={`txt-${key++}`}
+            className="whitespace-pre-wrap" // 텍스트 내 연속 공백도 보존하려면
+          >
+            {line}
+          </span>
+        );
+        // 줄바꿈 삽입 (마지막 줄 제외)
+        if (i < lines.length - 1) {
+          nodes.push(<br key={`br-${key++}`} />);
+        }
+      });
+
+      return nodes;
     });
   };
+
+
 
   return (
     <CyberCard className="h-[calc(100vh-24em)] p-4 mr-2 max-h-[860px]">
@@ -67,9 +117,12 @@ const BattleProblemPanel = ({
               </div>
             )}
             <div className="w-full">
-              <p className="text-gray-300 leading-relaxed max-w-full overflow-hidden">
+              {/* <p className="text-gray-300 leading-relaxed max-w-full overflow-hidden">
                 {renderProblemDescription()}
-              </p>
+              </p> */}
+              <div className="text-gray-300 leading-relaxed max-w-full overflow-hidden">
+                {renderProblemDescription()}
+              </div>
             </div>
 
             {/* 입력 형식 */}
