@@ -13,6 +13,7 @@ import {
 import { parseTotalScore } from "@/utils/lpSystem";
 import { FC } from "react";
 import type { RankingEntry } from "./TopThreeRanking";
+import { getAbsoluteUrl } from "@/lib/utils";
 
 const getRankIcon = (rank: number) => {
   switch (rank) {
@@ -82,8 +83,16 @@ const RankingList: FC<Props> = ({ players }) => (
                     #{player.rank}
                   </div>
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-cyber-blue to-cyber-purple rounded-full flex items-center justify-center">
-                      <User className="h-5 w-5" />
+                    <div className="w-10 h-10 bg-gradient-to-r from-cyber-blue to-cyber-purple rounded-full flex items-center justify-center overflow-hidden border-2 border-cyber-blue">
+                      {player.profile_img_url ? (
+                        <img
+                          src={getAbsoluteUrl(player.profile_img_url)}
+                          alt={player.nickname}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="h-5 w-5" />
+                      )}
                     </div>
                     <div>
                       <div className="font-semibold text-white">

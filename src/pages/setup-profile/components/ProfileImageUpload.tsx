@@ -1,4 +1,5 @@
 import { Upload, User } from "lucide-react";
+import { useState, useEffect } from "react";
 
 interface ProfileImageUploadProps {
   file: File | null;
@@ -6,6 +7,18 @@ interface ProfileImageUploadProps {
 }
 
 const ProfileImageUpload = ({ file, onChange }: ProfileImageUploadProps) => {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [file]);
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0] || null;
     onChange(selected);
@@ -13,8 +26,12 @@ const ProfileImageUpload = ({ file, onChange }: ProfileImageUploadProps) => {
 
   return (
     <div className="space-y-2 text-center">
-      <div className="w-20 h-20 bg-gradient-to-r from-cyber-blue to-cyber-purple rounded-full mx-auto flex items-center justify-center">
-        <User className="h-10 w-10 text-white" />
+      <div className="w-20 h-20 bg-gradient-to-r from-cyber-blue to-cyber-purple rounded-full mx-auto flex items-center justify-center overflow-hidden border-2 border-cyber-blue">
+        {previewUrl ? (
+          <img src={previewUrl} alt="Profile Preview" className="w-full h-full object-cover" />
+        ) : (
+          <User className="h-10 w-10 text-white" />
+        )}
       </div>
       <label
         htmlFor="profileImage"

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import CyberCard from '@/components/CyberCard';
 import CyberButton from '@/components/CyberButton';
 import { Monitor, User, Clock, AlertTriangle, Check } from 'lucide-react';
+import { getAbsoluteUrl } from "@/lib/utils";
 import { useUser } from '@/context/UserContext';
 import { localStream as sharedLocalStream, remoteStream as sharedRemoteStream, 
     setLocalStream, setRemoteStream, setPeerConnection, peerConnection as sharedPC } from '@/utils/webrtcStore';
@@ -85,6 +86,8 @@ const ScreenShareSetupPage = () => {
   const [isWebRTCConnected, setIsWebRTCConnected] = useState(false);
   const [opponentScreenShareStatus, setOpponentScreenShareStatus] = useState<'waiting' | 'connected' | 'disconnected'>('waiting');
   const [showMyScreenShareRestartButton, setShowMyScreenShareRestartButton] = useState(false);
+  const [opponentNickname, setOpponentNickname] = useState<string | null>(null);
+  const [opponentProfileImageUrl, setOpponentProfileImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     // 기존 WebRTC 연결 및 스트림 정리
@@ -310,9 +313,13 @@ const ScreenShareSetupPage = () => {
           data.user_id !== user.user_id
         ) {
           setOpponentReady(true);
+          if (data.nickname) setOpponentNickname(data.nickname);
+          if (data.profile_img_url) setOpponentProfileImageUrl(data.profile_img_url);
         } else if (data.type === "all_ready") {
           setOpponentReady(true);
           setMyReady(true);
+          if (data.opponent_nickname) setOpponentNickname(data.opponent_nickname);
+          if (data.opponent_profile_img_url) setOpponentProfileImageUrl(data.opponent_profile_img_url);
         } else if (data.type === 'match_result') {
           console.log('ScreenShareSetupPage: Match result received:', data);
           if (matchType === 'custom') {
@@ -560,8 +567,16 @@ const ScreenShareSetupPage = () => {
             <CyberCard className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-cyber-blue to-cyber-purple rounded-full flex items-center justify-center">
-                    <User className="h-6 w-6 text-white" />
+                  <div className="w-12 h-12 bg-gradient-to-r from-cyber-blue to-cyber-purple rounded-full flex items-center justify-center overflow-hidden border-2 border-cyber-blue">
+                    {user?.profileImageUrl ? (
+                      <img
+                        src={getAbsoluteUrl(user.profileImageUrl)}
+                        alt={user.nickname || "내 프로필"}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User className="h-6 w-6 text-white" />
+                    )}
                   </div>
                   <div>
                     <div className="text-white font-semibold">나</div>
@@ -617,8 +632,16 @@ const ScreenShareSetupPage = () => {
                       )}
                     </div>
                   </div>
-                  <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center">
-                    <User className="h-6 w-6 text-white" />
+                  <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center overflow-hidden border-2 border-cyber-blue">
+                    {opponentProfileImageUrl ? (
+                      <img
+                        src={getAbsoluteUrl(opponentProfileImageUrl)}
+                        alt={opponentNickname || "상대방 프로필"}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User className="h-6 w-6 text-white" />
+                    )}
                   </div>
                 </div>
               </div>

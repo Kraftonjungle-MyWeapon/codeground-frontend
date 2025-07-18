@@ -76,6 +76,7 @@ const RankingPage = () => {
                 <SelectItem value="python3">Python</SelectItem>
                 <SelectItem value="java">Java</SelectItem>
                 <SelectItem value="cpp">C++</SelectItem>
+                <SelectItem value="c">C</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -8,12 +8,15 @@ import {
   ArrowUp,
   ArrowDown,
   Minus,
+  User,
 } from "lucide-react";
 import { FC } from "react";
+import { getAbsoluteUrl } from "@/lib/utils";
 
 export interface RankingEntry {
   user_id: number;
   nickname: string;
+  profile_img_url?: string;
   mmr: number;
   rank: number;
   rank_diff: number;
@@ -69,9 +72,20 @@ const TopThreeRanking: FC<Props> = ({ players }) => (
       return (
         <CyberCard
           key={player.rank}
-          className={`text-center ${getRankColor(player.rank)}`}
+          className={`relative text-center ${getRankColor(player.rank)}`}
         >
-          <div className="mb-4">{getRankIcon(player.rank)}</div>
+          <div className="w-24 h-24 bg-gradient-to-r from-cyber-blue to-cyber-purple rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden border-2 border-cyber-blue">
+            {player.profile_img_url ? (
+              <img
+                src={getAbsoluteUrl(player.profile_img_url)}
+                alt={player.nickname}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <User className="h-12 w-12 text-white" />
+            )}
+          </div>
+          <div className="absolute top-4 left-4">{getRankIcon(player.rank)}</div>
           <div className="text-2xl font-bold mb-1">{player.rank}위</div>
           <div className="text-lg font-semibold text-white mb-2">
             {player.nickname}
