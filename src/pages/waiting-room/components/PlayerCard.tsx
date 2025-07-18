@@ -3,6 +3,7 @@ import CyberButton from "@/components/CyberButton";
 import { User } from "lucide-react";
 import { FC } from "react";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { getAbsoluteUrl } from "@/lib/utils";
 
 interface Props {
   name: string;
@@ -30,7 +31,7 @@ const PlayerCard: FC<Props> = ({
       <Avatar
         className={`w-20 h-20 mx-auto ${role === "host" ? "border-2 border-cyber-blue" : ""}`}
       >
-        <AvatarImage src={profileImageUrl} alt={`${name}'s profile`} />
+        <AvatarImage src={getAbsoluteUrl(profileImageUrl)} alt={`${name}'s profile`} />
         <User className="h-10 w-10 text-white" />
       </Avatar>
       <div>

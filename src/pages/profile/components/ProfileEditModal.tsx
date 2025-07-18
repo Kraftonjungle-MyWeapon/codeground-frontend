@@ -5,6 +5,7 @@ import { updateUserProfile } from "@/utils/api";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -97,6 +98,9 @@ const ProfileEditModal = ({
           <DialogTitle className="text-2xl font-bold text-cyber-blue">
             프로필 편집
           </DialogTitle>
+          <DialogDescription>
+            프로필 사진과 닉네임을 변경할 수 있습니다.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">

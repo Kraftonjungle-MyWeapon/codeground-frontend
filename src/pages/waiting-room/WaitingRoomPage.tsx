@@ -10,6 +10,7 @@ import PlayerCard from "./components/PlayerCard";
 import ChatPanel, { ChatMessage } from "./components/ChatPanel";
 import { CustomRoom } from "@/types/room";
 import useWebSocketStore from "@/stores/websocketStore"; // useWebSocketStore import
+import { useToast } from "@/components/ui/use-toast";
 
 import { authFetch, getRoomInfo, leaveRoom, fetchProblemForGame, getProblemById } from "@/utils/api";
 
@@ -31,6 +32,7 @@ const WaitingRoomPage = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(
     []
   );
+  const { toast } = useToast();
   
   
   const initialMessagesAddedRef = useRef(false); // 초기 메시지 추가 여부 플래그
@@ -150,18 +152,19 @@ const WaitingRoomPage = () => {
             ]);
             break;
           case 'player_join':
-            // API에서 최신 방 정보 가져오기
             if (roomInfo?.room_id) {
               try {
                 const updatedRoom = await getRoomInfo(roomInfo.room_id);
                 setRoomInfo(updatedRoom); // 방 정보 업데이트
 
-                // 새로 입장한 플레이어의 닉네임을 updatedRoom에서 찾아서 사용
-                const joinedPlayerNickname = updatedRoom.user?.user_id === data.player_id
-                  ? updatedRoom.user.nickname
-                  : updatedRoom.maker?.user_id === data.player_id
-                    ? updatedRoom.maker.nickname
-                    : data.player_nickname || '알 수 없는 유저'; // 최후의 fallback
+                let joinedPlayerNickname = '알 수 없는 유저';
+                // 새로 입장한 플레이어를 식별 (user 필드가 채워졌는지 확인)
+                if (updatedRoom.user && (!roomInfo.user || updatedRoom.user.user_id !== roomInfo.user.user_id)) {
+                  joinedPlayerNickname = updatedRoom.user.nickname;
+                } else if (updatedRoom.maker && (!roomInfo.maker || updatedRoom.maker.user_id !== roomInfo.maker.user_id)) {
+                  // maker가 변경된 경우 (거의 없겠지만 혹시 모를 상황 대비)
+                  joinedPlayerNickname = updatedRoom.maker.nickname;
+                }
 
                 setChatMessages((prev) => [
                   ...prev,
@@ -172,24 +175,52 @@ const WaitingRoomPage = () => {
                   },
                 ]);
               } catch (error) {
-                console.error("Error fetching updated room info:", error);
-                // 에러 발생 시에도 최소한의 정보로 메시지 추가
+                console.error("Error fetching updated room info on player_join:", error);
                 setChatMessages((prev) => [
                   ...prev,
                   {
                     type: 'system',
-                    user: data.player_nickname || '알 수 없는 유저',
-                    message: `${data.player_nickname || '알 수 없는 유저'}님이 입장했습니다. (방 정보 업데이트 실패)`, 
+                    user: '시스템',
+                    message: '새로운 유저 입장 (방 정보 업데이트 실패)',
                   },
                 ]);
               }
             }
             break;
 
-          case 'opponent_rejoined': 
-            console.info('상대가 재접속');
+          case 'opponent_left_waiting':
+            if (roomInfo?.user) {
+              const opponentNickname = roomInfo.user.nickname;
+              setChatMessages((prev) => [
+                ...prev,
+                {
+                  type: 'system',
+                  user: opponentNickname,
+                  message: `${opponentNickname}님이 퇴장했습니다.`,
+                },
+              ]);
+            }
+            if (roomInfo?.room_id) {
+              try {
+                const updatedRoom = await getRoomInfo(roomInfo.room_id);
+                setRoomInfo(updatedRoom); // 방 정보 업데이트
+              } catch (error) {
+                console.error("Error fetching updated room info on opponent_left_waiting:", error);
+                setChatMessages((prev) => [
+                  ...prev,
+                  {
+                    type: 'system',
+                    user: '시스템',
+                    message: '방 정보 업데이트 실패 (상대방 퇴장)',
+                  },
+                ]);
+              }
+            }
             break;
-  
+          case 'opponent_rejoined':
+                console.info('상대가 재접속');
+                break;
+
           case 'player_leave':
             // API에서 최신 방 정보 가져오기
             if (roomInfo?.room_id) {
@@ -235,10 +266,6 @@ const WaitingRoomPage = () => {
             }
             break;
           case 'game_start':
-            setChatMessages((prev) => [
-              ...prev,
-              { type: 'system', user: '시스템', message: '게임이 시작됩니다!' },
-            ]);
             isNavigatingToBattleRef.current = true; // 게임 시작으로 인한 이동임을 플래그 설정
             // 페이지 이동은 'get_problem' 메시지 수신 후 처리
             break;
@@ -255,7 +282,7 @@ const WaitingRoomPage = () => {
                 sessionStorage.setItem("gameId", String(roomInfo.room_id)); // gameId를 sessionStorage에 저장
                 setChatMessages((prev) => [
                   ...prev,
-                  { type: 'system', user: '시스템', message: '문제 정보를 받았습니다. 화면 공유 설정 페이지로 이동합니다.' },
+                  { type: 'system', user: '시스템', message: '게임이 시작됩니다!' }, // 메시지 위치 변경
                 ]);
                 navigate('/screen-share-setup?gameId=' + roomInfo.room_id + '&matchType=custom');
               } catch (error) {
@@ -288,6 +315,27 @@ const WaitingRoomPage = () => {
                 type: 'system',
               },
             ]);
+            break;
+          case 'error':
+            if (data.message === 'No problems exist') {
+              toast({
+                title: "문제 없음",
+                description: "해당하는 문제가 없습니다. 방 설정을 변경해주세요.",
+                variant: "destructive",
+              });
+            } else if (data.message === '403: Need all user ready.') {
+              toast({
+                title: "게임 시작 실패",
+                description: "상대방이 아직 준비되지 않았습니다.",
+                variant: "destructive",
+              });
+            } else {
+              toast({
+                title: "오류 발생",
+                description: data.message || "알 수 없는 오류가 발생했습니다.",
+                variant: "destructive",
+              });
+            }
             break;
           default:
             console.warn('Unknown message type:', data.type);

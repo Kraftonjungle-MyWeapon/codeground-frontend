@@ -7,6 +7,7 @@ import { useUser } from "@/context/UserContext";
 import useWebSocketStore from "@/stores/websocketStore";
 import { localStream, remoteStream, peerConnection, setLocalStream, setRemoteStream, setPeerConnection } from "@/utils/webrtcStore";
 import { getRankings, getRooms, getRoomInfo, joinRoom } from "@/utils/api";
+import { useToast } from "@/components/ui/use-toast";
 import RealTimeBattleCard from "./components/RealTimeBattleCard";
 import WaitingRoomListCard from "./components/WaitingRoomListCard";
 import ProfileSummaryCard from "./components/ProfileSummaryCard";
@@ -19,9 +20,12 @@ const HomePage = () => {
   const [showCreateRoom, setShowCreateRoom] = useState(false);
   const [topRanking, setTopRanking] = useState<any[]>([]);
   const [waitingRooms, setWaitingRooms] = useState<ResponseRoom[]>([]);
+  const [hasMoreRooms, setHasMoreRooms] = useState(false);
+  const [page, setPage] = useState(0);
 
   const { user, isLoading, isError } = useUser();
   const { disconnect } = useWebSocketStore();
+  const { toast } = useToast();
 
   const handleRoomCreated = useCallback(async (roomId: number) => {
     // 1) 모달 닫기
@@ -36,6 +40,18 @@ const HomePage = () => {
       navigate("/home"); // 에러 발생 시 홈으로 돌아가기
     }
   }, [navigate]);
+
+  const loadMoreRooms = async () => {
+    const nextPage = page + 1;
+    try {
+      const newRooms = await getRooms(nextPage);
+      setWaitingRooms(prevRooms => [...prevRooms, ...newRooms]);
+      setHasMoreRooms(newRooms.length === 20);
+      setPage(nextPage);
+    } catch (error) {
+      console.error("Failed to fetch more rooms:", error);
+    }
+  };
 
   useEffect(() => {
     // 웹소켓 연결 끊기
@@ -60,8 +76,10 @@ const HomePage = () => {
         const rankingData = await getRankings("python3");
         setTopRanking(rankingData.rankings.slice(0, 5));
 
-        const roomsData = await getRooms(0); // 첫 페이지의 방 목록을 가져옴
+        const roomsData = await getRooms(0); // 첫 페이지(0)의 방 목록을 가져옴
         setWaitingRooms(roomsData);
+        setHasMoreRooms(roomsData.length === 20);
+        setPage(0);
       } catch (error) {
         console.error("Failed to fetch data:", error);
       }
@@ -102,11 +120,28 @@ const HomePage = () => {
                   try {
                     const roomInfo = await joinRoom(roomId, user.user_id);
                     navigate(`/waiting-room/${roomId}`, { state: { roomInfo } });
-                  } catch (error) {
+                  } catch (error: any) {
                     console.error("Failed to join room:", error);
-                    // TODO: 사용자에게 에러 메시지 표시
+                    if (error.message && error.message.includes("No room found")) {
+                      toast({
+                        title: "방 참여 실패",
+                        description: "이미 삭제된 방입니다. 방 목록을 새로고침합니다.",
+                        variant: "destructive",
+                      });
+                      setTimeout(() => {
+                        window.location.reload();
+                      }, 500); // 0.5초 후 새로고침
+                    } else {
+                      toast({
+                        title: "방 참여 실패",
+                        description: "방 참여 중 알 수 없는 오류가 발생했습니다.",
+                        variant: "destructive",
+                      });
+                    }
                   }
                 }}
+                onLoadMore={loadMoreRooms}
+                hasMore={hasMoreRooms}
               />
             </div>
             <div className="flex flex-col space-y-6">

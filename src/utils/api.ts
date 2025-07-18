@@ -167,10 +167,10 @@ export async function getProblemById(
  */
 export async function fetchUserlogs(
   userId: number,
-  count: number
+  page: number
 ): Promise<MatchLog[] | null> {
   const response = await authFetch(
-    `${apiUrl}/api/v1/match/match_logs/${userId}/${count}`
+    `${apiUrl}/api/v1/match/match_logs/${userId}/${page}`
   );
 
   if (response.status === 204 || response.status === 404) {

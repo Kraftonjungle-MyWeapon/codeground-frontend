@@ -215,6 +215,15 @@ export const useBattleWebSocket = ({
               return prev - 1;
             });
           }, 1000);
+        } else if (data.type === 'player_join') { // Corrected type to player_join
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              user: '시스템',
+              message: `${data.nickname && data.nickname.trim() !== '' ? data.nickname : (data.user_id ? `유저 ${data.user_id}` : '알 수 없는 유저')}님이 입장했습니다.`,
+              type: 'system',
+            },
+          ]);
         } else if (data.type === 'screen_share_stopped') {
           if (isGameFinished) return; // 게임이 종료된 경우 처리하지 않음
           console.log("Received screen_share_stopped message:", data);

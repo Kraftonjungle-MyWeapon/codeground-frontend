@@ -15,13 +15,16 @@ export const getDifficultyColor = (difficulty: string) => {
     }
   };
   
-  export const getResultColor = (result: string) => {
+  export const getResultColor = (result: string | null | undefined) => {
     switch (result) {
       case "win":
         return "text-green-400";
       case "loss":
         return "text-red-400";
       case "draw":
+      case null:
+      case undefined:
+      case "":
         return "text-gray-400";
       default:
         return "text-gray-400";
