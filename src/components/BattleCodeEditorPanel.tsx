@@ -6,7 +6,8 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
-import { LanguageConfig } from "@/utils/languageConfig";
+import { getLanguageConfig } from "@/utils/languageConfig";
+import { LanguageConfig } from "@/types/codeEditor";
 import React from "react";
 
 interface BattleCodeEditorPanelProps {
@@ -45,17 +46,17 @@ const BattleCodeEditorPanel = ({
   return (
     <ResizablePanelGroup direction="vertical">
       <ResizablePanel defaultSize={75} minSize={50}>
-        <CyberCard className="h-full flex flex-col ml-2 mb-1">
+        <CyberCard className="h-full flex flex-col ml-2 mb-1 overflow-y-auto">
           <div className="flex items-center px-3 py-1 border-b border-gray-700/50 bg-black/20">
             <div className="text-xs text-gray-400">
               {languageConfig.name} Code Editor
             </div>
           </div>
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full flex bg-black/30">
+          <div className="flex-1" style={{ background: 'transparent' }}>
+            <div className="h-full flex">
               <div
                 ref={lineNumbersRef}
-                className="flex-shrink-0 w-12 bg-black/20 border-r border-gray-700 overflow-hidden"
+                className="flex-shrink-0 w-12 bg-transparent border-r border-gray-700"
               >
                 <div className="text-xs text-gray-500 leading-5 text-right py-3 px-2">
                   {Array.from({ length: displayLineCount }, (_, i) => (
@@ -65,7 +66,7 @@ const BattleCodeEditorPanel = ({
                   ))}
                 </div>
               </div>
-              <div className="flex-1 overflow-hidden relative">
+              <div className="flex-1 relative">
                 <pre
                   ref={highlightRef}
                   className="hljs pointer-events-none w-full h-full px-3 py-3 text-sm leading-5 font-mono whitespace-pre-wrap"
