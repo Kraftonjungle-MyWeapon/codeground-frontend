@@ -93,6 +93,12 @@ const RoomSettingsModal = ({
       return;
     }
 
+    // 유효성 검사
+    if (formData.category === 0) {
+      alert("문제 분야를 하나 이상 선택해주세요.");
+      return;
+    }
+
     try {
       const updateData = {
         title: formData.title,
@@ -114,6 +120,14 @@ const RoomSettingsModal = ({
     setFormData((prev) => ({
       ...prev,
       [field]: value,
+    }));
+  };
+
+  const handleToggleAllCategories = () => {
+    const allCategoriesBitmask = availableCategories.reduce((acc, _, index) => acc | getCategoryBitValue(index), 0);
+    setFormData((prev) => ({
+      ...prev,
+      category: prev.category === allCategoriesBitmask ? 0 : allCategoriesBitmask,
     }));
   };
 
@@ -194,6 +208,15 @@ const RoomSettingsModal = ({
                 );
               })}
             </div>
+            <CyberButton
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleToggleAllCategories}
+              className="w-full mt-2"
+            >
+              모두 선택/해제
+            </CyberButton>
           </div>
 
           {/* 문제 난이도 */}

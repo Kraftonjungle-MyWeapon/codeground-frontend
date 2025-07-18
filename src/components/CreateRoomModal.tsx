@@ -136,6 +136,14 @@ const CreateRoomModal = ({
     }));
   };
 
+  const handleToggleAllCategories = () => {
+    const allCategoriesBitmask = availableCategories.reduce((acc, _, index) => acc | getCategoryBitValue(index), 0);
+    setFormData((prev) => ({
+      ...prev,
+      category: prev.category === allCategoriesBitmask ? 0 : allCategoriesBitmask,
+    }));
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px] bg-cyber-darker border-cyber-blue/30">
@@ -210,6 +218,15 @@ const CreateRoomModal = ({
                 );
               })}
             </div>
+            <CyberButton
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleToggleAllCategories}
+              className="w-full mt-2"
+            >
+              모두 선택/해제
+            </CyberButton>
           </div>
 
           <div className="space-y-2">

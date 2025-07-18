@@ -10,6 +10,7 @@ import PlayerCard from "./components/PlayerCard";
 import ChatPanel, { ChatMessage } from "./components/ChatPanel";
 import { CustomRoom } from "@/types/room";
 import useWebSocketStore from "@/stores/websocketStore"; // useWebSocketStore import
+import { useToast } from "@/components/ui/use-toast";
 
 import { authFetch, getRoomInfo, leaveRoom, fetchProblemForGame, getProblemById } from "@/utils/api";
 
@@ -31,6 +32,7 @@ const WaitingRoomPage = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(
     []
   );
+  const { toast } = useToast();
   
   
   const initialMessagesAddedRef = useRef(false); // 초기 메시지 추가 여부 플래그
@@ -264,10 +266,6 @@ const WaitingRoomPage = () => {
             }
             break;
           case 'game_start':
-            setChatMessages((prev) => [
-              ...prev,
-              { type: 'system', user: '시스템', message: '게임이 시작됩니다!' },
-            ]);
             isNavigatingToBattleRef.current = true; // 게임 시작으로 인한 이동임을 플래그 설정
             // 페이지 이동은 'get_problem' 메시지 수신 후 처리
             break;
@@ -284,7 +282,7 @@ const WaitingRoomPage = () => {
                 sessionStorage.setItem("gameId", String(roomInfo.room_id)); // gameId를 sessionStorage에 저장
                 setChatMessages((prev) => [
                   ...prev,
-                  { type: 'system', user: '시스템', message: '문제 정보를 받았습니다. 화면 공유 설정 페이지로 이동합니다.' },
+                  { type: 'system', user: '시스템', message: '게임이 시작됩니다!' }, // 메시지 위치 변경
                 ]);
                 navigate('/screen-share-setup?gameId=' + roomInfo.room_id + '&matchType=custom');
               } catch (error) {
@@ -317,6 +315,27 @@ const WaitingRoomPage = () => {
                 type: 'system',
               },
             ]);
+            break;
+          case 'error':
+            if (data.message === 'No problems exist') {
+              toast({
+                title: "문제 없음",
+                description: "해당하는 문제가 없습니다. 방 설정을 변경해주세요.",
+                variant: "destructive",
+              });
+            } else if (data.message === '403: Need all user ready.') {
+              toast({
+                title: "게임 시작 실패",
+                description: "상대방이 아직 준비되지 않았습니다.",
+                variant: "destructive",
+              });
+            } else {
+              toast({
+                title: "오류 발생",
+                description: data.message || "알 수 없는 오류가 발생했습니다.",
+                variant: "destructive",
+              });
+            }
             break;
           default:
             console.warn('Unknown message type:', data.type);
