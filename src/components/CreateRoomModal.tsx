@@ -85,6 +85,24 @@ const CreateRoomModal = ({
       return;
     }
 
+    // 유효성 검사
+    if (!formData.title.trim()) {
+      alert("대기실 제목을 입력해주세요.");
+      return;
+    }
+    if (!formData.language) {
+      alert("사용 언어를 선택해주세요.");
+      return;
+    }
+    if (!formData.difficulty) {
+      alert("문제 난이도를 선택해주세요.");
+      return;
+    }
+    if (formData.category === 0) {
+      alert("문제 분야를 하나 이상 선택해주세요.");
+      return;
+    }
+
     try {
       const roomData = {
         title: formData.title,
