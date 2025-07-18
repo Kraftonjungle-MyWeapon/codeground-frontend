@@ -20,6 +20,8 @@ const HomePage = () => {
   const [showCreateRoom, setShowCreateRoom] = useState(false);
   const [topRanking, setTopRanking] = useState<any[]>([]);
   const [waitingRooms, setWaitingRooms] = useState<ResponseRoom[]>([]);
+  const [hasMoreRooms, setHasMoreRooms] = useState(false);
+  const [page, setPage] = useState(0);
 
   const { user, isLoading, isError } = useUser();
   const { disconnect } = useWebSocketStore();
@@ -38,6 +40,18 @@ const HomePage = () => {
       navigate("/home"); // 에러 발생 시 홈으로 돌아가기
     }
   }, [navigate]);
+
+  const loadMoreRooms = async () => {
+    const nextPage = page + 1;
+    try {
+      const newRooms = await getRooms(nextPage);
+      setWaitingRooms(prevRooms => [...prevRooms, ...newRooms]);
+      setHasMoreRooms(newRooms.length === 20);
+      setPage(nextPage);
+    } catch (error) {
+      console.error("Failed to fetch more rooms:", error);
+    }
+  };
 
   useEffect(() => {
     // 웹소켓 연결 끊기
@@ -62,8 +76,10 @@ const HomePage = () => {
         const rankingData = await getRankings("python3");
         setTopRanking(rankingData.rankings.slice(0, 5));
 
-        const roomsData = await getRooms(0); // 첫 페이지의 방 목록을 가져옴
+        const roomsData = await getRooms(0); // 첫 페이지(0)의 방 목록을 가져옴
         setWaitingRooms(roomsData);
+        setHasMoreRooms(roomsData.length === 20);
+        setPage(0);
       } catch (error) {
         console.error("Failed to fetch data:", error);
       }
@@ -124,6 +140,8 @@ const HomePage = () => {
                     }
                   }
                 }}
+                onLoadMore={loadMoreRooms}
+                hasMore={hasMoreRooms}
               />
             </div>
             <div className="flex flex-col space-y-6">

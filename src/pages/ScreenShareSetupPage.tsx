@@ -40,6 +40,29 @@ const ScreenShareSetupPage = () => {
   const { websocket, connect, disconnect, sendMessage } = useWebSocketStore();
   const { toast } = useToast();
 
+  const handleCleanup = useCallback(() => {
+    if (sharedPC) {
+      sharedPC.close();
+      setPeerConnection(null);
+      console.log('ScreenShareSetupPage: Closed PeerConnection during navigation cleanup.');
+    }
+    if (sharedLocalStream) {
+      sharedLocalStream.getTracks().forEach(track => track.stop());
+      setLocalStream(null);
+      console.log('ScreenShareSetupPage: Stopped local stream during navigation cleanup.');
+    }
+    if (sharedRemoteStream) {
+      sharedRemoteStream.getTracks().forEach(track => track.stop());
+      setRemoteStream(null);
+      console.log('ScreenShareSetupPage: Stopped remote stream during navigation cleanup.');
+    }
+    // Also disconnect websocket if it's a rank match and we are navigating away
+    if (websocket && websocket.readyState === WebSocket.OPEN && matchType === 'rank') {
+      disconnect();
+      console.log('ScreenShareSetupPage: Disconnected WebSocket during navigation cleanup for rank match.');
+    }
+  }, [websocket, disconnect, matchType]);
+
   const handlePeerConnectionStateChange = useCallback((pc: RTCPeerConnection) => {
     console.log('ScreenShareSetupPage: sharedPC connectionState changed:', pc.connectionState);
     if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
@@ -330,11 +353,18 @@ const ScreenShareSetupPage = () => {
               description: "상대방이 연결을 끊었습니다. 홈으로 이동합니다.",
               variant: "destructive",
             });
+          } else if (data.reason === 'surrender' && data.winner === user.user_id) {
+            toast({
+              title: "부전승!",
+              description: "상대방이 연결을 종료하여 부전승 처리됩니다.",
+              variant: "success",
+            });
+            handleCleanup();
+            navigate('/result', { state: { matchResult: data, matchType: matchType } });
           }
         }
-      } catch (e) {
+      }catch (e) {
         console.error("ws message parse error", e);
-      }
     };
 
     websocket.onopen = () => {
@@ -345,7 +375,7 @@ const ScreenShareSetupPage = () => {
     websocket.onclose = () => {
       console.log('ScreenShareSetupPage WebSocket disconnected');
     };
-  }, [websocket, user, sendMessage]);
+  },[websocket, user, sendMessage]});
 
   useEffect(() => {
     if (!sharedPC) return;
@@ -353,7 +383,9 @@ const ScreenShareSetupPage = () => {
     sharedPC.addEventListener('connectionstatechange', () => handlePeerConnectionStateChange(sharedPC));
 
     return () => {
-      sharedPC.removeEventListener('connectionstatechange', () => handlePeerConnectionStateChange(sharedPC));
+      if (sharedPC) { // sharedPC가 null이 아닌지 확인
+        sharedPC.removeEventListener('connectionstatechange', () => handlePeerConnectionStateChange(sharedPC));
+      }
     };
   }, [sharedPC, handlePeerConnectionStateChange]);
 

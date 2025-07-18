@@ -31,7 +31,8 @@ const ProfilePage = () => {
   const { user, isLoading: isUserLoading } = useUser();
   const [showEditModal, setShowEditModal] = useState(false);
   const [recentMatches, setRecentMatches] = useState<MatchLog[]>([]);
-  const [logCount, setLogCount] = useState(0);
+  const [hasMoreMatches, setHasMoreMatches] = useState(false);
+  const [matchPage, setMatchPage] = useState(0);
   const [allAchievements, setAllAchievements] = useState<Achievement[]>([]);
   const [userAchievedIds, setUserAchievedIds] = useState<Set<number>>(new Set());
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
@@ -41,8 +42,10 @@ const ProfilePage = () => {
     const getRecentMatches = async () => {
       if (user?.user_id) {
         try {
-          const logs = await fetchUserlogs(user.user_id, logCount);
+          const logs = await fetchUserlogs(user.user_id, 0);
           setRecentMatches(logs || []);
+          setHasMoreMatches((logs || []).length === 15);
+          setMatchPage(0);
         } catch (error) {
           console.error("Failed to fetch user logs:", error);
           setRecentMatches([]);
@@ -51,7 +54,23 @@ const ProfilePage = () => {
     };
 
     getRecentMatches();
-  }, [user?.user_id, logCount]);
+  }, [user?.user_id]);
+
+  const loadMoreMatches = async () => {
+    if (!user?.user_id) return;
+
+    const nextPage = matchPage + 1;
+    try {
+      const logs = await fetchUserlogs(user.user_id, nextPage);
+      if (logs) {
+        setRecentMatches(prevMatches => [...prevMatches, ...logs]);
+        setHasMoreMatches(logs.length === 15);
+        setMatchPage(nextPage);
+      }
+    } catch (error) {
+      console.error("Failed to fetch more user logs:", error);
+    }
+  };
 
   const fetchAllAchievements = useCallback(async () => {
     if (!user?.user_id) return;
@@ -176,7 +195,7 @@ const ProfilePage = () => {
               />
             </div>
             <div className="lg:col-span-2 flex flex-col space-y-6">
-              <MatchHistory matches={recentMatches} />
+              <MatchHistory matches={recentMatches} onLoadMore={loadMoreMatches} hasMore={hasMoreMatches} />
               <AchievementCollection achievements={achievementsToDisplay} onClaimReward={handleClaimReward} />
             </div>
           </div>
