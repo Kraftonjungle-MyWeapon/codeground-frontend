@@ -9,10 +9,11 @@ interface AchievementModalProps {
   initialData?: Achievement;
   onSubmit: (data: Omit<Achievement, 'achievement_id' | 'created_at' | 'updated_at'>) => void;
   isSubmitting: boolean;
+  allAchievements: Achievement[]; // Add this line
 }
 
 const AchievementModal: React.FC<AchievementModalProps> = ({
-  isOpen, onClose, initialData, onSubmit, isSubmitting
+  isOpen, onClose, initialData, onSubmit, isSubmitting, allAchievements
 }) => {
   const title = initialData ? '업적 수정' : '새 업적 추가';
 
@@ -28,6 +29,7 @@ const AchievementModal: React.FC<AchievementModalProps> = ({
             onSubmit={onSubmit}
             onCancel={onClose}
             isSubmitting={isSubmitting}
+            allAchievements={allAchievements} // Pass down
           />
         </div>
       </DialogContent>
