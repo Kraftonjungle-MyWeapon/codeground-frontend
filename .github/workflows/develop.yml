@@ -3,7 +3,8 @@ name: Codeground FE CI/CD
 on:
   push:
     branches:
-      - develop    # 원하는 브랜치에 맞게 설정 (예: main, deploy 등)
+      - main
+      - develop
   workflow_dispatch:
 
 permissions:
@@ -14,6 +15,12 @@ jobs:
   deploy-fe:
     if: github.repository_owner == 'Kraftonjungle-MyWeapon'
     runs-on: ubuntu-latest
+
+    env:
+      PROD_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET}}
+      DEV_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET_DEV }}
+      PROD_CF_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+      DEV_CF_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_DEV }}
 
     steps:
       - name: Checkout code
@@ -27,8 +34,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build FE
+      - name: Build FE for Production
+        if: github.ref == 'refs/heads/main'
         run: npm run build
+
+      - name: Build FE for Development
+        if: github.ref == 'refs/heads/develop'
+        run: npm run build:dev
 
       # OIDC 방식으로 AWS 인증 (S3 업로드 권한 필요!)
       - name: Configure AWS Credentials (OIDC)
@@ -37,12 +49,25 @@ jobs:
           aws-region: ap-northeast-2
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
 
-      # S3에 빌드 파일 업로드
-      - name: Sync build folder to S3
+       # 조건에 따라 S3 업로드
+      - name: Upload to PROD S3
+        if: github.ref == 'refs/heads/main'
         run: |
-          aws s3 sync ./dist s3://${{ secrets.AWS_S3_BUCKET }} --delete
+          aws s3 sync ./dist s3://$PROD_S3_BUCKET --delete
+
+      - name: Upload to DEV S3
+        if: github.ref == 'refs/heads/develop'
+        run: |
+          aws s3 sync ./dist s3://$DEV_S3_BUCKET --delete
 
       # CloudFront 캐시 무효화 (Invalidate, 선택)
-      - name: Invalidate CloudFront cache
+       # 조건에 따라 CloudFront Invalidation
+      - name: Invalidate PROD CloudFront cache
+        if: github.ref == 'refs/heads/main'
         run: |
-          aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+          aws cloudfront create-invalidation --distribution-id $PROD_CF_ID --paths "/*"
+
+      - name: Invalidate DEV CloudFront cache
+        if: github.ref == 'refs/heads/develop'
+        run: |
+          aws cloudfront create-invalidation --distribution-id $DEV_CF_ID --paths "/*"
