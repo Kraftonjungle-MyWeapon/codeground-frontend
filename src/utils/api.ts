@@ -1,25 +1,72 @@
-import { eraseCookie } from "@/lib/utils";
+import axios, { AxiosRequestConfig } from "axios";
 import { Problem, ProblemWithImages, MatchLog } from "@/types/codeEditor";
 import { ResponseRoom, CustomRoom, RoomCreateRequest } from "@/types/room";
 import { AllAchievementsResponse } from "@/types/achievement";
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
+const apiClient = axios.create({
+  baseURL: apiUrl,
+  withCredentials: true,
+});
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const { response, config } = error;
+    if (
+      response?.status === 401 &&
+      config?.url &&
+      !config.url.includes("/auth/login") &&
+      !config.url.includes("/auth/sign-up")
+    ) {
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
+
+
 /**
  * ✅ 인증 fetch – HttpOnly 쿠키 기반 요청
  */
+interface FetchLikeResponse {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  json: () => Promise<any>;
+}
+
 export async function authFetch(
   input: RequestInfo | URL,
   init?: RequestInit
-): Promise<Response> {
-  const authInit: RequestInit = {
-    ...init,
-    credentials: "include", // ✅ 쿠키 자동 첨부
+): Promise<FetchLikeResponse> {
+  const config: AxiosRequestConfig = {
+    url: typeof input === "string" ? input : input.toString(),
+    method: init?.method as AxiosRequestConfig["method"] ?? "GET",
+    headers: init?.headers as any,
+    data: init?.body,
   };
 
-  const response = await fetch(input, authInit);
-
-  return response;
+  try {
+    const response = await apiClient.request(config);
+    return {
+      ok: true,
+      status: response.status,
+      statusText: response.statusText,
+      json: async () => response.data,
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      return {
+        ok: false,
+        status: error.response.status,
+        statusText: error.response.statusText || "",
+        json: async () => error.response?.data,
+      };
+    }
+    throw error;
+  }
 }
 
 /**
@@ -349,4 +396,15 @@ export async function getAllUserAchievements(userId: number): Promise<AllAchieve
     throw new Error("Failed to fetch all user achievements");
   }
   return response.json();
+}
+
+/**
+ * 로그아웃
+ */
+export async function logoutUser() {
+  const response = await apiClient.post("/api/v1/auth/logout");
+  if (response.status !== 200) {
+    throw new Error("Logout failed");
+  }
+  return response.data;
 }

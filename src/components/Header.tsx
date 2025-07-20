@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LogOut, Settings, UserRound } from "lucide-react";
 import { useUser } from "../context/UserContext";
-import { eraseCookie } from "@/lib/utils";
+import { logoutUser } from "@/utils/api";
 
 const Header = () => {
   const location = useLocation();
@@ -31,10 +31,15 @@ const Header = () => {
     { path: "/ranking", label: "랭킹", icon: Trophy },
   ];
 
-  const handleLogout = () => {
-    eraseCookie("access_token"); // Clear token from cookies
-    setUser(null); // Clear user from context
-    navigate("/");
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      setUser(null); // Clear user from context
+      navigate("/");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // Optionally, show an error message to the user
+    }
   };
 
   return (

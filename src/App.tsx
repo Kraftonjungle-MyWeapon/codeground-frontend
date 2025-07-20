@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,9 +8,6 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import CyberLoadingSpinner from "@/components/CyberLoadingSpinner";
 import NavigationHandler from "./components/NavigationHandler";
 import { useUser } from "./context/UserContext";
-import AchievementNotifier from "./components/AchievementNotifier";
-import { authFetch } from "./utils/api";
-import { getCookie, eraseCookie } from "@/lib/utils";
 
 const HomePage = lazy(() => import("./pages/home/HomePage"));
 const LandingPage = lazy(() => import("./pages/landing/LandingPage"));
@@ -43,45 +40,8 @@ const OAuthCallback = lazy(
 
 const queryClient = new QueryClient();
 
-const apiUrl = import.meta.env.VITE_API_URL;
-
 const App = () => {
-  const { setUser, setIsLoading, isLoading } = useUser();
-
-  useEffect(() => {
-    const token = getCookie("access_token");
-
-    if (!token) {
-      setIsLoading(false);
-      setUser(null);
-      return;
-    }
-
-    const fetchUser = async () => {
-      setIsLoading(true);
-      const token = getCookie("access_token");
-      if (token) {
-        try {
-          const userResponse = await authFetch(
-            `${apiUrl}/api/v1/user/me`,
-          );
-          if (userResponse.ok) {
-            const userData = await userResponse.json();
-            setUser(userData);
-          } else {
-            eraseCookie("access_token"); // Clear invalid token
-          }
-        } catch (error) {
-          eraseCookie("access_token"); // Clear token on network error
-        } finally {
-          setIsLoading(false);
-        }
-      } else {
-        setIsLoading(false);
-      }
-    };
-    fetchUser();
-  }, [setUser, setIsLoading]);
+  const { isLoading } = useUser();
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -89,8 +49,6 @@ const App = () => {
         <Toaster />
         <Sonner />
         <div className="min-h-screen"> {/* Apply min-h-screen here */}
-          <BrowserRouter>
-            
             {isLoading ? (
               <CyberLoadingSpinner />
             ) : (
@@ -134,7 +92,6 @@ const App = () => {
                 </NavigationHandler>
               </Suspense>
             )}
-          </BrowserRouter>
         </div>
       </TooltipProvider>
     </QueryClientProvider>

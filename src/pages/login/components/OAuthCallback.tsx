@@ -25,11 +25,9 @@ const OAuthCallback = () => {
                 // const userResponse = await authFetch(`/api/v1/user/me`);
                 const userResponse = await authFetch(`${apiUrl}/api/v1/user/me`);
 
-                const contentType = userResponse.headers.get("content-type") || "";
-                if (!userResponse.ok || !contentType.includes("application/json")) {
-                    throw new Error("서버 응답이 JSON이 아닙니다.");
+                if (!userResponse.ok) {
+                    throw new Error("Failed to fetch user data");
                 }
-
                 const userData = await userResponse.json();
 
                 setUser({
