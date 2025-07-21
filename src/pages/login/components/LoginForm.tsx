@@ -7,7 +7,6 @@ import AuthHeader from "@/components/auth/AuthHeader";
 import IconInput from "@/components/auth/IconInput";
 import { useUser } from "../../../context/UserContext";
 import { authFetch } from "../../../utils/api";
-import { setCookie } from "@/lib/utils";
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -40,7 +39,6 @@ const LoginForm = () => {
       if (response.ok) {
         const data = await response.json();
         const accessToken = data.access_token;
-        setCookie("access_token", accessToken, 7);
 
         const userResponse = await authFetch(`${apiUrl}/api/v1/user/me`, {
           method: "GET",

@@ -2,7 +2,7 @@ import React, {useEffect} from "react";
 import {useLocation, useNavigate} from "react-router-dom";
 import {useUser} from "../../../context/UserContext";
 import {authFetch} from "../../../utils/api";
-import { getAbsoluteUrl,setCookie } from "@/lib/utils";
+import { getAbsoluteUrl } from "@/lib/utils";
 // Define your API base URL here
 const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -17,9 +17,6 @@ const OAuthCallback = () => {
             const params = new URLSearchParams(location.search);
             const isNewUser = params.get("is_new_user") === "true";
             const newAccessToken = params.get("new_access_token");
-                
-            // 이거는 `code-ground.com`을 세팅하는 쿠키. `.code-ground-com`은 백엔드에서 세팅했음.
-            setCookie("access_token", newAccessToken, 7); 
 
             try {
                 // const userResponse = await authFetch(`/api/v1/user/me`);
