@@ -1,6 +1,6 @@
-import React, {createContext, useState, useContext, ReactNode, useEffect, useRef,} from "react";
+import React, {createContext, useState, useContext, ReactNode, useEffect, useRef} from "react";
+import { useLocation } from "react-router-dom";
 import { authFetch, getUserWinRate, getUserAchievements } from "@/utils/api";
-import { getCookie } from "@/lib/utils";
 import { UserAchievement } from "@/types/achievement";
 
 export interface User {
@@ -48,7 +48,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [isError, setIsError] = useState(false);
   const [newlyAchieved, setNewlyAchieved] = useState<UserAchievement | null>(null);
   const lastNotifiedAchievementId = useRef<number | null>(null);
-  const accessToken = getCookie("access_token");
+  const location = useLocation();
 
   const fetchUser = async () => {
     setIsLoading(true);
@@ -101,15 +101,14 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // 최초 마운트 시에만 accessToken 검사해서 호출
   useEffect(() => {
-    if (accessToken) {
-      fetchUser();
-    } else {
+    const publicPaths = ['/login', '/signup', '/'];
+    if (publicPaths.includes(location.pathname) || location.pathname.startsWith('/oauth/callback')) {
       setIsLoading(false);
-      setUser(null);
+    } else {
+      fetchUser();
     }
-  }, [accessToken]);
+  }, [location.pathname]);
 
   return (
     <UserContext.Provider

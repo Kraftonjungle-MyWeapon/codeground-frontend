@@ -44,6 +44,7 @@ const ScreenShareSetupPage = () => {
     if (sharedPC) {
       sharedPC.close();
       setPeerConnection(null);
+      setPcState(null);
       console.log('ScreenShareSetupPage: Closed PeerConnection during navigation cleanup.');
     }
     if (sharedLocalStream) {
@@ -96,6 +97,7 @@ const ScreenShareSetupPage = () => {
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const [pcState, setPcState] = useState<RTCPeerConnection | null>(sharedPC);
   const [myStream, setMyStream] = useState<MediaStream | null>(null);
   const [remoteStreamState, setRemoteStreamState] =
     useState<MediaStream | null>(null);
@@ -117,6 +119,7 @@ const ScreenShareSetupPage = () => {
     if (sharedPC) {
       sharedPC.close();
       setPeerConnection(null);
+      setPcState(null);
       console.log('ScreenShareSetupPage: Closed existing PeerConnection.');
     }
     if (sharedLocalStream) {
@@ -162,17 +165,36 @@ const ScreenShareSetupPage = () => {
         setMyStream(mediaStream);
         setLocalStream(mediaStream);
         // 이미 연결이 존재하면 트랙을 추가하고 재협상
-        if (sharedPC) {
-            mediaStream.getTracks().forEach((track) => sharedPC.addTrack(track, mediaStream));
-            const offer = await sharedPC.createOffer();
-            await sharedPC.setLocalDescription(offer);
-            sendMessage(
-              JSON.stringify({ type: 'webrtc_signal', signal: sharedPC.localDescription })
-            );
+        let pc = sharedPC;
+        if (!pc) {
+          pc = createPeerConnection();
+        }
+        if (pc) {
+          const videoSender = pc
+            .getSenders()
+            .find((s) => s.track && s.track.kind === 'video');
+          if (videoSender) {
+            await videoSender.replaceTrack(mediaStream.getVideoTracks()[0]);
+          } else {
+            mediaStream.getTracks().forEach((track) => pc!.addTrack(track, mediaStream));
           }
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          sendMessage(
+            JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription })
+          );
+        }
         // 화면 공유가 종료되었을 때 감지
         videoTrack.addEventListener("ended", () => {
           console.log("Screen share ended");
+          if (pc) {
+            const sender = pc
+              .getSenders()
+              .find((s) => s.track === videoTrack);
+            if (sender) {
+              pc.removeTrack(sender);
+            }
+          }
           setMyShareStatus("waiting");
           setMyStream(null);
           setLocalStream(null);
@@ -363,8 +385,9 @@ const ScreenShareSetupPage = () => {
             navigate('/result', { state: { matchResult: data, matchType: matchType } });
           }
         }
-      }catch (e) {
+      } catch (e) {
         console.error("ws message parse error", e);
+      }
     };
 
     websocket.onopen = () => {
@@ -375,19 +398,18 @@ const ScreenShareSetupPage = () => {
     websocket.onclose = () => {
       console.log('ScreenShareSetupPage WebSocket disconnected');
     };
-  },[websocket, user, sendMessage]});
+  }, [websocket, user, sendMessage]);
 
   useEffect(() => {
-    if (!sharedPC) return;
+    if (!pcState) return;
 
-    sharedPC.addEventListener('connectionstatechange', () => handlePeerConnectionStateChange(sharedPC));
+    const handleStateChange = () => handlePeerConnectionStateChange(pcState);
+    pcState.addEventListener('connectionstatechange', handleStateChange);
 
     return () => {
-      if (sharedPC) { // sharedPC가 null이 아닌지 확인
-        sharedPC.removeEventListener('connectionstatechange', () => handlePeerConnectionStateChange(sharedPC));
-      }
+      pcState.removeEventListener('connectionstatechange', handleStateChange);
     };
-  }, [sharedPC, handlePeerConnectionStateChange]);
+  }, [pcState, handlePeerConnectionStateChange]);
 
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection({
@@ -409,17 +431,14 @@ const ScreenShareSetupPage = () => {
         }
       ],
     });
-    setPeerConnection(pc); // 여기서 sharedPC를 업데이트
+    setPeerConnection(pc); // 여기서 sharedPC를 업데이트;
+    setPcState(pc); // React state에도 저장하여 변경 사항 감지
 
     pc.oniceconnectionstatechange = () => {
       console.log('ICE connection state changed:', pc.iceConnectionState);
       handlePeerConnectionStateChange(pc);
     };
 
-    const stream = myStream || sharedLocalStream;
-    if (stream) {
-      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-    }
     pc.onicecandidate = ({ candidate }) => {
       if (candidate) {
         sendMessage(
@@ -487,7 +506,7 @@ const ScreenShareSetupPage = () => {
      'candidate') {
       if (signal.candidate) {
         try {
-          await pc.addIceCandidate(signal.candidate);
+          await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
         } catch (err) {
           console.error("Error adding ice candidate", err);
         }
@@ -498,6 +517,7 @@ const ScreenShareSetupPage = () => {
     }
     // pc가 변경되었을 수 있으므로 다시 저장
     setPeerConnection(pc);
+    setPcState(pc);
   };
 
   const handleRestartScreenShare = async () => {
@@ -518,17 +538,36 @@ const ScreenShareSetupPage = () => {
         setMyStream(mediaStream);
         setLocalStream(mediaStream);
         // 이미 연결이 존재하면 트랙을 추가하고 재협상
-        if (sharedPC) {
-            mediaStream.getTracks().forEach((track) => sharedPC.addTrack(track, mediaStream));
-            const offer = await sharedPC.createOffer();
-            await sharedPC.setLocalDescription(offer);
-            sendMessage(
-              JSON.stringify({ type: 'webrtc_signal', signal: sharedPC.localDescription })
-            );
+        let pc = sharedPC;
+        if (!pc) {
+          pc = createPeerConnection();
+        }
+        if (pc) {
+          const videoSender = pc
+            .getSenders()
+            .find((s) => s.track && s.track.kind === 'video');
+          if (videoSender) {
+            await videoSender.replaceTrack(mediaStream.getVideoTracks()[0]);
+          } else {
+            mediaStream.getTracks().forEach((track) => pc!.addTrack(track, mediaStream));
           }
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          sendMessage(
+            JSON.stringify({ type: 'webrtc_signal', signal: pc.localDescription })
+          );
+        }
         // 화면 공유가 종료되었을 때 감지
         videoTrack.addEventListener('ended', () => {
             console.log('Screen share ended');
+            if (pc) {
+              const sender = pc
+                .getSenders()
+                .find((s) => s.track === videoTrack);
+              if (sender) {
+                pc.removeTrack(sender);
+              }
+            }
             setMyShareStatus('waiting');
             setMyStream(null);
             setLocalStream(null);

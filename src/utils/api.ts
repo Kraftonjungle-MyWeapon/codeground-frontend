@@ -1,25 +1,113 @@
-import { eraseCookie } from "@/lib/utils";
+import axios, { AxiosRequestConfig } from "axios";
+
+interface CustomAxiosRequestConfig extends AxiosRequestConfig {
+  _retry?: boolean;
+}
 import { Problem, ProblemWithImages, MatchLog } from "@/types/codeEditor";
 import { ResponseRoom, CustomRoom, RoomCreateRequest } from "@/types/room";
 import { AllAchievementsResponse } from "@/types/achievement";
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
+const apiClient = axios.create({
+  baseURL: apiUrl,
+  withCredentials: true,
+});
+
+// RTR 방식 토큰 갱신을 위한 상태 변수
+let isRefreshing = false;
+// 실패한 요청을 보관하는 큐. Promise의 resolve/reject 타입과 맞추기 위해
+// 매개변수를 선택적으로 받을 수 있도록 정의한다.
+let failedQueue: Array<{ resolve: (value?: unknown) => void; reject: (err?: unknown) => void }> = [];
+
+const processQueue = (error: unknown | null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve();
+    }
+  });
+  failedQueue = [];
+};
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const { response, config } = error;
+    const originalRequest = config as CustomAxiosRequestConfig;
+    if (
+      response?.status === 401 &&
+      config?.url &&
+      !config.url.includes("/auth/login") &&
+      !config.url.includes("/auth/sign-up") &&
+      !config.url.includes("/auth/refresh")
+    ) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(() => apiClient(originalRequest));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+      try {
+        await apiClient.post("/api/v1/auth/refresh");
+        processQueue(null);
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError);
+        window.location.href = "/login";
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+
 /**
  * ✅ 인증 fetch – HttpOnly 쿠키 기반 요청
  */
+interface FetchLikeResponse {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  json: () => Promise<any>;
+}
+
 export async function authFetch(
   input: RequestInfo | URL,
   init?: RequestInit
-): Promise<Response> {
-  const authInit: RequestInit = {
-    ...init,
-    credentials: "include", // ✅ 쿠키 자동 첨부
+): Promise<FetchLikeResponse> {
+  const config: AxiosRequestConfig = {
+    url: typeof input === "string" ? input : input.toString(),
+    method: init?.method as AxiosRequestConfig["method"] ?? "GET",
+    headers: init?.headers as any,
+    data: init?.body,
   };
 
-  const response = await fetch(input, authInit);
-
-  return response;
+  try {
+    const response = await apiClient.request(config);
+    return {
+      ok: true,
+      status: response.status,
+      statusText: response.statusText,
+      json: async () => response.data,
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      return {
+        ok: false,
+        status: error.response.status,
+        statusText: error.response.statusText || "",
+        json: async () => error.response?.data,
+      };
+    }
+    throw error;
+  }
 }
 
 /**
@@ -349,4 +437,15 @@ export async function getAllUserAchievements(userId: number): Promise<AllAchieve
     throw new Error("Failed to fetch all user achievements");
   }
   return response.json();
+}
+
+/**
+ * 로그아웃
+ */
+export async function logoutUser() {
+  const response = await apiClient.post("/api/v1/auth/logout");
+  if (response.status !== 200) {
+    throw new Error("Logout failed");
+  }
+  return response.data;
 }
