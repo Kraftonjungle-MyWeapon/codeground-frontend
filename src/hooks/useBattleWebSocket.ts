@@ -315,6 +315,10 @@ export const useBattleWebSocket = ({
             setProblem(data.problem);
             console.log("Problem received via WebSocket:", data.problem);
           }
+          // 매칭 수락 후 게임 페이지로 이동
+          if (data.join_url) {
+            navigate(data.join_url);
+          }
         } else if (data.type === 'opponent_left_waiting') {
           // Pass, do nothing
         } else if (data.type === 'timer_sync') {

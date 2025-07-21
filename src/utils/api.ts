@@ -1,4 +1,8 @@
 import axios, { AxiosRequestConfig } from "axios";
+
+interface CustomAxiosRequestConfig extends AxiosRequestConfig {
+  _retry?: boolean;
+}
 import { Problem, ProblemWithImages, MatchLog } from "@/types/codeEditor";
 import { ResponseRoom, CustomRoom, RoomCreateRequest } from "@/types/room";
 import { AllAchievementsResponse } from "@/types/achievement";
@@ -10,17 +14,54 @@ const apiClient = axios.create({
   withCredentials: true,
 });
 
+// RTR 방식 토큰 갱신을 위한 상태 변수
+let isRefreshing = false;
+// 실패한 요청을 보관하는 큐. Promise의 resolve/reject 타입과 맞추기 위해
+// 매개변수를 선택적으로 받을 수 있도록 정의한다.
+let failedQueue: Array<{ resolve: (value?: unknown) => void; reject: (err?: unknown) => void }> = [];
+
+const processQueue = (error: unknown | null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve();
+    }
+  });
+  failedQueue = [];
+};
+
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const { response, config } = error;
+    const originalRequest = config as CustomAxiosRequestConfig;
     if (
       response?.status === 401 &&
       config?.url &&
       !config.url.includes("/auth/login") &&
-      !config.url.includes("/auth/sign-up")
+      !config.url.includes("/auth/sign-up") &&
+      !config.url.includes("/auth/refresh")
     ) {
-      window.location.href = "/login";
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(() => apiClient(originalRequest));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+      try {
+        await apiClient.post("/api/v1/auth/refresh");
+        processQueue(null);
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError);
+        window.location.href = "/login";
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
     }
     return Promise.reject(error);
   }
