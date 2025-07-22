@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { localStream as sharedLocalStream, setLocalStream, peerConnection as sharedPC, setPeerConnection, setRemoteStream } from '@/utils/webrtcStore';
+import { getScaledDisplayMedia } from '@/utils/getScaledDisplayMedia';
 import useWebSocketStore from '@/stores/websocketStore';
 import { useNavigate } from 'react-router-dom';
 
@@ -54,7 +55,7 @@ export const useBattleScreenShare = ({
 
   const startLocalScreenShare = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      const stream = await getScaledDisplayMedia();
       setLocalStream(stream);
       setIsLocalStreamActive(true);
       setShowLocalScreenSharePrompt(false);

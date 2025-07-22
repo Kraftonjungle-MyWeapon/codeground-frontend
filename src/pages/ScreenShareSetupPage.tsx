@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { getScaledDisplayMedia } from '@/utils/getScaledDisplayMedia';
 import CyberCard from '@/components/CyberCard';
 import CyberButton from '@/components/CyberButton';
 import { Monitor, User, Clock, AlertTriangle, Check } from 'lucide-react';
@@ -147,11 +148,7 @@ const ScreenShareSetupPage = () => {
   const startScreenShare = async () => {
     try {
       setMyShareStatus("sharing");
-      const mediaStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: false,
-      });
-
+      const mediaStream = await getScaledDisplayMedia();
       const videoTrack = mediaStream.getVideoTracks()[0];
       const settings = videoTrack.getSettings() as any;
 
@@ -503,11 +500,7 @@ const ScreenShareSetupPage = () => {
   const handleRestartScreenShare = async () => {
     try {
       setMyShareStatus('sharing');
-      const mediaStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: false,
-      });
-
+      const mediaStream = await getScaledDisplayMedia();
       const videoTrack = mediaStream.getVideoTracks()[0];
       const settings = videoTrack.getSettings() as any;
 
