@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { getScaledDisplayMedia } from "@/utils/getScaledDisplayMedia";
 import { useUser } from "@/context/UserContext";
 import { 
   localStream as sharedLocalStream, 
@@ -77,10 +78,11 @@ export function useScreenShareSetup() {
     console.log("[ScreenShare] Attempting to start screen share.");
     try {
       setMyShareStatus("sharing");
-      const mediaStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: false,
-      });
+      // const mediaStream = await navigator.mediaDevices.getDisplayMedia({
+      //   video: true,
+      //   audio: false,
+      // });
+      const mediaStream = await getScaledDisplayMedia();
       console.log("[ScreenShare] getDisplayMedia success.", mediaStream);
       const videoTrack = mediaStream.getVideoTracks()[0];
       const settings = videoTrack.getSettings() as any;
@@ -406,10 +408,7 @@ export function useScreenShareSetup() {
     console.log("[ScreenShare] Restarting screen share process.");
     try {
       setMyShareStatus("sharing");
-      const mediaStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: false,
-      });
+      const mediaStream = await getScaledDisplayMedia();
       const videoTrack = mediaStream.getVideoTracks()[0];
       const settings = videoTrack.getSettings() as any;
       if (settings.displaySurface === "monitor") {
